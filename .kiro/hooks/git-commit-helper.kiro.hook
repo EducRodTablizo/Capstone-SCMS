@@ -1,0 +1,18 @@
+{
+  "$schema": "https://kiro.dev/schemas/hook.json",
+  "name": "Semantic Git Commit Message Generator",
+  "description": "Triggered by user or stage event to inspect git staged changes and generate conventional commit messages tied to ACAS tasks.",
+  "version": "1.0.0",
+  "trigger": {
+    "event": "userTriggered",
+    "commandId": "kiro.git.generateCommitMessage"
+  },
+  "action": {
+    "type": "agent",
+    "prompt": "Inspect the output of `git diff --staged` and the active tasks in `.kiro/specs/tasks.md`. Generate a concise Conventional Commit message adhering to standard format (e.g., feat(submission): implement GridFS stream uploader [TASK-304]). Include a bulleted breakdown of changes."
+  },
+  "metadata": {
+    "tags": ["git", "automation", "commit-message", "conventional-commits"],
+    "enabled": true
+  }
+}

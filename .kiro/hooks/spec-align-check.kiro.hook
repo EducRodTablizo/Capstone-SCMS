@@ -1,0 +1,18 @@
+{
+  "$schema": "https://kiro.dev/schemas/hook.json",
+  "name": "Spec Alignment & EARS Verification Trigger",
+  "description": "Prompts the Antigravity Kiro agent to verify that newly written code strictly implements an approved requirement in requirements.md and adheres to the design specification.",
+  "version": "1.0.0",
+  "trigger": {
+    "event": "fileCreate",
+    "glob": "{services,apps}/**/*.{ts,tsx}"
+  },
+  "action": {
+    "type": "agent",
+    "prompt": "Verify that the newly created file matches the architecture in .kiro/specs/design.md and satisfies the specific EARS statement in .kiro/specs/requirements.md. If any discrepancies or unapproved features are detected, flag them immediately."
+  },
+  "metadata": {
+    "tags": ["sdd", "spec-alignment", "ears", "verification"],
+    "enabled": true
+  }
+}

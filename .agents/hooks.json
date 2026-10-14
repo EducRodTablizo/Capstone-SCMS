@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Antigravity Workspace Agent Hooks bridging Kiro event-driven triggers for ACAS",
+  "hooks": [
+    {
+      "id": "security-scan-on-save",
+      "name": "Secret & Credential Scan on Save",
+      "events": ["fileSave"],
+      "filter": {
+        "glob": "**/*.{ts,tsx,js,json,env,yml,yaml}"
+      },
+      "action": {
+        "type": "command",
+        "command": "npx -y @trufflesecurity/trufflehog filesystem --only-verified --fail",
+        "blocking": true
+      }
+    },
+    {
+      "id": "service-unit-test-sync",
+      "name": "Service Unit Test Synchronization",
+      "events": ["fileSave"],
+      "filter": {
+        "glob": "services/**/*.{service,controller,guard}.ts"
+      },
+      "action": {
+        "type": "command",
+        "command": "npm test -- --bail",
+        "blocking": false
+      }
+    },
+    {
+      "id": "spec-alignment-check",
+      "name": "Verify Spec Alignment on File Creation",
+      "events": ["fileCreate"],
+      "filter": {
+        "glob": "{services,apps}/**/*.{ts,tsx}"
+      },
+      "action": {
+        "type": "agentPrompt",
+        "prompt": "Verify that this newly created file adheres to .kiro/specs/design.md and fulfills an approved EARS requirement from .kiro/specs/requirements.md."
+      }
+    },
+    {
+      "id": "git-commit-msg-generator",
+      "name": "Generate Conventional Commit Message",
+      "events": ["userTriggered"],
+      "action": {
+        "type": "agentPrompt",
+        "prompt": "Inspect `git diff --staged` and .kiro/specs/tasks.md, then generate a concise Conventional Commit message with task attribution."
+      }
+    }
+  ]
+}

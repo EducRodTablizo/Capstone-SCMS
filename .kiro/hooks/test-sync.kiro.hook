@@ -1,0 +1,20 @@
+{
+  "$schema": "https://kiro.dev/schemas/hook.json",
+  "name": "Service Unit & Contract Test Synchronization",
+  "description": "Automatically executes corresponding unit tests and EARS contract validation whenever backend service logic is modified.",
+  "version": "1.0.0",
+  "trigger": {
+    "event": "fileSave",
+    "glob": "services/**/*.{service,controller,guard}.ts"
+  },
+  "action": {
+    "type": "shell",
+    "command": "npm test -- --bail --findRelatedTests $CHANGED_FILE",
+    "blocking": false,
+    "timeoutMs": 30000
+  },
+  "metadata": {
+    "tags": ["testing", "sdd", "quality", "unit-test"],
+    "enabled": true
+  }
+}

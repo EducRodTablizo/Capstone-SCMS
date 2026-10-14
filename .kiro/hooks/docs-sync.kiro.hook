@@ -1,0 +1,18 @@
+{
+  "$schema": "https://kiro.dev/schemas/hook.json",
+  "name": "Documentation & Schema Changelog Synchronizer",
+  "description": "Automatically updates API documentation and architectural diffs whenever schemas or shared DTOs are edited.",
+  "version": "1.0.0",
+  "trigger": {
+    "event": "fileSave",
+    "glob": "{packages/common-dtos,packages/database}/**/*.ts"
+  },
+  "action": {
+    "type": "agent",
+    "prompt": "The shared DTOs or database entities have changed. Review the changes and verify if `.kiro/specs/design.md` or `.kiro/specs/requirements.md` need updates. Ensure all field types remain consistent across PostgreSQL and MongoDB models."
+  },
+  "metadata": {
+    "tags": ["docs", "contracts", "schema-sync"],
+    "enabled": true
+  }
+}
