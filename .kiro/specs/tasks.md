@@ -1,60 +1,133 @@
-# Spec-Driven Development (SDD) Phase 3: Implementation Tasks
+# Spec-Driven Development (SDD) Phase 3: Implementation Tasks & Sprint Backlog
 ## Syllabus Compliance Monitoring System (SCMS)
 
-**Methodology:** Sequenced Task Execution with Dependencies and Acceptance Criteria  
+**Methodology:** Kiro Sequenced Task Execution mapped to the 8-Sprint Product Backlog (20 User Stories, 77 Story Points)  
 **Status Legend:** `[ ]` Pending | `[/]` In Progress | `[x]` Completed
 
 ---
 
-## Phase 0: Repository, Steering & CI/CD Infrastructure
-- [x] **TASK-001**: Initialize private GitHub repository with branch protection rules on `main`.
-- [x] **TASK-002**: Install CI/CD security workflows (`.github/workflows/ci-security.yml`) with TruffleHog (Secrets), Trivy (Vulnerabilities), and CodeQL (SAST).
+## Phase 0: Repository, Steering, UI Scaffolding & CI/CD Infrastructure
+- [x] **TASK-001**: Initialize private GitHub repository (`EducRodTablizo/Capstone-SCMS`) with branch protection rules on `main`.
+- [x] **TASK-002**: Install CI/CD security workflows (`.github/workflows/ci-security.yml`) with TruffleHog (Secrets), Trivy (Vulnerabilities), and CodeQL (SAST), including GitHub Actions private repo permissions fix.
 - [x] **TASK-003**: Establish SCMS Kiro Steering foundations in `.kiro/steering/` (`product.md`, `tech.md`, `structure.md`).
-- [x] **TASK-004**: Formalize SCMS SDD specifications (`requirements.md` EARS syntax, `design.md`, `tasks.md`).
-- [ ] **TASK-005**: Configure `docker-compose.yml` for local development (PostgreSQL 16, MongoDB 7, Redis 7).
+- [x] **TASK-004**: Formalize SCMS SDD specifications (`requirements.md` EARS syntax, `design.md`, `tasks.md`, `product_backlog.md`).
+- [x] **TASK-005**: Scaffold React SPA with PUP Maroon & Gold design system, Tailwind v3, Radix UI primitives, MUI v9, and layout architecture (`AppLayout`, `Sidebar`, `TopBar`, `PupFooter`).
+- [ ] **TASK-006**: Configure `docker-compose.yml` for local development (PostgreSQL 16, MongoDB 7, Redis 7).
 
 ---
 
-## Phase 1: Persistence Layer & Shared Contracts
-- [ ] **TASK-101**: Define PostgreSQL schema for SCMS entities (`users`, `roles` [Academic Head, Faculty Staff], `programs`, `term_calendars`, `requirement_definitions`, `submissions`, `review_decisions`, `audit_logs`).
-- [ ] **TASK-102**: Define MongoDB models (`fs.files`, `fs.chunks`, `syllabus_payloads`, `audit_snapshots`).
-- [ ] **TASK-103**: Create shared TypeScript DTO package (`packages/common-dtos`) containing SCMS request/response contracts and status enums.
-- [ ] **TASK-104**: Implement append-only trigger/constraint on `audit_logs` table preventing `UPDATE` and `DELETE`.
+## Sprint 1: Identity & Role Scoping (10 Story Points)
+*Module A: Identity and Roles — own accounts, roles, data privacy*  
+**Sprint Goal:** Establish SCMS's own sign-in, role-based access scoping for the Academic Head and Faculty Staff, and data privacy controls.
+
+- **SCMS-001: Local SCMS Authentication & Accounts (3 pts)** — *Assignee: Developers*
+  - [x] **TASK-101.1 (Task 1)**: Build the sign-in page and an authentication service that uses SCMS's own user accounts, with passwords stored securely.
+    - *Acceptance Criteria (AC 1)*: Users sign in with their SCMS credentials; no password is stored in plain text (Argon2id hashing in PostgreSQL `users` table).
+  - [x] **TASK-101.2 (Task 2)**: Reject invalid credentials with a clear error message that does not reveal which field was wrong.
+    - *Acceptance Criteria (AC 2)*: Invalid credentials are rejected and no session is created (generic error message prevents enumeration).
+  - [x] **TASK-101.3 (Task 3)**: Issue sessions only from SCMS, with no single sign-on or shared session with CCMS or FMS.
+    - *Acceptance Criteria (AC 3)*: Signing in to CCMS or FMS does not grant access to SCMS, and the reverse is also true (standalone JWT HttpOnly cookies).
+
+- **SCMS-002: Role-Based Access Scoping for Two Roles (5 pts)** — *Assignee: Developers*
+  - [x] **TASK-102.1 (Task 1)**: Define the two roles (Academic Head and Faculty Staff) and attach the role to the session on every authenticated request.
+    - *Acceptance Criteria (AC 1)*: The role is correctly identified on every request; a missing or invalid session returns 401; no other role exists.
+  - [x] **TASK-102.2 (Task 2)**: Enforce role scoping on read endpoints: Faculty Staff see only their own submissions, and the Academic Head sees all requirements, submissions, the compliance view and the audit trail.
+    - *Acceptance Criteria (AC 2)*: Each role sees only the data within its authorized scope (`WHERE faculty_id = current_user.id` for Faculty Staff).
+  - [x] **TASK-102.3 (Task 3)**: Block write endpoints a role is not allowed to use and return 403, with a descriptive message on screen.
+    - *Acceptance Criteria (AC 3)*: Unauthorized requests return 403, no data is changed, and the user sees a descriptive message.
+
+- **SCMS-003: Faculty Personal Data Privacy Controls (2 pts)** — *Assignee: Developers*
+  - [x] **TASK-103.1 (Task 1)**: Limit the faculty fields SCMS reads, stores and displays to those needed (name, college, unit), and review each field against its use.
+    - *Acceptance Criteria (AC 1)*: Only the required faculty fields are read and stored (Data Privacy Act compliance).
+  - [x] **TASK-103.2 (Task 2)**: Restrict a faculty member's documents to that faculty member and the Academic Head.
+    - *Acceptance Criteria (AC 2)*: No other user can open a faculty member's documents (strict ownership and reviewer check).
 
 ---
 
-## Phase 2: Ingress & Gateway (Server 0)
-- [ ] **TASK-201**: Scaffold NestJS API Gateway with Helmet, CORS whitelist, and NestJS Throttler rate limiting.
-- [ ] **TASK-202**: Implement JWT Passport Authentication Guard with HttpOnly cookie extraction supporting strictly 2 roles.
-- [ ] **TASK-203**: Implement RoleGuard enforcing Least Privilege access control for `ACADEMIC_HEAD` and `FACULTY_STAFF`.
-- [ ] **TASK-204**: Configure WebSocket gateway proxying for real-time live compliance events (`/live-compliance`).
+## Sprint 2: Requirements Setup & Audit Logging (13 Story Points)
+*Module B. Requirements and Deadlines + Module C. Audit Trail*
+
+- [ ] **SCMS-004 [TASK-201]** (5 pts): As the Academic Head, I want to define what each program must submit for a term so that Faculty Staff know what is required.
+  - Subtask: Create PostgreSQL `requirement_definitions` and `programs` tables.
+  - Subtask: Build `POST /api/v1/requirements` with program scoping.
+- [ ] **SCMS-005 [TASK-202]** (3 pts): As the Academic Head, I want to set a deadline for each requirement and publish or close it so that submissions follow the term schedule.
+  - Subtask: Implement status transition (`DRAFT` → `PUBLISHED` → `CLOSED`).
+- [ ] **SCMS-014 [TASK-203]** (5 pts): As the Academic Head, I want every submission action and review decision logged so that accountability and traceability are ensured.
+  - Subtask: Create append-only `audit_logs` table with DB constraint preventing `UPDATE` and `DELETE`.
+  - Subtask: Implement audit interceptor capturing actor, action, timestamp, and IP.
 
 ---
 
-## Phase 3: Core Application Services (Servers 1 – 5)
-- [ ] **TASK-301 [Server 1]**: Implement Identity & Access Service with Argon2id password hashing and local account management for the two roles.
-- [ ] **TASK-302 [Server 1]**: Build read-only FMS lookup client with Redis caching and resilient fallback circuit breaker.
-- [ ] **TASK-303 [Server 2]**: Build Academic Requirements Service supporting program-scoped syllabus definitions, per-term deadlines, and CCMS calendar sync.
-- [ ] **TASK-304 [Server 3]**: Implement Syllabus Submission Service with multipart stream handling, magic-byte validation, and MongoDB GridFS persistence.
-- [ ] **TASK-305 [Server 3]**: Implement submission timestamping and real-time status publication to Redis pub/sub.
-- [ ] **TASK-306 [Server 4]**: Implement Review & Approval Service (single-level review by Academic Head, approval and return with comments).
-- [ ] **TASK-307 [Server 4]**: Implement immutable audit trail logger capturing who acted, what was done, and when.
-- [ ] **TASK-308 [Server 5]**: Implement Live Compliance Monitoring Service with real-time status broadcasting.
-- [ ] **TASK-309 [Server 5]**: Implement dynamic `OVERDUE` calculation via BullMQ cron worker and outbound compliance summary feed to CCMS.
+## Sprint 3: Overdue Calculation, Checklist & Audit Inspection (9 Story Points)
+*Module B, Module C, Module M7*
+
+- [ ] **SCMS-006 [TASK-301]** (3 pts): As the Academic Head, I want the system to calculate which submissions are overdue so that late items are identified without manual updates.
+  - Subtask: Set up BullMQ nightly cron job comparing current date to `deadline_at` for non-approved submissions.
+- [ ] **SCMS-007 [TASK-302]** (3 pts): As a Faculty Staff member, I want to see the requirements I must submit so that I know what is due and by when.
+  - Subtask: Build Faculty Staff portal endpoint `GET /api/v1/faculty/requirements`.
+  - Subtask: Render checklist UI in React client showing due dates and current status badges.
+- [ ] **SCMS-015 [TASK-303]** (3 pts): As the Academic Head, I want to view the audit trail so that I can verify who did what and when.
+  - Subtask: Build Academic Head endpoint `GET /api/v1/audit-logs` with filtering by actor, action, and date range.
 
 ---
 
-## Phase 4: Frontend Client (React SPA)
-- [ ] **TASK-401**: Scaffold React + Vite + TypeScript application with PUP Maroon & Gold design system.
-- [ ] **TASK-402**: Build Authentication & Role-based Routing Guards (`ACADEMIC_HEAD` vs `FACULTY_STAFF`).
-- [ ] **TASK-403**: Build Faculty Staff Portal (Assigned requirements checklist, syllabus uploader, review status timeline, resubmit form).
-- [ ] **TASK-404**: Build Academic Head Review Portal (Submission review queue, approve/return modal with comments, audit log view).
-- [ ] **TASK-405**: Build Live Real-Time Compliance Dashboard (Live counts per status, WebSocket auto-updating views without page refresh).
+## Sprint 4: Syllabus Submission & Review Decisions (11 Story Points)
+*Module C. Submission and Review (M3, M4)*
+
+- [ ] **SCMS-008 [TASK-401]** (5 pts): As a Faculty Staff member, I want to submit a syllabus for each subject I teach, as an uploaded file or a form, so that my compliance is recorded.
+  - Subtask: Implement multipart file upload streaming to MongoDB GridFS.
+  - Subtask: Create `submissions` record in PostgreSQL with status `SUBMITTED` and auto-timestamp.
+- [ ] **SCMS-009 [TASK-402]** (3 pts): As the Academic Head, I want submissions to move through defined statuses so that each stage is timestamped and attributed.
+  - Subtask: Enforce state machine transitions (`Not Submitted` → `Submitted` → `Under Review` → `Approved` / `Returned` → `Resubmitted`).
+- [ ] **SCMS-010 [TASK-403]** (3 pts): As the Academic Head, I want to approve or return a submission with a recorded decision so that review outcomes are traceable.
+  - Subtask: Build `POST /api/v1/reviews/:submissionId/decision` recording decision, Academic Head name, date, and comments.
 
 ---
 
-## Phase 5: Verification, Testing & Audit Sign-Off
-- [ ] **TASK-501**: Write end-to-end integration tests for the live submission, review, return, and resubmission loop.
-- [ ] **TASK-502**: Conduct automated SAST and security scan verification via GitHub Actions.
-- [ ] **TASK-503**: Simulate FMS and CCMS network outages to verify offline fallback resilience and informational notice.
-- [ ] **TASK-504**: Verify compliance against Republic Act 10173 with institutional sign-off documentation.
+## Sprint 5: Resubmission & FMS Profile/Subject Integration (13 Story Points)
+*Module C (M5) + Module A & C FMS Integration*
+
+- [ ] **SCMS-011 [TASK-501]** (3 pts): As a Faculty Staff member, I want to read the Academic Head's comment and resubmit a revised version so that I can reach approval.
+  - Subtask: Build resubmission drawer in React UI; update status to `RESUBMITTED` and replace active file in GridFS.
+- [ ] **SCMS-016 [TASK-502]** (5 pts): As the Academic Head, I want faculty name, college and unit read from FMS so that identity data is not duplicated.
+  - Subtask: Build read-only REST client adapter to FMS faculty profiling endpoint; cache in Redis for 24h.
+- [ ] **SCMS-017 [TASK-503]** (5 pts): As the Academic Head, I want faculty subject assignments read from FMS so that the system knows who must submit what.
+  - Subtask: Query FMS Subject Tagging API to automatically populate required syllabus submissions per faculty member.
+
+---
+
+## Sprint 6: Real-Time Live Compliance Dashboard (10 Story Points)
+*Module D. Monitoring and Reports (M6)*
+
+- [ ] **SCMS-012 [TASK-601]** (5 pts): As the Academic Head, I want a live view of who has and has not complied so that I can follow up.
+  - Subtask: Build `GET /api/v1/compliance/live` aggregating counts per status grouped by program and faculty.
+  - Subtask: Render interactive MUI table in React with signature PUP Maroon header band.
+- [ ] **SCMS-013 [TASK-602]** (5 pts): As the Academic Head, I want the compliance view to update immediately as submissions and decisions are made so that I always see the current status.
+  - Subtask: Implement WebSocket gateway on Server 0 using Redis pub/sub.
+  - Subtask: Hook submission and review events to broadcast real-time updates to connected client dashboards.
+
+---
+
+## Sprint 7: CCMS Calendar Sync & Compliance Summary Push (8 Story Points)
+*Module B & D CCMS Integration*
+
+- [ ] **SCMS-018 [TASK-701]** (3 pts): As the Academic Head, I want term dates and holidays read from the official CCMS calendar so that deadlines follow one calendar.
+  - Subtask: Ingest CCMS academic calendar dates via scheduled job or webhook into `term_calendars`.
+- [ ] **SCMS-019 [TASK-702]** (5 pts): As the Academic Head, I want a compliance status summary sent to CCMS so that the CCMS dashboard shows academic compliance.
+  - Subtask: Build outbound HMAC-signed JSON payload pusher transmitting campus compliance metrics to CCMS.
+
+---
+
+## Sprint 8: Offline Resiliency & Fallback (3 Story Points)
+*Cross-Cutting Integration (Modules A to D)*
+
+- [ ] **SCMS-020 [TASK-801]** (3 pts): As the Academic Head, I want SCMS to keep working when FMS or CCMS cannot be reached so that submissions and reviews are not interrupted.
+  - Subtask: Implement circuit breaker on FMS/CCMS adapters; fallback to Redis/PostgreSQL cached data.
+  - Subtask: Display non-blocking amber status notice in UI when running on cached reference data.
+
+---
+
+## Phase 9: Verification, Testing & Defense Readiness
+- [ ] **TASK-901**: End-to-end integration testing for all 20 User Stories across the 8 Sprints.
+- [ ] **TASK-902**: Automated security scan validation via GitHub Actions pipeline.
+- [ ] **TASK-903**: Institutional sign-off for RA 10173 compliance and capstone project defense presentation.

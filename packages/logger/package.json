@@ -1,0 +1,9 @@
+{
+  "name": "@scms/logger",
+  "version": "1.0.0",
+  "description": "Immutable audit logging client & structured JSON logger",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc"
+  }
+}

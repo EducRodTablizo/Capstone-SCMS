@@ -1,0 +1,10 @@
+{
+  "name": "@scms/api-gateway",
+  "version": "1.0.0",
+  "description": "Server 0: Ingress, TLS, Rate Limiting & WebSocket Router",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn src/main.ts",
+    "build": "tsc"
+  }
+}

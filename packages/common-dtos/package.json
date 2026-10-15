@@ -1,0 +1,10 @@
+{
+  "name": "@scms/common-dtos",
+  "version": "1.0.0",
+  "description": "Shared TypeScript DTOs, Enums, and Contracts for SCMS",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  }
+}

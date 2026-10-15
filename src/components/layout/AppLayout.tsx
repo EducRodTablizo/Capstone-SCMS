@@ -22,7 +22,7 @@ export function AppLayout({
   return (
     <ThemeProvider theme={muiTheme}>
       <CssBaseline />
-      <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans">
+      <div className="flex h-screen bg-[#F5F7FA] text-[#0F172A] overflow-hidden font-sans">
         {/* Persistent Collapsible Sidebar */}
         <Sidebar
           collapsed={sidebarCollapsed}

@@ -42,7 +42,8 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    background-color: var(--off-white);
+    color: var(--foreground);
     font-family: var(--font-ui);
     margin: 0;
     padding: 0;

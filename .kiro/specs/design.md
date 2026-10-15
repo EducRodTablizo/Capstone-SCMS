@@ -12,25 +12,19 @@
 SCMS deploys an **API Gateway (Server 0)** that terminates public client traffic, manages WebSocket channels, and proxies REST requests across **5 dedicated backend microservices**:
 
 ```
-[ Client: React SPA (Tailwind + Radix + MUI) ]
-         │ (HTTPS / Secure Cookies & WSS for Real-Time Live View)
+[ React SPA Client ]
+         │ (HTTPS / WSS)
          ▼
-[ SERVER 0: API GATEWAY (NestJS / Nginx) ]
-  ├── Rate Limiter (NestJS Throttler)
-  ├── Security Headers (Helmet, CORS)
-  ├── Token Validator (JWT Passport Guard - 2 Roles Only)
-  └── Dynamic Proxy & WebSocket Gateway Dispatcher
+[ Server 0: API Gateway ]
          │
-  ┌──────┴───────────────┬──────────────────────┬──────────────────────┬──────────────────────┐
-  ▼                      ▼                      ▼                      ▼                      ▼
-[ SERVER 1 ]           [ SERVER 2 ]           [ SERVER 3 ]           [ SERVER 4 ]           [ SERVER 5 ]
-Identity & Access      Academic Requirements  Syllabus Submission    Review, Approval &     Live Compliance
-Service (M1)           Service (M2)           & Storage (M3)         Audit Trail (M4, M7)   Monitoring (M6, CCMS)
-  │                      │                      │                      │                      │
-  ├──────────────────────┼──────────────────────┴──────────────────────┼──────────────────────┘
-  ▼                      ▼                                             ▼
-[ PostgreSQL DB ]     [ MongoDB Cluster ]                            [ Redis Cluster ]
-(ACID Relational)     (GridFS & Payloads)                            (Pub/Sub & BullMQ)
+   ┌─────┴───────────────┬──────────────────────┬──────────────────────┬──────────────────────┐
+   ▼                     ▼                      ▼                      ▼                      ▼
+[ Server 1 ]          [ Server 2 ]           [ Server 3 ]           [ Server 4 ]           [ Server 5 ]
+Identity & Access     Requirements           Submission & Storage   Review & Audit         Live Compliance
+   │                     │                      │                      │                      │
+   ├─────────────────────┼──────────────────────┴──────────────────────┼──────────────────────┘
+   ▼                     ▼                                             ▼
+[ PostgreSQL DB ]     [ MongoDB GridFS ]                             [ Redis Cluster ]
 ```
 
 ---
@@ -39,15 +33,21 @@ Service (M1)           Service (M2)           & Storage (M3)         Audit Trail
 
 ### Server 0: API Gateway & WebSocket Router
 * Exposes `/api/v1/*` routes and `/live-compliance` WebSocket endpoint.
-* Enforces role validation strictly for **Academic Head** and **Faculty Staff**.
+* Enforces role validation strictly for **Academic Head** and **Faculty Staff** (`RoleGuard`).
+* **Authentication & Error Handling:**
+  * Missing or invalid session cookie/token returns **HTTP 401 Unauthorized**.
+  * Unauthorized write attempts return **HTTP 403 Forbidden** with descriptive message on screen (`Access denied: Your role does not permit this action`).
 * Broadcasts real-time submission status mutations to connected Academic Head client sockets.
 
 ### Server 1: Identity & Access Service (Module A / M1)
 * **Endpoints:**
-  * `POST /auth/login` — Verifies local credentials with Argon2id, generates signed JWT.
-  * `POST /auth/logout` — Blacklists token in Redis.
+  * `POST /auth/login` — Verifies local credentials with Argon2id hash against SCMS's own user accounts. On failure, returns **HTTP 401** with generic message (`Invalid credentials`) without revealing which field was incorrect. Issues HttpOnly JWT session cookie; no SSO or shared session with CCMS/FMS.
+  * `POST /auth/logout` — Blacklists token in Redis and clears HttpOnly session cookie.
   * `GET /users/me` — Returns authenticated profile with role (`ACADEMIC_HEAD` or `FACULTY_STAFF`).
-  * `GET /faculty/lookup/:facultyId` — Queries FMS adapter for profile details; caches in Redis.
+  * `GET /faculty/lookup/:facultyId` — Queries FMS adapter for minimal profile details (`name`, `college`, `unit`); caches in Redis.
+* **Data Privacy Controls (RA 10173):**
+  * Limits read, stored, and displayed faculty attributes strictly to `{ name, college, unit }`.
+  * Restricts access to uploaded syllabus documents strictly to the owning faculty member and the Academic Head.
 * **Database Access:** PostgreSQL `users`, `roles`.
 
 ### Server 2: Academic Requirements Service (Module B / M2)

@@ -26,8 +26,9 @@ The system defines **exactly two user roles**:
 1. **Direct Compliance Definition:** Compliance is the status of each submission itself (`Approved`, `Submitted`, `Under Review`, `Returned`, `Resubmitted`, `Not Submitted`, `Overdue`). SCMS **does not compute a separate compliance score or level**.
 2. **Real-Time Live Updates:** Live compliance updates are pushed immediately upon submission or review decision (via WebSockets / Server-Sent Events).
 3. **Audit Trail Accountability:** Every submission action, review decision, and status mutation is timestamped and attributed to the acting user. Audit records are immutable and cannot be edited or deleted.
-4. **Data Privacy (RA 10173):** Local user accounts are maintained independently (no SSO with FMS or CCMS). Read-only lookup to FMS fetches only necessary faculty profile fields (name, college, unit) and subject assignments.
-5. **Decoupled Interoperability & Fallback:** System-to-system links with FMS and CCMS carry data or events only, never borrowed credentials. If FMS or CCMS is unreachable, SCMS continues recording submissions and reviews using cached reference data and displays a non-blocking notice.
+4. **Data Privacy (RA 10173):** Local user accounts are maintained independently with secure password hashing (no SSO or shared sessions with FMS or CCMS). Login rejects invalid credentials with generic messages that do not reveal which field was wrong. Read-only lookups to FMS fetch only necessary faculty profile fields (`name`, `college`, `unit`).
+5. **Document Confidentiality:** Uploaded syllabus documents are strictly confidential and restricted to the owning faculty member and the Academic Head. No other user can open or view a faculty member's documents.
+6. **Decoupled Interoperability & Fallback:** System-to-system links with FMS and CCMS carry data or events only, never borrowed credentials. If FMS or CCMS is unreachable, SCMS continues recording submissions and reviews using cached reference data and displays a non-blocking notice.
 
 ## 4. Explicit Out of Scope
 * Any user role other than the Academic Head and Faculty Staff (no Dean, Department Chair, or QA Staff roles).

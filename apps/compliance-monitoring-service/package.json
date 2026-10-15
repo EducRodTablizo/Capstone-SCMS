@@ -1,0 +1,10 @@
+{
+  "name": "@scms/compliance-monitoring-service",
+  "version": "1.0.0",
+  "description": "Server 5: Live Compliance Monitoring & CCMS Feed",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn src/main.ts",
+    "build": "tsc"
+  }
+}
