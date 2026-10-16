@@ -485,3 +485,93 @@ flowchart TB
 * **Secure Application Zone:** Microservices run on an isolated container network. Services communicate through internal REST/gRPC endpoints and publish state events onto Redis.
 * **Secure Data Zone:** PostgreSQL, MongoDB, and Redis are completely unexposed to public interfaces and accept connections exclusively from authenticated backend microservices.
 * **External Integration Resilience:** The Circuit Breaker protects against FMS or CCMS latency or downtime. If an external system fails, cached data in Redis is served with graceful degradation flags.
+
+---
+
+## 6. Data Governance & Single Source of Truth (SSOT) Matrix (ACAS vs. FMS)
+
+This matrix defines the clear system boundaries and legal authority over academic and operational data entities across PUP Quezon City Campus.
+
+| Data Model / Catalog | Single Source of Truth (SSOT) | Why this system owns it |
+| :--- | :---: | :--- |
+| **Academic Programs Catalog**<br>*(e.g., BSIT, BSCS, MBA curricula)* | **ACAS 📜** | **[Authoritative Degree Blueprints]:** ACAS tracks which programs exist, their mandatory total credits, and graduation requirements for compliance tracking. |
+| **Course/Subject Master Catalog**<br>*(e.g., INTE 401, CS-101, IT-202, course titles)* | **ACAS 📜** | **[Official University Registry]:** ACAS is the master catalog of all approved subjects. FMS must look up this catalog to ensure teachers are only assigned to legally approved courses. |
+| **Syllabus Content & Policies**<br>*(Course Learning Outcomes [CLOs], grading rubrics, weekly topics)* | **ACAS 📜** | **[Academic Quality & Integrity]:** ACAS ensures instructors do not alter university-approved course learning outcomes (CLOs) or omit mandatory campus policies. |
+| **Faculty Master Catalog**<br>*(Instructor IDs, names, emails, titles, ranks)* | **FMS 🏛️** | **[HR & Faculty Records]:** FMS manages onboarding, faculty contracts, and department hierarchies. ACAS fetches this via read-only queries to display who is teaching. |
+| **Room & Space Catalog**<br>*(Buildings, rooms, capacities, lab setups)* | **FMS 🏛️** | **[Physical Asset Scheduling]:** FMS schedules physical assets to prevent double-booking. ACAS only consumes the final assigned room string. |
+| **Teaching Assignments**<br>*(Section IDs, who teaches what, when, where)* | **FMS 🏛️** | **[Semester Timetable Operations]:** FMS links the specific instructor to an ACAS-approved subject. ACAS ingests this to auto-generate submission compliance checklists. |
+
+---
+
+## 7. Official PUPQC Outcomes-Based Course Syllabus Specification
+
+Based on the official PUP Quezon City Campus syllabus template (Reference: `INTE 401 - Information Assurance and Security 2`), the syllabus entity in ACAS/SCMS models the following hierarchical schema:
+
+### 1. Course Information (Course Master Metadata)
+* **Course Code:** `INTE 401`
+* **Course Title:** `INFORMATION ASSURANCE AND SECURITY 2`
+* **Course Credit Units:** `3 Units`
+* **Pre-Requisites:** `INTE 302 – Information Assurance and Security 1` | **Co-Requisites:** `None`
+* **Course Description:** Exploration of operational, technical, and managerial pillars of information security (DevSecOps, Cloud Security, Digital Forensics, GRC).
+* **Campus & University Mandates:**
+  * **University Vision:** *"A Leading Comprehensive Polytechnic University in Asia"*
+  * **University Mission:** *"Advance an inclusive, equitable, and globally relevant polytechnic education towards national development."*
+  * **Quality Policy Statement:** Commitment to inclusive and equitable quality education and continuous improvement.
+  * **Campus Goals:** 1. Academic Excellence, 2. Robust Research & Innovation, 3. Community Extension & Linkages, 4. Strategic Institutional Development.
+
+### 2. Learning Outcomes Hierarchy & Alignment Matrix
+* **Institutional Learning Outcomes (ILOs 1 to 9):**
+  1. Critical & Creative Thinking, 2. Effective Communication, 3. Strong Service Orientation, 4. Responsible Tech Use, 5. Lifelong Learning, 6. Leadership Skills, 7. Personal & Professional Ethics, 8. Resilience & Agility, 9. National & Global Responsiveness.
+* **Program Learning Outcomes (PLOs 1 to 12 - CMO No. 25, Series of 2017):**
+  * BSIT program competencies aligned to university ILOs.
+* **Course Learning Outcomes (CLOs) & Mapping:**
+  * Each CLO maps to PLOs with competency levels:
+    * **L** = Learned (Knowledge acquired)
+    * **P** = Practiced (Skills applied)
+    * **O** = Opportunity to demonstrate (Synthesis / Capstone)
+
+---
+
+## 8. Grading System, Assessment Rubrics & Institutional Signatory Block
+
+Based on the final approved PUPQC syllabus specification, the following structures govern evaluation and formal endorsement:
+
+### 1. Course Requirements (Mapped to CLOs 1 to 7)
+* **Classroom Participation (Recitation):** Applies to CLO 1-7
+* **Class Activities & Assignments:** Submitted on time via Google Classroom (Applies to CLO 1-7)
+* **Final Capstone Project:** Information Security Management Plan based on ISO 27001/ISMS standards (Applies to CLO 1-7)
+
+### 2. Official 70/30 Outcomes-Based Grading System
+
+$$\text{Final Grade} = \frac{\text{Midterm Grade} + \text{Final Term Grade}}{2}$$
+
+| Evaluation Period | Component | Weight | Detailed Sub-Weights |
+| :--- | :--- | :---: | :--- |
+| **1st Grading (Midterm)** | **Class Standing** | **70%** | • Class Participation: 10%<br>• Attendance: 10%<br>• Assignments: 10%<br>• Quizzes: 20%<br>• Written Activities: 20% |
+| | **Midterm Examination** | **30%** | Conduct of Exam (TOS / Rubric aligned) |
+| | **Midterm Total** | **100%** | |
+| **2nd Grading (Finals)** | **Class Standing** | **70%** | • Class Participation: 5%<br>• Attendance: 10%<br>• Assignments: 10%<br>• Quizzes: 10%<br>• Written Activities: 10%<br>• **Final Project:** 25% |
+| | **Final Examination** | **30%** | Final Project Defense / Exam |
+| | **Finals Total** | **100%** | |
+
+### 3. Assessment Rubrics (4-Tier Competency Scale)
+* **Exemplary / Excellent:** 5 pts (100%)
+* **Accomplished / Good:** 4 pts (80%)
+* **Developing / Requires Improvement:** 3 pts (60%)
+* **Deficient / Poor:** 2 pts (40%)
+* Evaluated against: **Originality & Creativity** and **Significance to the Topic**.
+
+### 4. Classroom & Delivery Policies (Preset Defaults in Form Mode)
+* **Face-to-Face Delivery:** 15-minute attendance grace period, active participation, punctuality, and 5% deduction per day for late assignment submissions.
+* **Flexible Learning & Teaching Activities (FLTAs):**
+  * **Synchronous:** MS Teams online sessions with camera/mic preparedness.
+  * **Asynchronous:** Google Classroom modular self-study, milestone tracking, and consultation via Google Classroom/Viber.
+
+### 5. Institutional Signatory & Approval Hierarchy
+When exporting the finalized syllabus or displaying official review status, the system recognizes the university endorsement sequence:
+1. **Prepared by:** `Faculty / Course Instructor` *(Submits syllabus in SCMS)*
+2. **Reviewed and checked by:** `Academic Head` *(Primary reviewer & single-level approval in SCMS)*
+3. **Recommending Approval:** `Campus Director` *(Institutional Executive)*
+4. **Approved by:** `Vice President for Campuses` *(Executive Endorsement)*
+
+

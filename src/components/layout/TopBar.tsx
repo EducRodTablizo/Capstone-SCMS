@@ -1,10 +1,11 @@
-import React from 'react'
-import { Bell, Menu, Calendar, ShieldCheck, Wifi } from 'lucide-react'
+import React from 'react';
+import { Bell, Menu, Calendar, ShieldCheck, Wifi, UserCheck } from 'lucide-react';
+import { useAuth } from '../../auth/AuthContext';
 
 interface TopBarProps {
-  onToggleSidebar: () => void
-  currentRole?: 'Academic Head' | 'Faculty Staff'
-  isLiveConnected?: boolean
+  onToggleSidebar: () => void;
+  currentRole?: 'Academic Head' | 'Faculty Staff';
+  isLiveConnected?: boolean;
 }
 
 export function TopBar({
@@ -12,6 +13,16 @@ export function TopBar({
   currentRole = 'Academic Head',
   isLiveConnected = true,
 }: TopBarProps) {
+  const { user, switchRole } = useAuth();
+
+  const handleToggleRole = () => {
+    if (user?.role === 'ACADEMIC_HEAD') {
+      switchRole('FACULTY_STAFF');
+    } else {
+      switchRole('ACADEMIC_HEAD');
+    }
+  };
+
   return (
     <header className="h-16 bg-white border-b border-border px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm">
       <div className="flex items-center gap-4">
@@ -42,11 +53,16 @@ export function TopBar({
           <span>A.Y. 2026-2027 | 1st Semester</span>
         </div>
 
-        {/* Role Badge (Two Roles Only) */}
-        <div className="flex items-center gap-2 px-3 py-1 bg-[#EAF3DE] text-[#1D9E75] border border-[#1D9E75]/30 rounded-md text-xs font-bold">
+        {/* Role Badge (Clickable to switch demo role for testing) */}
+        <button
+          onClick={handleToggleRole}
+          title="Click to toggle between Academic Head and Faculty Staff view"
+          className="flex items-center gap-1.5 px-3 py-1 bg-[#EAF3DE] hover:bg-[#d6ebd3] text-[#1D9E75] border border-[#1D9E75]/30 rounded-md text-xs font-bold transition-colors cursor-pointer"
+        >
           <ShieldCheck className="w-3.5 h-3.5" />
-          <span>{currentRole}</span>
-        </div>
+          <span>{user?.role === 'FACULTY_STAFF' ? 'Faculty Staff' : 'Academic Head'}</span>
+          <span className="text-[10px] text-gray-500 font-normal ml-0.5">(Switch)</span>
+        </button>
 
         {/* Notifications */}
         <button className="relative p-2 rounded-full hover:bg-muted text-gray-600 transition-colors">
@@ -56,12 +72,22 @@ export function TopBar({
 
         {/* User Avatar */}
         <div className="flex items-center gap-2 pl-2 border-l border-border">
-          <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs">
-            AH
+          <div className="w-8 h-8 rounded-full bg-[#580000] text-white flex items-center justify-center font-bold text-xs">
+            {user?.name
+              ? user.name
+                  .split(' ')
+                  .map(n => n[0])
+                  .join('')
+                  .slice(0, 2)
+              : 'AH'}
           </div>
-          <span className="text-xs font-semibold hidden md:inline text-gray-800">Academic Head</span>
+          <span className="text-xs font-semibold hidden md:inline text-gray-800">
+            {user?.name || currentRole}
+          </span>
         </div>
       </div>
     </header>
-  )
+  );
 }
+
+export default TopBar;

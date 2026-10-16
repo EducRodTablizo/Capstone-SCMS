@@ -1,7 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
-import { RoleGuard } from './auth/RoleGuard';
 import { AppLayout } from './components/layout/AppLayout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -22,52 +21,24 @@ export const App: React.FC = () => {
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
           {/* Protected System Layout */}
-          <Route
-            element={
-              <AppLayout>
-                <div />
-              </AppLayout>
-            }
-          >
+          <Route element={<AppLayout />}>
             {/* Common Authenticated Routes */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/requirements" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/live-compliance" element={<DashboardPage />} />
 
-            {/* Faculty Staff Submission Routes */}
-            <Route
-              path="/submissions/new"
-              element={
-                <RoleGuard allowedRoles={['FACULTY_STAFF']}>
-                  <SyllabusUploadPage />
-                </RoleGuard>
-              }
-            />
+            {/* Requirements & Deadlines (Sprint 2: SCMS-004, SCMS-005) */}
+            <Route path="/requirements" element={<RequirementsPage />} />
 
-            {/* Academic Head Administrative Routes */}
-            <Route
-              path="/requirements"
-              element={
-                <RoleGuard allowedRoles={['ACADEMIC_HEAD']}>
-                  <RequirementsPage />
-                </RoleGuard>
-              }
-            />
-            <Route
-              path="/submissions/:id/review"
-              element={
-                <RoleGuard allowedRoles={['ACADEMIC_HEAD']}>
-                  <SubmissionDetailPage />
-                </RoleGuard>
-              }
-            />
-            <Route
-              path="/audit-logs"
-              element={
-                <RoleGuard allowedRoles={['ACADEMIC_HEAD']}>
-                  <AuditLogPage />
-                </RoleGuard>
-              }
-            />
+            {/* Action Audit Trail (Sprint 2: SCMS-014) */}
+            <Route path="/audit-trail" element={<AuditLogPage />} />
+            <Route path="/audit-logs" element={<AuditLogPage />} />
+
+            {/* Submission & Review Routes */}
+            <Route path="/reviews" element={<DashboardPage />} />
+            <Route path="/submit" element={<SyllabusUploadPage />} />
+            <Route path="/submissions/new" element={<SyllabusUploadPage />} />
+            <Route path="/submissions/:id/review" element={<SubmissionDetailPage />} />
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />

@@ -1,23 +1,31 @@
-import React, { useState } from 'react'
-import { ThemeProvider } from '@mui/material/styles'
-import CssBaseline from '@mui/material/CssBaseline'
-import { muiTheme } from '@/theme/muiTheme'
-import { Sidebar } from './Sidebar'
-import { TopBar } from './TopBar'
-import { PupFooter } from './PupFooter'
+import React, { useState } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { muiTheme } from '../../theme/muiTheme';
+import { Sidebar } from './Sidebar';
+import { TopBar } from './TopBar';
+import { PupFooter } from './PupFooter';
+import { useAuth } from '../../auth/AuthContext';
 
 interface AppLayoutProps {
-  children: React.ReactNode
-  currentPath?: string
-  currentRole?: 'Academic Head' | 'Faculty Staff'
+  children?: React.ReactNode;
+  currentPath?: string;
+  currentRole?: 'Academic Head' | 'Faculty Staff';
 }
 
 export function AppLayout({
   children,
-  currentPath = '/live-compliance',
-  currentRole = 'Academic Head',
+  currentPath: propPath,
+  currentRole: propRole,
 }: AppLayoutProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const location = useLocation();
+  const { user } = useAuth();
+
+  const currentPath = propPath || location.pathname;
+  const currentRole =
+    propRole || (user?.role === 'FACULTY_STAFF' ? 'Faculty Staff' : 'Academic Head');
 
   return (
     <ThemeProvider theme={muiTheme}>
@@ -41,7 +49,7 @@ export function AppLayout({
 
           {/* Scrollable Page Body */}
           <main className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
-            {children}
+            {children ?? <Outlet />}
           </main>
 
           {/* Institutional Branding Footer */}
@@ -49,5 +57,7 @@ export function AppLayout({
         </div>
       </div>
     </ThemeProvider>
-  )
+  );
 }
+
+export default AppLayout;

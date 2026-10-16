@@ -31,10 +31,14 @@
 ---
 
 ### 3. Module B: Requirements & Per-Term Deadline Setup
-* **REQ-REQ-01 [SCMS-004] (Event-Driven):** WHEN the Academic Head defines a term requirement, THE SYSTEM SHALL bind the requirement type, target academic program, and term deadline date to the active academic term so Faculty Staff know what is required.
+* **REQ-REQ-01A [SCMS-004 AC1] (Event-Driven):** WHEN the Academic Head defines a requirement, THE SYSTEM SHALL allow requirements to be created per program and per term, each with a name and description.
+* **REQ-REQ-01B [SCMS-004 AC2] (State-Driven):** WHILE a requirement is in `DRAFT` status, THE SYSTEM SHALL allow the Academic Head to edit its details, and the saved changes SHALL appear immediately.
+* **REQ-REQ-01C [SCMS-004 AC3] (Unwanted Behavior):** IF a Faculty Staff member attempts to create or edit a requirement, THEN THE SYSTEM SHALL reject the request with HTTP 403 Forbidden.
+* **REQ-REQ-03A [SCMS-005 AC1] (Unwanted Behavior):** IF the Academic Head attempts to publish a requirement without a deadline for the term, THEN THE SYSTEM SHALL reject the publication action.
+* **REQ-REQ-03B [SCMS-005 AC2] (State-Driven):** THE SYSTEM SHALL hide draft requirements from Faculty Staff views, display published requirements as visible, and mark closed requirements as closed.
+* **REQ-REQ-03C [SCMS-005 AC3] (Event-Driven):** WHEN a requirement's deadline is modified, THE SYSTEM SHALL record the deadline change (previous value, new value, actor, timestamp) in the audit trail.
 * **REQ-REQ-02 [SCMS-018] (Event-Driven):** WHEN official term calendar synchronization is initiated with CCMS, THE SYSTEM SHALL read and update the official academic term dates and holidays so deadlines follow one official calendar.
-* **REQ-REQ-03 [SCMS-005] (State-Driven):** WHILE a requirement is in `DRAFT` status, THE SYSTEM SHALL conceal it from Faculty Staff submission views until the Academic Head marks it as `PUBLISHED`.
-* **REQ-REQ-04 [SCMS-005] (Event-Driven):** WHEN the Academic Head closes a requirement, THE SYSTEM SHALL transition its status to `CLOSED` and prevent new initial submissions.
+* **REQ-REQ-04 [SCMS-005 AC2] (Event-Driven):** WHEN the Academic Head closes a published requirement, THE SYSTEM SHALL transition its status to `CLOSED` and mark it closed.
 
 ---
 
@@ -58,7 +62,9 @@
 ---
 
 ### 6. Module E: Audit Trail Logging & Visibility
-* **REQ-AUD-01 [SCMS-014] (Event-Driven):** WHEN any submission action occurs (creation, upload, status change, review decision, resubmission), THE SYSTEM SHALL immediately write an immutable audit entry containing actor identity, action type, description, and timestamp.
+* **REQ-AUD-01A [SCMS-014 AC1] (Event-Driven):** WHEN any create, deadline change, submission, review decision, or status-change action occurs, THE SYSTEM SHALL record what was done, who acted, when, and the previous and new values in the audit log.
+* **REQ-AUD-01B [SCMS-014 AC2] (Ubiquitous):** THE SYSTEM SHALL reject any update or delete attempts on audit records at the database level by withholding update and delete permissions.
+* **REQ-AUD-01C [SCMS-014 AC3] (Ubiquitous):** THE SYSTEM SHALL provide one reusable logging function allowing submissions, decisions, resubmissions, and new action types to write to the same log without changing the log structure.
 * **REQ-AUD-02 [SCMS-015] (State-Driven):** WHILE accessing the audit trail view, THE SYSTEM SHALL allow the Academic Head to view all audit records, and SHALL prohibit any user from modifying or deleting audit records.
 
 ---

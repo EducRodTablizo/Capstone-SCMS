@@ -45,16 +45,33 @@
 ---
 
 ## Sprint 2: Requirements Setup & Audit Logging (13 Story Points)
-*Module B. Requirements and Deadlines + Module C. Audit Trail*
+*Module B: Requirements and Deadlines + Module C: Submission and Review (Audit Trail)*  
+**Sprint Goal:** Implement requirement definition per program and term, deadlines with publish and close, and append-only audit trail logging.
 
-- [ ] **SCMS-004 [TASK-201]** (5 pts): As the Academic Head, I want to define what each program must submit for a term so that Faculty Staff know what is required.
-  - Subtask: Create PostgreSQL `requirement_definitions` and `programs` tables.
-  - Subtask: Build `POST /api/v1/requirements` with program scoping.
-- [ ] **SCMS-005 [TASK-202]** (3 pts): As the Academic Head, I want to set a deadline for each requirement and publish or close it so that submissions follow the term schedule.
-  - Subtask: Implement status transition (`DRAFT` → `PUBLISHED` → `CLOSED`).
-- [ ] **SCMS-014 [TASK-203]** (5 pts): As the Academic Head, I want every submission action and review decision logged so that accountability and traceability are ensured.
-  - Subtask: Create append-only `audit_logs` table with DB constraint preventing `UPDATE` and `DELETE`.
-  - Subtask: Implement audit interceptor capturing actor, action, timestamp, and IP.
+- **SCMS-004: Requirement Definition per Program & Term (5 pts)** — *Assignee: Developers*
+  - [/] **TASK-204.1 (Task 1)**: Build the requirements setup page where the Academic Head creates a requirement type with a name and description for a program and term.
+    - *Acceptance Criteria (AC 1)*: Requirements can be created per program and per term, each with a name and description.
+  - [/] **TASK-204.2 (Task 2)**: Allow draft requirements to be edited before they are published.
+    - *Acceptance Criteria (AC 2)*: Draft requirements can be edited and the saved changes appear immediately.
+  - [/] **TASK-204.3 (Task 3)**: Restrict creating and editing requirements to the Academic Head.
+    - *Acceptance Criteria (AC 3)*: Faculty Staff cannot create or edit requirements; attempts return 403.
+
+- **SCMS-005: Term Deadlines, Publishing & Audit Trail Recording (3 pts)** — *Assignee: Developers*
+  - [/] **TASK-205.1 (Task 1)**: Add a deadline field to each requirement and require it before the requirement can be published.
+    - *Acceptance Criteria (AC 1)*: A requirement cannot be published without a deadline for the term.
+  - [/] **TASK-205.2 (Task 2)**: Add Publish and Close actions; show Faculty Staff only published requirements and mark closed ones as closed.
+    - *Acceptance Criteria (AC 2)*: Draft requirements are hidden from Faculty Staff; published requirements are visible; closed requirements are marked closed.
+  - [/] **TASK-205.3 (Task 3)**: Record every deadline change (previous value, new value, actor, timestamp) through the audit logger.
+    - *Acceptance Criteria (AC 3)*: Each deadline change appears in the audit trail with the actor and timestamp.
+
+- **SCMS-014: Append-Only Audit Trail Logging (5 pts)** — *Assignee: Developers*
+  - [/] **TASK-214.1 (Task 1)**: Implement audit logger middleware that records create and status-change actions (what was done, acting user, timestamp, previous and new value) to an append-only table.
+    - *Acceptance Criteria (AC 1)*: Every logged action stores what was done, who acted, when, and the previous and new values.
+  - [/] **TASK-214.2 (Task 2)**: Enforce append-only at the database level by withholding update and delete permissions on the audit table.
+    - *Acceptance Criteria (AC 2)*: Update and delete attempts on audit records are rejected.
+  - [/] **TASK-214.3 (Task 3)**: Provide one reusable logging call so submissions, decisions and resubmissions in later sprints write to the same log.
+    - *Acceptance Criteria (AC 3)*: New action types can be logged without changing the log structure.
+
 
 ---
 

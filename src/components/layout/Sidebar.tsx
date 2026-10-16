@@ -1,4 +1,5 @@
-import React from 'react'
+import React from 'react';
+import { Link } from 'react-router-dom';
 import {
   FileText,
   CheckSquare,
@@ -10,14 +11,14 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
-} from 'lucide-react'
-import { cn } from '@/utils/cn'
+} from 'lucide-react';
+import { cn } from '../../utils/cn';
 
 interface SidebarProps {
-  collapsed: boolean
-  onToggle: () => void
-  currentPath?: string
-  role?: 'Academic Head' | 'Faculty Staff'
+  collapsed: boolean;
+  onToggle: () => void;
+  currentPath?: string;
+  role?: 'Academic Head' | 'Faculty Staff';
 }
 
 export function Sidebar({
@@ -56,12 +57,12 @@ export function Sidebar({
           {
             group: 'Faculty Submissions',
             items: [
-              { label: 'My Assigned Requirements', path: '/submissions', icon: FileText },
+              { label: 'My Assigned Requirements', path: '/requirements', icon: FileText },
               { label: 'Submit Syllabus', path: '/submit', icon: Layers },
-              { label: 'Review Status & Feedback', path: '/my-status', icon: Activity },
+              { label: 'Review Status & Feedback', path: '/live-compliance', icon: Activity },
             ],
           },
-        ]
+        ];
 
   return (
     <aside
@@ -99,13 +100,13 @@ export function Sidebar({
               </p>
             )}
             <ul className="space-y-1">
-              {section.items.map((item) => {
-                const Icon = item.icon
-                const isActive = currentPath === item.path
+              {section.items.map(item => {
+                const Icon = item.icon;
+                const isActive = currentPath === item.path;
                 return (
                   <li key={item.path}>
-                    <a
-                      href={item.path}
+                    <Link
+                      to={item.path}
                       className={cn(
                         'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',
                         isActive
@@ -117,9 +118,9 @@ export function Sidebar({
                     >
                       <Icon className={cn('w-4 h-4 shrink-0', isActive ? 'text-[#C8960C]' : 'text-gray-300')} />
                       {!collapsed && <span>{item.label}</span>}
-                    </a>
+                    </Link>
                   </li>
-                )
+                );
               })}
             </ul>
           </div>
@@ -134,5 +135,7 @@ export function Sidebar({
         </div>
       )}
     </aside>
-  )
+  );
 }
+
+export default Sidebar;

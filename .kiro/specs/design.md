@@ -52,10 +52,14 @@ Identity & Access     Requirements           Submission & Storage   Review & Aud
 
 ### Server 2: Academic Requirements Service (Module B / M2)
 * **Endpoints:**
-  * `POST /requirements` — Academic Head configures syllabus requirement per program and term.
-  * `GET /requirements/term/:termId` — Lists active program requirements and deadlines.
+  * `POST /requirements` — Academic Head creates requirement per program and term with name and description. Restricts to Academic Head (403 for Faculty Staff).
+  * `PUT /requirements/:id` — Academic Head edits draft requirement details; saved changes appear immediately.
+  * `PATCH /requirements/:id/publish` — Validates term deadline exists; transitions status from `DRAFT` to `PUBLISHED`.
+  * `PATCH /requirements/:id/close` — Academic Head transitions requirement to `CLOSED`.
+  * `PATCH /requirements/:id/deadline` — Updates term deadline; logs previous/new deadline and actor via audit logger.
+  * `GET /requirements` — Filtered by role: Academic Head sees all (Draft, Published, Closed); Faculty Staff sees only Published and Closed.
   * `POST /calendar/sync-ccms` — Ingests official term dates from CCMS.
-* **Database Access:** PostgreSQL `requirement_definitions`, `term_calendars`.
+* **Database Access:** PostgreSQL `requirement_definitions`, `programs`, `term_calendars`.
 
 ### Server 3: Syllabus Submission & Document Storage Service (Module C / M3)
 * **Endpoints:**
@@ -68,8 +72,9 @@ Identity & Access     Requirements           Submission & Storage   Review & Aud
 ### Server 4: Review, Approval & Audit Service (Module C / M4, M7)
 * **Endpoints:**
   * `POST /reviews/:submissionId/decision` — Academic Head records approval (`APPROVED`) or return for revision (`RETURNED` + comments).
+  * `POST /audit/log` — Reusable logging interface storing `{ action, actor_id, actor_name, actor_role, entity_name, entity_id, previous_value, new_value, timestamp, client_ip }`.
   * `GET /audit-logs` — Read-only query for the Academic Head to inspect all system actions.
-* **Database Access:** PostgreSQL `review_decisions`, `audit_logs` (Append-only); MongoDB `audit_snapshots`.
+* **Database Access:** PostgreSQL `review_decisions`, `audit_logs` (Append-only protected by database rules/triggers); MongoDB `audit_snapshots`.
 * **Real-Time Trigger:** Publishes review status changes to Redis for instant WebSocket broadcast.
 
 ### Server 5: Live Compliance Monitoring & Integration Service (Module D / M6)
