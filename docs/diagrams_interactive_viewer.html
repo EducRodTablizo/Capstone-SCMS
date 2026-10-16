@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SCMS System Architecture & Diagrams Viewer</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      themeVariables: {
+        darkMode: false,
+        background: '#FFFFFF',
+        primaryColor: '#F8FAFC',
+        primaryTextColor: '#0F172A',
+        primaryBorderColor: '#1E293B',
+        lineColor: '#0284C7'
+      }
+    });
+  </script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #F8FAFC;
+      color: #0F172A;
+      margin: 0;
+      padding: 24px;
+    }
+    .header {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 24px;
+      border: 1px solid #E2E8F0;
+    }
+    h1 { margin: 0 0 8px 0; font-size: 24px; color: #0F172A; }
+    p { margin: 0; color: #64748B; font-size: 14px; }
+    .card {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+      padding: 24px;
+      margin-bottom: 32px;
+      overflow-x: auto;
+    }
+    .card h2 {
+      margin-top: 0;
+      font-size: 18px;
+      color: #1E293B;
+      border-bottom: 2px solid #E2E8F0;
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+    }
+    .mermaid {
+      display: flex;
+      justify-content: center;
+      background: #FFFFFF;
+      min-height: 200px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🏛️ Syllabus Compliance Monitoring System (SCMS / ACAS)</h1>
+    <p>Comprehensive System Architecture & Technical Diagrams — PUPQC Capstone Defense</p>
+  </div>
+  <div class="card">
+    <h2>0. High-Level System Architecture (HLA)</h2>
+    <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': { 'darkMode': false, 'background': '#FFFFFF', 'primaryColor': '#F8FAFC', 'primaryTextColor': '#0F172A', 'primaryBorderColor': '#1E293B', 'lineColor': '#0284C7' }}}%%
+flowchart TB
+    classDef clientNode fill:#DBEAFE,stroke:#1D4ED8,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef gateNode fill:#F3E8FF,stroke:#7C3AED,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef coreNode fill:#DCFCE7,stroke:#15803D,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef busNode fill:#FEF08A,stroke:#CA8A04,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef dataNode fill:#E0F2FE,stroke:#0284C7,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef extNode fill:#FEF3C7,stroke:#D97706,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+
+    subgraph Client_Layer [" 1. CLIENT PRESENTATION LAYER "]
+        AcadHeadUI["Academic Head Portal<br/>(Dashboard / Review / Audit)"]:::clientNode
+        FacultyUI["Faculty Staff Portal<br/>(Form Mode / Upload / Tracking)"]:::clientNode
+    end
+
+    subgraph Ingress_Layer [" 2. PERIMETER & SECURITY INGRESS LAYER "]
+        Gateway["Reverse Proxy & API Gateway<br/>(WAF / TLS 1.3 / JWT Auth / WSS Broker)"]:::gateNode
+    end
+
+    subgraph Service_Layer [" 3. MICROSERVICES DOMAIN APPLICATION LAYER "]
+        AuthSvc["Identity & Access Service<br/>(:3001 - Argon2id / RBAC)"]:::coreNode
+        ReqSvc["Requirements & Catalog Service<br/>(:3002 - Program & Term Quotas)"]:::coreNode
+        SubSvc["Submission & Authoring Service<br/>(:3003 - GridFS / Form Mode Engine)"]:::coreNode
+        ReviewSvc["Review, Approval & Audit Service<br/>(:3004 - Single Reviewer / Audit Log)"]:::coreNode
+        CompSvc["Live Compliance & Analytics Service<br/>(:3005 - BullMQ Timer / Metrics)"]:::coreNode
+    end
+
+    subgraph Messaging_Layer [" 4. ASYNCHRONOUS EVENT & CACHE BACKBONE "]
+        RedisBus["Redis 7.x Cluster<br/>(Pub/Sub Event Bus / BullMQ Overdue Queues)"]:::busNode
+        CircuitBreaker["Resilient Circuit Breaker (SCMS-020)<br/>(24-Hour Cache Fallback)"]:::coreNode
+    end
+
+    subgraph Data_Layer [" 5. POLYGLOT PERSISTENCE LAYER "]
+        PostgresDB[("PostgreSQL 16 DB<br/>(ACID Transactions / Relational Master)")]:::dataNode
+        MongoDB[("MongoDB 7 (GridFS)<br/>(Binary PDFs / Flexible Rubric Schemas)")]:::dataNode
+        RedisStore[("Redis Cache<br/>(Tokens / Sessions / Fast Snapshots)")]:::dataNode
+    end
+
+    subgraph Campus_Layer [" 6. EXTERNAL CAMPUS ECOSYSTEM "]
+        FMS["Faculty Management System (FMS)<br/>(Faculty Profiles / Teaching Loads)"]:::extNode
+        CCMS["Citizen's Charter Monitoring System (CCMS)<br/>(Term Calendars / Compliance Summary)"]:::extNode
+    end
+
+    %% Client to Ingress
+    AcadHeadUI -->|HTTPS & WSS| Gateway
+    FacultyUI -->|HTTPS & WSS| Gateway
+
+    %% Ingress to Services
+    Gateway --> AuthSvc
+    Gateway --> ReqSvc
+    Gateway --> SubSvc
+    Gateway --> ReviewSvc
+    Gateway <--> CompSvc
+
+    %% Services to Event Bus
+    SubSvc -->|Publish Submission Events| RedisBus
+    ReviewSvc -->|Publish Review Decisions| RedisBus
+    CompSvc <-->|BullMQ Jobs & WSS Broadcast| RedisBus
+
+    %% Services to Data Stores
+    AuthSvc --> PostgresDB
+    AuthSvc --> RedisStore
+
+    ReqSvc --> PostgresDB
+
+    SubSvc --> PostgresDB
+    SubSvc --> MongoDB
+    SubSvc --> RedisStore
+
+    ReviewSvc --> PostgresDB
+    ReviewSvc --> RedisStore
+
+    CompSvc --> PostgresDB
+    CompSvc --> RedisStore
+
+    %% External Resilient Integration
+    AuthSvc --> CircuitBreaker
+    ReqSvc --> CircuitBreaker
+    CompSvc --> CircuitBreaker
+
+    CircuitBreaker -->|Read-Only Teaching Loads & Profiles| FMS
+    CircuitBreaker <-->|Ingest Calendar / Export Summary| CCMS
+    CircuitBreaker -.->|Offline Fallback Cache| RedisStore
+
+    linkStyle default stroke:#0284C7,stroke-width:2.5px;
+    </div>
+  </div>
+  <div class="card">
+    <h2>1. Strategic Role & System Mission</h2>
+    <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': { 'darkMode': false, 'background': '#FFFFFF', 'primaryColor': '#EFF6FF', 'primaryTextColor': '#0F172A', 'primaryBorderColor': '#1E293B', 'lineColor': '#0284C7', 'secondaryColor': '#F0FDF4', 'tertiaryColor': '#FFFFFF' }}}%%
+flowchart TB
+    classDef actorNode fill:#DBEAFE,stroke:#1D4ED8,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef systemNode fill:#FFFFFF,stroke:#0F172A,stroke-width:3.5px,color:#0F172A,font-weight:bold;
+    classDef extSysNode fill:#FEF3C7,stroke:#D97706,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+
+    subgraph Boundary [" SCMS SYSTEM BOUNDARY "]
+        SCMS["SCMS Core System"]:::systemNode
+    end
+
+    %% Human User Roles (Two Roles Only)
+    Faculty["Faculty Staff"]:::actorNode
+    AcadHead["Academic Head"]:::actorNode
+
+    %% External Campus Systems
+    FMS["Faculty Management System (FMS)"]:::extSysNode
+    CCMS["Citizen's Charter Monitoring System (CCMS)"]:::extSysNode
+
+    %% Interactions
+    Faculty -- "Syllabus Submissions & Revisions" --> SCMS
+    SCMS -- "Requirements & Review Status" --> Faculty
+
+    AcadHead -- "Requirements & Term Deadlines" --> SCMS
+    AcadHead -- "Review Decisions (Approve / Return)" --> SCMS
+    SCMS -- "Live Compliance Dashboard & Audit Trail" --> AcadHead
+
+    SCMS -- "Read-Only Profile & Subject Query" --> FMS
+    FMS -- "Faculty Identity & Course Assignments" --> SCMS
+
+    CCMS -- "Academic Term Calendar" --> SCMS
+    SCMS -- "Compliance Summary Feed" --> CCMS
+
+    linkStyle default stroke:#0284C7,stroke-width:2.5px;
+    </div>
+  </div>
+  <div class="card">
+    <h2>1. Operational Purpose & Context Boundary</h2>
+    <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': { 'darkMode': false, 'background': '#FFFFFF', 'primaryColor': '#F0FDF4', 'primaryTextColor': '#0F172A', 'primaryBorderColor': '#1E293B', 'lineColor': '#0284C7' }}}%%
+flowchart TB
+    classDef procNode fill:#DCFCE7,stroke:#15803D,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef storeNode fill:#E0F2FE,stroke:#0284C7,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef extNode fill:#FEF3C7,stroke:#D97706,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef gateNode fill:#F3E8FF,stroke:#7C3AED,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+
+    User["Academic Head / Faculty Staff"]:::extNode
+    Gateway["0.0 API Gateway"]:::gateNode
+
+    %% Operational Processes
+    P1["1.0 Identity & Access"]:::procNode
+    P2["2.0 Requirements & Deadlines"]:::procNode
+    P3["3.0 Submission & Storage"]:::procNode
+    P4["4.0 Review & Audit Trail"]:::procNode
+    P5["5.0 Live Compliance"]:::procNode
+
+    %% Polyglot Data Stores
+    D1[("D1: PostgreSQL DB")]:::storeNode
+    D2[("D2: MongoDB GridFS")]:::storeNode
+    D3[("D3: Redis Bus & Cache")]:::storeNode
+
+    %% External Systems
+    FMS_Ext["FMS (External)"]:::extNode
+    CCMS_Ext["CCMS (External)"]:::extNode
+
+    %% Ingress Flows
+    User -->|HTTP Requests| Gateway
+    Gateway -->|Auth Requests| P1
+    Gateway -->|Requirement Requests| P2
+    Gateway -->|Submission Requests| P3
+    Gateway -->|Review Requests| P4
+    Gateway <-->|Live WebSocket Stream| P5
+
+    %% Process & Data Store Flows
+    P1 <--> D1
+    P1 <--> D3
+    P1 -.->|Read Profile & Tags| FMS_Ext
+
+    P2 --> D1
+    P2 -.->|Read Term Calendar| CCMS_Ext
+
+    P3 --> D1
+    P3 --> D2
+    P3 --> D3
+
+    P4 --> D1
+    P4 --> D3
+
+    P5 <--> D1
+    P5 <--> D3
+    P5 -.->|Push Summary Feed| CCMS_Ext
+
+    linkStyle default stroke:#0284C7,stroke-width:2.5px;
+    </div>
+  </div>
+  <div class="card">
+    <h2>1. Purpose & Dataflow Decomposition</h2>
+    <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': { 'darkMode': false, 'background': '#FFFFFF', 'primaryColor': '#FFFFFF', 'primaryTextColor': '#0F172A', 'primaryBorderColor': '#0F172A', 'lineColor': '#0284C7', 'textColor': '#0F172A' }}}%%
+erDiagram
+    USERS ||--o{ SUBMISSIONS : "submits"
+    USERS ||--o{ REVIEW_DECISIONS : "reviews"
+    USERS ||--o{ AUDIT_LOGS : "acts"
+    ROLES ||--o{ USERS : "assigned"
+    PROGRAMS ||--o{ REQUIREMENT_DEFINITIONS : "specifies"
+    TERM_CALENDARS ||--o{ REQUIREMENT_DEFINITIONS : "schedules"
+    REQUIREMENT_DEFINITIONS ||--o{ SUBMISSIONS : "fulfills"
+    SUBMISSIONS ||--o{ REVIEW_DECISIONS : "evaluates"
+    GRIDFS_FILES ||--o{ SUBMISSIONS : "stores file"
+
+    USERS {
+        uuid id PK
+        string email UK
+        uuid role_id FK
+    }
+
+    ROLES {
+        uuid id PK
+        string role_code "ACADEMIC_HEAD, FACULTY_STAFF"
+    }
+
+    PROGRAMS {
+        uuid id PK
+        string code "BSIT, BSCS, etc."
+    }
+
+    TERM_CALENDARS {
+        uuid id PK
+        string academic_year
+        string semester
+    }
+
+    REQUIREMENT_DEFINITIONS {
+        uuid id PK
+        uuid program_id FK
+        uuid term_calendar_id FK
+        timestamp deadline_at
+    }
+
+    SUBMISSIONS {
+        uuid id PK
+        uuid requirement_id FK
+        uuid faculty_id FK
+        string current_status
+    }
+
+    REVIEW_DECISIONS {
+        uuid id PK
+        uuid submission_id FK
+        uuid academic_head_id FK
+        string decision "APPROVED, RETURNED"
+    }
+
+    AUDIT_LOGS {
+        bigserial id PK
+        uuid actor_id FK
+        string action_type
+    }
+
+    GRIDFS_FILES {
+        object_id id PK
+        string filename
+    }
+    </div>
+  </div>
+  <div class="card">
+    <h2>1. Purpose & Data Modeling Philosophy</h2>
+    <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': { 'darkMode': false, 'background': '#FFFFFF', 'primaryColor': '#EFF6FF', 'primaryTextColor': '#0F172A', 'primaryBorderColor': '#1E293B', 'lineColor': '#0284C7' }}}%%
+flowchart LR
+    classDef actorNode fill:#DBEAFE,stroke:#1D4ED8,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef ucNode fill:#FFFFFF,stroke:#334155,stroke-width:2px,color:#0F172A,font-weight:bold;
+    classDef extNode fill:#FEF3C7,stroke:#D97706,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+
+    Faculty(("Faculty Staff")):::actorNode
+    AcadHead(("Academic Head")):::actorNode
+    FMS_Sys(("FMS")):::extNode
+    CCMS_Sys(("CCMS")):::extNode
+
+    subgraph SCMS [" SCMS System Capabilities "]
+        UC1["Sign In"]:::ucNode
+        UC2["Submit Syllabus"]:::ucNode
+        UC3["Revise Syllabus"]:::ucNode
+        UC4["View Submissions"]:::ucNode
+        UC5["Set Requirements"]:::ucNode
+        UC6["Review Submission"]:::ucNode
+        UC7["Add Comments"]:::ucNode
+        UC8["View Live Dashboard"]:::ucNode
+        UC9["Inspect Audit Trail"]:::ucNode
+        UC10["Query Faculty Info"]:::ucNode
+        UC11["Sync Calendar"]:::ucNode
+        UC12["Export Summary Feed"]:::ucNode
+    end
+
+    Faculty --> UC1
+    Faculty --> UC2
+    Faculty --> UC3
+    Faculty --> UC4
+
+    AcadHead --> UC1
+    AcadHead --> UC5
+    AcadHead --> UC6
+    AcadHead --> UC8
+    AcadHead --> UC9
+
+    UC6 -. "<<include>>" .-> UC7
+    UC2 -. "<<include>>" .-> UC10
+
+    UC10 <--> FMS_Sys
+    UC11 <--> CCMS_Sys
+    UC12 --> CCMS_Sys
+
+    linkStyle default stroke:#0284C7,stroke-width:2.5px;
+    </div>
+  </div>
+  <div class="card">
+    <h2>1. Purpose & Functional Privilege Model</h2>
+    <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#FFFFFF', 'primaryColor': '#F8FAFC', 'primaryTextColor': '#0F172A', 'primaryBorderColor': '#1E293B', 'lineColor': '#0284C7' }}}%%
+flowchart TB
+    classDef client fill:#DBEAFE,stroke:#1D4ED8,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef gate fill:#F3E8FF,stroke:#7C3AED,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef service fill:#DCFCE7,stroke:#16A34A,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef db fill:#FEE2E2,stroke:#DC2626,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef ext fill:#FEF3C7,stroke:#D97706,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+
+    subgraph Client_Tier [" CLIENT PRESENTATION TIER "]
+        ReactSPA["React SPA"]:::client
+    end
+
+    subgraph Gateway_Tier [" INGRESS & ROUTING TIER "]
+        APIGateway["Server 0: API Gateway"]:::gate
+    end
+
+    subgraph Services_Tier [" APPLICATION SERVICES TIER "]
+        S1["Server 1: Identity & Access"]:::service
+        S2["Server 2: Academic Requirements"]:::service
+        S3["Server 3: Submission & Storage"]:::service
+        S4["Server 4: Review, Approval & Audit"]:::service
+        S5["Server 5: Live Compliance"]:::service
+    end
+
+    subgraph Data_Tier [" PERSISTENCE & CACHING TIER "]
+        PostgresDB[("PostgreSQL DB")]:::db
+        MongoDB[("MongoDB GridFS")]:::db
+        RedisServer[("Redis Cluster")]:::db
+    end
+
+    subgraph External_Tier [" EXTERNAL CAMPUS SYSTEMS "]
+        ExtFMS["FMS (External)"]:::ext
+        ExtCCMS["CCMS (External)"]:::ext
+    end
+
+    ReactSPA -->|HTTPS / REST| APIGateway
+    ReactSPA <-->|WSS Live Stream| APIGateway
+
+    APIGateway --> S1
+    APIGateway --> S2
+    APIGateway --> S3
+    APIGateway --> S4
+    APIGateway <--> S5
+
+    S1 --> PostgresDB
+    S1 --> RedisServer
+    S2 --> PostgresDB
+    S3 --> PostgresDB
+    S3 --> MongoDB
+    S3 --> RedisServer
+    S4 --> PostgresDB
+    S4 --> RedisServer
+    S5 --> PostgresDB
+    S5 --> RedisServer
+
+    S1 -.->|Read-Only Lookup| ExtFMS
+    S2 -.->|Ingest Calendar| ExtCCMS
+    S5 -.->|Push Summary Feed| ExtCCMS
+
+    linkStyle default stroke:#0284C7,stroke-width:2.5px;
+    </div>
+  </div>
+  <div class="card">
+    <h2>1. Purpose & Multi-Tier Topology</h2>
+    <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#FFFFFF', 'primaryColor': '#EFF6FF', 'primaryTextColor': '#0F172A', 'primaryBorderColor': '#1E293B', 'lineColor': '#0284C7' }}}%%
+flowchart TD
+    classDef startNode fill:#E2E8F0,stroke:#475569,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef stateNode fill:#DBEAFE,stroke:#2563EB,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef decNode fill:#FEF3C7,stroke:#D97706,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef successNode fill:#DCFCE7,stroke:#16A34A,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef returnNode fill:#FEE2E2,stroke:#DC2626,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+
+    Start([Requirement Published]):::startNode
+    NotSubmitted["Not Submitted"]:::stateNode
+    Start --> NotSubmitted
+
+    %% Overdue Timer Evaluation
+    CronCheck{"Deadline Passed?"}:::decNode
+    NotSubmitted -.-> CronCheck
+    CronCheck -- "Yes & Unapproved" --> Overdue["Overdue"]:::returnNode
+    Overdue -.-> NotSubmitted
+
+    %% Submission Event
+    NotSubmitted -->|Faculty Submits| Submitted["Submitted"]:::stateNode
+
+    %% Academic Head Action
+    Submitted -->|Academic Head Opens| UnderReview["Under Review"]:::stateNode
+
+    UnderReview --> DecisionNode{"Review Decision"}:::decNode
+
+    %% Approval Path
+    DecisionNode -- "Approve" --> Approved["Approved"]:::successNode
+    Approved --> EndSuccess([Complied]):::startNode
+
+    %% Return Path
+    DecisionNode -- "Return" --> Returned["Returned"]:::returnNode
+
+    Returned -->|Faculty Revises| Resubmitted["Resubmitted"]:::stateNode
+    Resubmitted --> UnderReview
+
+    linkStyle default stroke:#0284C7,stroke-width:2.5px;
+    </div>
+  </div>
+  <div class="card">
+    <h2>1. Purpose & Deterministic State Machine Model</h2>
+    <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': { 'darkMode': false, 'background': '#FFFFFF', 'primaryColor': '#F8FAFC', 'primaryTextColor': '#0F172A', 'primaryBorderColor': '#1E293B', 'lineColor': '#0284C7' }}}%%
+flowchart TB
+    classDef client fill:#F1F5F9,stroke:#64748B,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef dmz fill:#FDF4FF,stroke:#A21CAF,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef app fill:#F0FDF4,stroke:#15803D,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef data fill:#EFF6FF,stroke:#1D4ED8,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+    classDef ext fill:#FEF3C7,stroke:#B45309,stroke-width:2.5px,color:#0F172A,font-weight:bold;
+
+    subgraph Zone_Public [" PUBLIC / CAMPUS CLIENT ACCESS "]
+        Clients["Web Client (React SPA)"]:::client
+    end
+
+    subgraph Zone_DMZ [" SCMS PERIMETER (DMZ) "]
+        WAF_Gateway["API Gateway & WAF"]:::dmz
+    end
+
+    subgraph Zone_Private [" SCMS SECURE APPLICATION ZONE "]
+        S1["Server 1: Identity & Access"]:::app
+        S2["Server 2: Requirements"]:::app
+        S3["Server 3: Submission & Storage"]:::app
+        S4["Server 4: Review & Audit"]:::app
+        S5["Server 5: Live Compliance"]:::app
+        CircuitBreaker["Circuit Breaker"]:::app
+    end
+
+    subgraph Zone_Data [" SCMS SECURE DATA ZONE "]
+        PG_DB[("PostgreSQL")]:::data
+        Mongo_DB[("MongoDB (GridFS)")]:::data
+        Redis_Store[("Redis Cluster")]:::data
+    end
+
+    subgraph Zone_FMS [" FMS NETWORK BOUNDARY "]
+        FMS_API["FMS REST API"]:::ext
+    end
+
+    subgraph Zone_CCMS [" CCMS NETWORK BOUNDARY "]
+        CCMS_API["CCMS REST API"]:::ext
+    end
+
+    %% Ingress Traffic
+    Clients -->|HTTPS & WSS| WAF_Gateway
+
+    %% Service Routing
+    WAF_Gateway --> S1
+    WAF_Gateway --> S2
+    WAF_Gateway --> S3
+    WAF_Gateway --> S4
+    WAF_Gateway <--> S5
+
+    %% Internal Data Persistence
+    S1 --> PG_DB
+    S1 --> Redis_Store
+    S2 --> PG_DB
+    S3 --> PG_DB
+    S3 --> Mongo_DB
+    S3 --> Redis_Store
+    S4 --> PG_DB
+    S4 --> Redis_Store
+    S5 --> PG_DB
+    S5 --> Redis_Store
+
+    %% External Resilient Integration
+    S1 --> CircuitBreaker
+    S2 --> CircuitBreaker
+    S5 --> CircuitBreaker
+
+    CircuitBreaker -->|Read-Only Queries| FMS_API
+    CircuitBreaker <-->|Calendar Sync / Push Feeds| CCMS_API
+    CircuitBreaker -.->|Fallback Cache on Outage| Redis_Store
+
+    linkStyle default stroke:#0284C7,stroke-width:2.5px;
+    </div>
+  </div>
+</body>
+</html>

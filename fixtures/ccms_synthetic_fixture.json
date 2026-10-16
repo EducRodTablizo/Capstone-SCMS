@@ -1,0 +1,54 @@
+{
+  "sync_id": "ccms-sync-20261016-001",
+  "schema_version": "1.0.0",
+  "timestamp": "2026-10-16T18:00:00+08:00",
+  "academic_term": {
+    "academic_year": "2026-2027",
+    "semester": 1,
+    "term_code": "2026-1S",
+    "term_name": "Academic Year 2026-2027 First Semester",
+    "start_date": "2026-09-01",
+    "end_date": "2027-01-30"
+  },
+  "holidays": [
+    {
+      "event_id": "hol-2026-1030",
+      "date": "2026-10-30",
+      "name": "Barangay and SK Elections",
+      "entry_type": "SPECIAL_NON_WORKING",
+      "applies_to": "BOTH"
+    },
+    {
+      "event_id": "hol-2026-1101",
+      "date": "2026-11-01",
+      "name": "All Saints' Day",
+      "entry_type": "SPECIAL_NON_WORKING",
+      "applies_to": "BOTH"
+    },
+    {
+      "event_id": "hol-2026-1130",
+      "date": "2026-11-30",
+      "name": "Bonifacio Day",
+      "entry_type": "REGULAR_HOLIDAY",
+      "applies_to": "BOTH"
+    },
+    {
+      "event_id": "hol-2026-1208",
+      "date": "2026-12-08",
+      "name": "Feast of the Immaculate Conception",
+      "entry_type": "SPECIAL_NON_WORKING",
+      "applies_to": "BOTH"
+    }
+  ],
+  "suspensions": [
+    {
+      "event_id": "susp-2026-1022",
+      "date": "2026-10-22",
+      "effective_time": "13:00",
+      "name": "Typhoon Weather Disturbance Suspension",
+      "entry_type": "SUSPENSION",
+      "applies_to": "BOTH",
+      "reason": "Intraday class and office suspension declared by LGU from 13:00 onwards"
+    }
+  ]
+}

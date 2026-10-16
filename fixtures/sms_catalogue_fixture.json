@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-10-16T17:00:00Z",
+  "institution": "Polytechnic University of the Philippines - Quezon City Campus",
+  "programs": [
+    {
+      "program_id": "prog-bsit-001",
+      "program_code": "BSIT",
+      "program_title": "Bachelor of Science in Information Technology",
+      "curriculum_version": "2024-Curriculum",
+      "status": "ACTIVE"
+    }
+  ],
+  "academic_terms": [
+    {
+      "academic_term_id": "term-2026-1s",
+      "academic_year": "2026-2027",
+      "semester": "1ST_SEMESTER",
+      "display_label": "A.Y. 2026-2027 First Semester",
+      "start_date": "2026-09-01",
+      "end_date": "2027-01-31",
+      "status": "ACTIVE"
+    }
+  ],
+  "block_sections": [
+    {
+      "block_section_id": "sec-bsit-4-1",
+      "program_id": "prog-bsit-001",
+      "cohort_admission_year": 2023,
+      "year_level": 4,
+      "section_number": 1,
+      "display_label": "BSIT 4-1",
+      "status": "ACTIVE"
+    },
+    {
+      "block_section_id": "sec-bsit-4-2",
+      "program_id": "prog-bsit-001",
+      "cohort_admission_year": 2023,
+      "year_level": 4,
+      "section_number": 2,
+      "display_label": "BSIT 4-2",
+      "status": "ACTIVE"
+    }
+  ],
+  "courses": [
+    {
+      "course_id": "crs-inte401",
+      "course_version_id": "crs-inte401-v2024.1",
+      "course_code": "INTE 401",
+      "course_title": "Information Assurance and Security 2",
+      "credit_units": 3,
+      "lecture_hours": 2,
+      "lab_hours": 3,
+      "contact_hours_per_week": 5,
+      "requires_laboratory": true,
+      "laboratory_type": "COMPUTER_LAB",
+      "pre_requisites": [
+        "INTE 302"
+      ],
+      "co_requisites": [],
+      "status": "ACTIVE",
+      "effective_start_term": "term-2026-1s",
+      "description": "Exploration of operational, technical, and managerial pillars of information security (DevSecOps, Cloud Security, Digital Forensics, GRC)."
+    }
+  ]
+}

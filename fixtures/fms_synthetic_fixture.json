@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0.0",
+  "provider": "Faculty Management System (FMS)",
+  "environment": "synthetic-demo",
+  "faculty_profiles": [
+    {
+      "faculty_id": "fac-1092",
+      "display_name": "Asst. Prof. Juan Dela Cruz",
+      "institutional_email": "jdelacruz@pup.edu.ph",
+      "academic_rank": "Assistant Professor II",
+      "consultation_hours": "Tue/Thu 10:00 AM - 12:00 PM",
+      "profile_revision_timestamp": "2026-08-10T08:30:00Z"
+    },
+    {
+      "faculty_id": "fac-2045",
+      "display_name": "Assoc. Prof. Maria Santos",
+      "institutional_email": "msantos@pup.edu.ph",
+      "academic_rank": "Associate Professor I",
+      "consultation_hours": "Mon/Wed 1:00 PM - 3:00 PM",
+      "profile_revision_timestamp": "2026-08-12T09:15:00Z"
+    }
+  ],
+  "teaching_assignments": [
+    {
+      "assignment_id": "ta-2026-0081",
+      "assignment_version": 1,
+      "academic_term_id": "term-2026-1s",
+      "course_id": "crs-inte401",
+      "block_section_id": "sec-bsit-4-1",
+      "faculty_id": "fac-1092",
+      "assignment_status": "APPROVED",
+      "effective_date": "2026-08-15",
+      "schedule": null
+    },
+    {
+      "assignment_id": "ta-2026-0081",
+      "assignment_version": 2,
+      "academic_term_id": "term-2026-1s",
+      "course_id": "crs-inte401",
+      "block_section_id": "sec-bsit-4-1",
+      "faculty_id": "fac-1092",
+      "assignment_status": "SCHEDULE_FINALIZED",
+      "effective_date": "2026-08-25",
+      "schedule": {
+        "schedule_day_time": "Mon/Thu 1:00 PM - 3:30 PM",
+        "room_id": "room-lab-03",
+        "room_label": "Computer Lab 3"
+      }
+    }
+  ]
+}

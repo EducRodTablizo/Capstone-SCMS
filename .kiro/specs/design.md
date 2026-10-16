@@ -144,6 +144,23 @@ sequenceDiagram
 
 | Failure Scenario | Impact | Mitigation Strategy |
 | :--- | :--- | :--- |
-| **FMS Lookup Unavailable** | Cannot query live faculty names or subject tags. | **Circuit Breaker:** Serves cached reference data from Redis. SCMS continues recording submissions and reviews normally and displays an informational banner. |
+| **FMS Lookup Unavailable (Warm Cache)** | Cannot query live faculty metadata. | **Circuit Breaker:** Serves cached reference snapshot from Redis (<5ms). Displays an informational banner. |
+| **FMS Lookup Unavailable (Expired Cache)** | Cache TTL (>24h) elapsed while FMS remains down. | **Stale-While-Revalidate:** Continues serving stale snapshot for syllabus authoring with `[CACHED SNAPSHOT - STALE]` tag. Outage alone never cancels classes. |
+| **FMS First Use / Cold Start (Empty Cache)** | System startup with zero cached FMS data and unreachable FMS. | **Synthetic Fixture Fallback:** Automatically loads certified mock fixtures from `fixtures/fms_synthetic_fixture.json` with explicit `[FIXTURE DATA: FMS UNCONNECTED]` badge. |
+| **Missing Optional Metadata** | Consultation hours or rank missing/null from FMS. | **Graceful Default Fallback:** Renders departmental standard (`"By appointment via MS Teams"`) without blocking syllabus submission or approval. |
 | **CCMS Connection Down** | Cannot push compliance summary feed. | **Message Buffer:** Queues status push in Redis BullMQ with exponential backoff retries. |
 | **Corrupted File Upload** | Invalid file signature. | **Magic-Byte Guard:** Stream is validated against PDF/DOCX magic bytes before reaching GridFS. |
+
+---
+
+## 5. Joint Acceptance Gate Matrix (Scenarios J1 to J16)
+The system architecture implements and verifies all 16 cross-system integration scenarios negotiated with FMS and CCMS:
+* **J1 (Catalogue Pull & Allocation Approval):** FMS queries SMS catalog, approves allocation, pushes assignment; exactly **one** compliance item generated in SMS (`NOT_SUBMITTED`).
+* **J2 (Timetable Finalization):** Post-approval schedule/room update without duplicate compliance items or deadline shifts.
+* **J3 (Reassignment, Withdrawal & Substitution):** Assignment updates effective instructor; withdrawal transitions to `UNASSIGNED`; substitute teacher granted co-instructor read access without transferring legal signatory accountability.
+* **J4 (Course Retirement / Contact Hour Revision):** New assignments respect updated curriculum; existing schedules and historical audit logs remain preserved.
+* **J5 (Faculty Identity Stability):** Domain entities link strictly via immutable `faculty_id`; email changes do not sever past syllabus associations.
+* **J6 (Idempotency & Replay):** Monotonic version comparison (`assignment_version`) rejects duplicate or out-of-order deliveries.
+* **J7–J9 (Calendar & Intraday Suspensions):** CCMS calendar suspensions evaluated in Asia/Manila timezone without office working hours overwriting teaching timetables.
+* **J10–J12 (Resilience & Outage Recovery):** Deterministic snapshot recovery, warm vs. expired cache handling, and cold-start synthetic fixture fallback.
+* **J13–J16 (Security & Block Section Lifecycle):** Scoped machine tokens (OAuth 2.0 / TLS 1.3), role separation, backward schema compatibility, and Block Section renaming preserving stable cohort admission year.

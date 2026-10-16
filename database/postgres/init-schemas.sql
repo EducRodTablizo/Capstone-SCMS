@@ -84,6 +84,33 @@ INSERT INTO term_calendars (academic_year, semester, start_date, end_date, is_ac
     ('A.Y. 2026-2027', '2nd Semester', '2027-02-15', '2027-06-30', FALSE)
 ON CONFLICT (academic_year, semester) DO NOTHING;
 
+-- 4b. BLOCK SECTIONS TABLE (ACAS Single Source of Truth for Stable Academic Sections)
+CREATE TABLE IF NOT EXISTS block_sections (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    program_id UUID NOT NULL REFERENCES programs(id),
+    term_calendar_id UUID REFERENCES term_calendars(id),
+    cohort_admission_year INTEGER NOT NULL,
+    year_level INTEGER NOT NULL,
+    section_number INTEGER NOT NULL,
+    display_label VARCHAR(50) NOT NULL,
+    status VARCHAR(30) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'DISSOLVED', 'MERGED', 'RETIRED')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (program_id, cohort_admission_year, section_number, term_calendar_id)
+);
+
+INSERT INTO block_sections (program_id, term_calendar_id, cohort_admission_year, year_level, section_number, display_label, status)
+SELECT p.id, t.id, 2023, 4, 1, 'BSIT 4-1', 'ACTIVE'
+FROM programs p, term_calendars t
+WHERE p.code = 'BSIT' AND t.academic_year = 'A.Y. 2026-2027' AND t.semester = '1st Semester'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO block_sections (program_id, term_calendar_id, cohort_admission_year, year_level, section_number, display_label, status)
+SELECT p.id, t.id, 2023, 4, 2, 'BSIT 4-2', 'ACTIVE'
+FROM programs p, term_calendars t
+WHERE p.code = 'BSIT' AND t.academic_year = 'A.Y. 2026-2027' AND t.semester = '1st Semester'
+ON CONFLICT DO NOTHING;
+
 -- 5. REQUIREMENT DEFINITIONS TABLE (Sprint 2: SCMS-004, SCMS-005)
 CREATE TABLE IF NOT EXISTS requirement_definitions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
