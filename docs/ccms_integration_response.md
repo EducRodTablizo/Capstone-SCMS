@@ -44,7 +44,11 @@
 
 ### 1. Does the ownership and direction match your understanding?
 **YES, 100% agreed.**  
-CCMS is the authoritative institutional Single Source of Truth (SSOT) for the campus academic calendar (term boundaries, statutory holidays, and official campus suspensions). CCMS pushes these dates to Audit (SCMS), and SCMS ingests them in a read-only manner. SCMS never alters official institutional dates.
+We formally affirm the **3-Tier Chain of Custody for Academic Terms**:
+1. **CCMS is the Institutional Calendar SSOT:** CCMS establishes and owns official statutory campus calendar boundaries (`start_date`, `end_date`, statutory holidays, and intraday suspensions) and pushes them to Audit (SMS/SCMS).
+2. **SMS is the Academic Catalog Master Entity:** SMS ingests these calendar dates and instantiates the canonical Academic Term Catalog entity (`academic_term_id: "term-2026-1s"`, `term_code: "2026-1S"`, `semester_number: 1`, `semester_label: "1ST_SEMESTER"`), binding them to Degree Programs, Curricula, Course Master records, and Block Sections (`BSIT 4-1`).
+3. **FMS is the Academic Catalog Consumer:** FMS consumes this resolved Academic Catalog from SMS to bind human-approved teaching assignments and classroom schedules.
+Audit/SMS never alters official institutional dates declared by CCMS.
 
 ### 2. Which of these does Audit need?
 * **Audit (SCMS) NEEDS:**
@@ -143,8 +147,8 @@ Including `"schema_version": "1.0.0"` in the root payload is an excellent approa
 ## 3. Access and Security
 
 ### 13. Authentication of calls both ways
-* **Header:** `X-API-Key: <secret_token>` or `Authorization: Bearer <secret_token>`.
-* **Key Provisioning:** Exchanged securely via environment configuration (`.env`). Never committed to public version control.
+* **Header:** `Authorization: Bearer <SERVICE_TOKEN>` (with backward-compatible support for `X-API-Key: <SERVICE_TOKEN>` or `X-Service-Token: <SERVICE_TOKEN>`).
+* **Key Provisioning:** Pre-shared service tokens configured via environment variables (`.env`: `CCMS_SERVICE_TOKEN`, `SCMS_SERVICE_TOKEN`). Never committed to public version control. No complex OAuth2 authorization server required for local/docker environments.
 * **Rotation:** Rotated at mid-semester or upon project milestone transitions.
 
 ### 14. Environments
@@ -230,11 +234,14 @@ CCMS's proposed scenarios (a through e) are **approved** and map directly to our
 ## 7. Major Integration Proposal & System Questions
 
 ### 26. What have we missed that could affect this agreement?
-1. **Academic Term Code Standardization:** Please ensure academic terms follow a uniform naming standard:
+1. **Canonical Academic Term Object Standardization:** To prevent parsing and validation failures across all 3 systems, all calendar payloads must supply the standardized canonical term attributes:
+   * `academic_term_id`: `"term-2026-1s"`
    * `academic_year`: `"2026-2027"`
-   * `semester`: `1` (or `"FIRST_SEMESTER"`)
-   * `term_code`: `"2026-1S"`
-   This ensures seamless 3-way alignment across SCMS, FMS, and CCMS.
+   * `semester_number`: `1` (numerical index for sorting and CCMS compliance)
+   * `semester_label`: `"1ST_SEMESTER"` (canonical uppercase enum for FMS assignment binding)
+   * `term_code`: `"2026-1S"` (compact composite key)
+   * `display_label`: `"A.Y. 2026-2027 First Semester"`
+   This ensures 100% schema alignment across SCMS, FMS, and CCMS.
 2. **Explicit Timezone Declaration:** Ensure all date-times specify or assume `Asia/Manila` (UTC+8).
 
 ---

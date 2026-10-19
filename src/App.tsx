@@ -5,6 +5,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { RequirementsPage } from './pages/RequirementsPage';
+import { ProgramsPage } from './pages/ProgramsPage';
 import { SyllabusUploadPage } from './pages/SyllabusUploadPage';
 import { SubmissionDetailPage } from './pages/SubmissionDetailPage';
 import { AuditLogPage } from './pages/AuditLogPage';
@@ -28,6 +29,8 @@ export const App: React.FC = () => {
             <Route path="/live-compliance" element={<DashboardPage />} />
 
             {/* Requirements & Deadlines (Sprint 2: SCMS-004, SCMS-005) */}
+            <Route path="/programs" element={<ProgramsPage />} />
+            <Route path="/academic-programs" element={<ProgramsPage />} />
             <Route path="/requirements" element={<RequirementsPage />} />
 
             {/* Action Audit Trail (Sprint 2: SCMS-014) */}

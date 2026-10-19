@@ -1,143 +1,145 @@
 version: '3.8'
 
 services:
-  # PostgreSQL (Transactional core, state machine, append-only audit trail)
-  postgres:
+  # 1. Identity & Access Database (Port 5434)
+  scms_postgres_identity:
     image: postgres:16-alpine
-    container_name: scms-postgres
+    container_name: scms_postgres_identity
     restart: always
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-      - AUDIT_WRITE
-      - CHOWN
-      - DAC_OVERRIDE
-      - FOWNER
-      - FSETID
-      - KILL
-      - MKNOD
-      - NET_BIND_SERVICE
-      - NET_RAW
-      - SETFCAP
-      - SETGID
-      - SETPCAP
-      - SETUID
-      - SYS_CHROOT
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: scms_admin
+      POSTGRES_PASSWORD: scms_secure_pass_2026
+      POSTGRES_DB: sms_identity
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:5434:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./database/postgres/init-schemas.sql:/docker-entrypoint-initdb.d/init-schemas.sql:ro
+      - identity_data:/var/lib/postgresql/data
+      - ./database/postgres/init-identity.sql:/docker-entrypoint-initdb.d/init-identity.sql:ro
     networks:
       - scms-network
-    mem_limit: 512m
-    deploy:
-      resources:
-        limits:
-          memory: 512m
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+
+  # 2. Academic Catalog Database (Port 5435) - SMS-021 SSOT
+  scms_postgres_catalog:
+    image: postgres:16-alpine
+    container_name: scms_postgres_catalog
+    restart: always
+    environment:
+      POSTGRES_USER: scms_admin
+      POSTGRES_PASSWORD: scms_secure_pass_2026
+      POSTGRES_DB: sms_catalog
+    ports:
+      - "127.0.0.1:5435:5432"
+    volumes:
+      - catalog_data:/var/lib/postgresql/data
+      - ./database/postgres/init-catalog.sql:/docker-entrypoint-initdb.d/init-catalog.sql:ro
+    networks:
+      - scms-network
+
+  # 3. Requirements & Deadlines Database (Port 5436)
+  scms_postgres_requirements:
+    image: postgres:16-alpine
+    container_name: scms_postgres_requirements
+    restart: always
+    environment:
+      POSTGRES_USER: scms_admin
+      POSTGRES_PASSWORD: scms_secure_pass_2026
+      POSTGRES_DB: sms_requirements
+    ports:
+      - "127.0.0.1:5436:5432"
+    volumes:
+      - requirements_data:/var/lib/postgresql/data
+      - ./database/postgres/init-requirements.sql:/docker-entrypoint-initdb.d/init-requirements.sql:ro
+    networks:
+      - scms-network
+
+  # 4. Submissions & Review Queue Database (Port 5437)
+  scms_postgres_submissions:
+    image: postgres:16-alpine
+    container_name: scms_postgres_submissions
+    restart: always
+    environment:
+      POSTGRES_USER: scms_admin
+      POSTGRES_PASSWORD: scms_secure_pass_2026
+      POSTGRES_DB: sms_submissions
+    ports:
+      - "127.0.0.1:5437:5432"
+    volumes:
+      - submissions_data:/var/lib/postgresql/data
+      - ./database/postgres/init-submissions.sql:/docker-entrypoint-initdb.d/init-submissions.sql:ro
+    networks:
+      - scms-network
+
+  # 5. Tamper-Evident Audit Log Database (Port 5438) - SMS-014
+  scms_postgres_audit:
+    image: postgres:16-alpine
+    container_name: scms_postgres_audit
+    restart: always
+    environment:
+      POSTGRES_USER: scms_admin
+      POSTGRES_PASSWORD: scms_secure_pass_2026
+      POSTGRES_DB: sms_audit
+    ports:
+      - "127.0.0.1:5438:5432"
+    volumes:
+      - audit_data:/var/lib/postgresql/data
+      - ./database/postgres/init-audit.sql:/docker-entrypoint-initdb.d/init-audit.sql:ro
+    networks:
+      - scms-network
 
   # MongoDB (GridFS syllabus documents & dynamic JSON rubric forms)
   mongo:
     image: mongo:7.0
     container_name: scms-mongo
     restart: always
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-      - AUDIT_WRITE
-      - CHOWN
-      - DAC_OVERRIDE
-      - FOWNER
-      - FSETID
-      - KILL
-      - MKNOD
-      - NET_BIND_SERVICE
-      - NET_RAW
-      - SETFCAP
-      - SETGID
-      - SETPCAP
-      - SETUID
-      - SYS_CHROOT
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
-      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+      MONGO_INITDB_ROOT_USERNAME: scms_admin
+      MONGO_INITDB_ROOT_PASSWORD: scms_mongo_pass_2026
+      MONGO_INITDB_DATABASE: scms_documents
     ports:
       - "127.0.0.1:27017:27017"
     volumes:
       - mongo_data:/data/db
     networks:
       - scms-network
-    mem_limit: 512m
-    deploy:
-      resources:
-        limits:
-          memory: 512m
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
 
-  # Redis (Pub/Sub live event bus & BullMQ overdue background queues)
+  # Redis (Pub/Sub live event bus & BullMQ queues)
   redis:
     image: redis:7-alpine
     container_name: scms-redis
     restart: always
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-      - AUDIT_WRITE
-      - CHOWN
-      - DAC_OVERRIDE
-      - FOWNER
-      - FSETID
-      - KILL
-      - MKNOD
-      - NET_BIND_SERVICE
-      - NET_RAW
-      - SETFCAP
-      - SETGID
-      - SETPCAP
-      - SETUID
-      - SYS_CHROOT
     ports:
       - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     networks:
       - scms-network
-    mem_limit: 256m
-    deploy:
-      resources:
-        limits:
-          memory: 256m
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 5s
+
+  # Adminer (Web GUI on Port 8080)
+  adminer:
+    image: adminer:latest
+    container_name: scms-adminer
+    restart: always
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks:
+      - scms-network
+    depends_on:
+      - scms_postgres_identity
+      - scms_postgres_catalog
+      - scms_postgres_requirements
+      - scms_postgres_submissions
+      - scms_postgres_audit
 
 networks:
   scms-network:
+    name: capstone-acas_scms-network
     driver: bridge
 
 volumes:
-  postgres_data:
+  identity_data:
+  catalog_data:
+  requirements_data:
+  submissions_data:
+  audit_data:
   mongo_data:
   redis_data:

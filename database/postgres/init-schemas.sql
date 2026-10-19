@@ -1,4 +1,4 @@
--- Syllabus Compliance Monitoring System (SCMS) - Schema Initialization
+﻿-- Syllabus Compliance Monitoring System (SCMS) - Schema Initialization
 -- Polytechnic University of the Philippines - Quezon City Campus (PUPQC)
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -37,16 +37,38 @@ CREATE TABLE IF NOT EXISTS programs (
     code VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Phased out')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO programs (code, name, description) VALUES
-    ('BSIT', 'Bachelor of Science in Information Technology', 'College of Computer and Information Sciences'),
-    ('BSBA-HRM', 'Bachelor of Science in Business Administration Major in Human Resource Management', 'College of Business Administration'),
-    ('BSBA-MM', 'Bachelor of Science in Business Administration Major in Marketing Management', 'College of Business Administration'),
-    ('BSENTREP', 'Bachelor of Science in Entrepreneurship', 'College of Business Administration'),
-    ('DOMT', 'Diploma in Office Management Technology', 'College of Communication')
-ON CONFLICT (code) DO NOTHING;
+-- Ensure status column exists if table was previously created without it
+DO $
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'programs' AND column_name = 'status'
+    ) THEN
+        ALTER TABLE programs ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Phased out'));
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'programs' AND column_name = 'updated_at'
+    ) THEN
+        ALTER TABLE programs ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+    END IF;
+END $;
+
+INSERT INTO programs (code, name, description, status) VALUES
+    ('BSIT', 'Bachelor of Science in Information Technology', 'College of Computer and Information Sciences', 'Active'),
+    ('BSBA-HRM', 'Bachelor of Science in Business Administration Major in Human Resource Management', 'College of Business Administration', 'Active'),
+    ('BSBA-MM', 'Bachelor of Science in Business Administration Major in Marketing Management', 'College of Business Administration', 'Active'),
+    ('BSENTREP', 'Bachelor of Science in Entrepreneurship', 'College of Business Administration', 'Active'),
+    ('DOMT', 'Diploma in Office Management Technology', 'College of Communication', 'Active')
+ON CONFLICT (code) DO UPDATE SET 
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    status = EXCLUDED.status;
 
 -- 3b. SUBJECT MASTER CATALOG (ACAS Single Source of Truth for Academic Courses)
 CREATE TABLE IF NOT EXISTS courses (

@@ -15,14 +15,14 @@ The SMS team formally accepts the **Consolidated FMS Position (dated 2026-10-16)
    * **Programs:** Degree programs (e.g., BSIT).
    * **Curriculum Versions:** Formal curriculum structures (e.g., BSIT-2024-Curriculum).
    * **Courses:** Continuing course catalog (formerly referred to as "Subjects") and immutable course versions.
-   * **Academic Terms:** Official semester and term definitions (e.g., A.Y. 2026-2027, 1st Semester).
+   * **Academic Terms & Catalog Offerings:** SMS ingests official campus calendar start/end dates from CCMS, instantiates the canonical Academic Term entities (`term-2026-1s`, `2026-1S`, `1ST_SEMESTER`), and binds them to Curricula, Course Master records, and Block Sections. FMS consumes this resolved academic catalog from SMS.
    * **Block Sections:** Stable academic cohort class sections (e.g., BSIT 4-1, BSIT 4-2).
 2. **FMS is the Authoritative Master for:**
    * **Faculty Profiles:** HR identities, employee records, academic ranks, and official consultation details.
    * **Teaching Assignments:** Human-approved instructor allocations to Course-Section-Term tuples.
    * **Physical Class Timetable & Space:** Schedule day/time meeting periods and physical classroom/laboratory allocations.
-3. **CCCMS Boundary:**
-   * Calendar-only integration for statutory academic calendar dates. No Faculty Profile feed, student complaint workflow, or office working hours overlap.
+3. **CCCMS Boundary & Calendar SSOT:**
+   * CCMS is the institutional Single Source of Truth (SSOT) for statutory academic calendar dates (term start/end dates, holidays, and intraday suspensions). SMS ingests these calendar dates and binds them into academic terms. CCMS office working hours do not apply to academic class schedules. No faculty profile feed or student complaint referral workflows.
 
 ---
 
@@ -159,11 +159,16 @@ The SMS team formally accepts the **Consolidated FMS Position (dated 2026-10-16)
 * **FMS Question:** *Supply SMS-owned Course, Academic Term and stable Block Section IDs with their revisions/effectivity and display labels. FMS assignments reference these identifiers; how are cohort identity, term-specific labels and offering relationships represented?*
 * **SMS Answer & Specification:**
   * **SMS Master Entities:**
-    1. **Academic Term:**
+    1. **Academic Term (Canonical Structure):**
        * `academic_term_id`: `"term-2026-1s"`
        * `academic_year`: `"2026-2027"`
-       * `semester`: `"1ST_SEMESTER"`
+       * `semester_number`: `1`
+       * `semester_label`: `"1ST_SEMESTER"`
+       * `term_code`: `"2026-1S"`
        * `display_label`: `"A.Y. 2026-2027 First Semester"`
+       * `start_date`: `"2026-09-01"`
+       * `end_date`: `"2027-01-31"`
+       * `status`: `"ACTIVE"`
     2. **Block Section:**
        * `block_section_id`: `"sec-bsit-4-1"`
        * `program_id`: `"prog-bsit-001"`
@@ -213,16 +218,17 @@ The SMS team formally accepts the **Consolidated FMS Position (dated 2026-10-16)
 ### Ref S10: Authentication, Machine Credentials & Identity Stability
 * **FMS Question:** *Confirm stable provider issuer/subject for sign-in and FMS faculty ID for domain links; email changes must not relink identities. Select separate scoped machine credentials, delivery path and supported HTTPS configuration with us.*
 * **SMS Answer & Specification:**
-  * **Identity Decoupling from Email:**
-    * **Human SSO / Sign-in:** Standard OpenID Connect (OIDC) using immutable subject claim (`sub: "auth0|usr_1092"`).
-    * **Cross-System Domain Entity Link:** Bound strictly via immutable `fms_faculty_id` (e.g., `"fac-1092"` or UUID).
+  * **Human Sign-in & Identity Independence (Decision A9):**
+    * **Separate Accounts:** In accordance with agreed tri-system Decision A9, SMS and FMS maintain separate local user accounts and session lifecycles. SMS uses its own local authentication service with Argon2id password hashing and local JWT cookies (`SCMS-001`). There is no shared OIDC provider or Auth0 dependency for the Capstone MVP.
+    * **Cross-System Domain Entity Link:** Domain entity linking between FMS faculty and SMS syllabus submissions is bound strictly via the immutable `fms_faculty_id` (e.g., `"fac-1092"` or UUID).
     * *Email Policy:* The `institutional_email` is strictly treated as a mutable contact and notification attribute. Any change to a faculty member's email address in FMS or SMS **never** breaks, unlinks, or relinks past teaching assignments, syllabi, or compliance audit logs.
-  * **Machine-to-Machine (M2M) Scoped Credentials:**
-    * Ingress and egress service communication uses OAuth 2.0 Client Credentials Grant with Bearer Tokens in HTTP headers: `Authorization: Bearer <m2m_jwt_token>`.
+  * **Machine-to-Machine (M2M) Service Credentials:**
+    * Ingress and egress service communication uses pre-shared Service Tokens via HTTP Bearer Authentication: `Authorization: Bearer <SERVICE_TOKEN>` (with backward-compatible support for `X-Service-Token: <SERVICE_TOKEN>` or `X-API-Key: <SERVICE_TOKEN>`).
+    * Configured securely via environment variables (`.env`: `FMS_SERVICE_TOKEN`, `SMS_SERVICE_TOKEN`) without requiring a separate OAuth2 token-issuing server.
     * **Enforced Permission Scopes:**
-      * FMS Service Account: `read:catalogue` (grants access to Courses, Programs, Terms, Block Sections) and `write:assignments` (grants access to deliver assignments).
-      * SMS Service Account: `read:faculty_profile` (grants access to query faculty directory).
-    * **Transport Security:** Strict HTTPS over TLS 1.3. For local and staging demonstration environments, mutual pre-shared service keys (`X-Service-Token`) are supported with scheduled rotation.
+      * FMS Service Account: `read:catalogue` (access to Courses, Programs, Terms, Block Sections) and `write:assignments` (delivers assignments).
+      * SMS Service Account: `read:faculty_profile` (queries faculty directory).
+    * **Transport Security:** Strict HTTPS over TLS 1.3 in production; pre-shared Bearer tokens in local and Docker staging environments.
 
 ---
 
@@ -285,7 +291,7 @@ Based on the confirmed FMS-SMS matrix, the four primary authoritative exchanges 
 ### Contract 2: SMS $\rightarrow$ FMS: Academic Term & Block Section
 * **Owner:** SMS | **Consumer:** FMS
 * **Required Fields:**
-  * **Academic Term:** `academic_term_id` (UUID), `academic_year` (e.g., `"2026-2027"`), `semester` (`"1ST_SEMESTER"`), `start_date`, `end_date`, `status` (`"ACTIVE"`).
+  * **Academic Term:** `academic_term_id` (UUID/slug), `academic_year` (e.g., `"2026-2027"`), `semester_number` (`1`), `semester_label` (`"1ST_SEMESTER"`), `term_code` (`"2026-1S"`), `display_label` (`"A.Y. 2026-2027 First Semester"`), `start_date`, `end_date`, `status` (`"ACTIVE"`).
   * **Block Section:** `block_section_id` (UUID), `display_label` (e.g., `"BSIT 4-1"`), `program_id`, `cohort_admission_year` (`2023`), `year_level` (`4`), `section_number` (`1`), `status` (`"ACTIVE"`).
 
 ### Contract 3: SMS $\rightarrow$ FMS: Course Master
@@ -334,9 +340,9 @@ To guarantee mutual reliability during live staging and capstone defense evaluat
    * Stale or out-of-order changes are rejected via monotonic version comparison (`assignment_version`).
 4. **CCCMS Calendar Separation:**
    * CCCMS integration is calendar-only. Office working hours are never imported as academic timetable constraints.
-5. **Separation of Human Authentication from Machine Credentials:**
-   * Human users authenticate via shared identity provider (OIDC).
-   * System-to-system exchanges use scoped machine credentials (Bearer tokens/API keys) over HTTPS (TLS 1.3).
+5. **Separation of Human Authentication from Machine Credentials (Decision A9):**
+   * In accordance with tri-system Decision A9, human users authenticate independently via local accounts (SMS uses Argon2id password hashing and local JWT sessions). No shared OIDC provider is deployed for Capstone MVP.
+   * System-to-system exchanges use scoped machine credentials (Bearer tokens/API keys via `.env`) over HTTPS (TLS 1.3).
    * Local application authorization remains strictly partitioned: each application controls its own role-based access.
 6. **Preserved FMS Cache Behavior:**
    * FMS retains cached catalogue snapshots with visible retrieval timestamps.
@@ -387,7 +393,7 @@ In formal response to the **Draft recommendations to the other teams (Pages 16â€
 
 ### 6.1 Single Source of Truth & Terminology Harmonization
 * **Course Terminology Confirmed:** SMS officially confirms the adoption of **"Course"** across all schemas, APIs, and documentation, retiring the earlier "Subject" wording.
-* **Authoritative Boundary Confirmed:** SMS is the authoritative master for **Programs, Curriculum Versions, Courses, Academic Terms, and stable Block Sections**. FMS is the master for **Faculty Profiles, Teaching Assignments, and physical Timetable/Room schedules**.
+* **Authoritative Boundary Confirmed:** SMS is the authoritative master for **Academic Programs, Curriculum Versions, Courses, resolved Academic Terms, and stable Block Sections**. CCMS is the master for **Campus Calendar boundaries and statutory suspensions**. FMS is the master for **Faculty Profiles, Teaching Assignments, and physical Timetable/Room schedules**.
 
 ### 6.2 Pre-Agreed Synthetic Fixture Pack & Repository Links
 * **Contract Specification Document:** `docs/fms_sms_integration_contract.md`

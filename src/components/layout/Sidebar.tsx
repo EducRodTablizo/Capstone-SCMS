@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  BookOpen,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -36,6 +37,7 @@ export function Sidebar({
             items: [
               { label: 'Live Compliance View', path: '/live-compliance', icon: Activity },
               { label: 'Review Queue', path: '/reviews', icon: CheckSquare },
+              { label: 'Academic Programs (SMS-021)', path: '/programs', icon: BookOpen },
               { label: 'Requirements & Deadlines', path: '/requirements', icon: Calendar },
             ],
           },
@@ -57,6 +59,7 @@ export function Sidebar({
           {
             group: 'Faculty Submissions',
             items: [
+              { label: 'Academic Programs Catalogue', path: '/programs', icon: BookOpen },
               { label: 'My Assigned Requirements', path: '/requirements', icon: FileText },
               { label: 'Submit Syllabus', path: '/submit', icon: Layers },
               { label: 'Review Status & Feedback', path: '/live-compliance', icon: Activity },

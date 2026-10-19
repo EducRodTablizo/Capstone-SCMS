@@ -1,10 +1,22 @@
 {
   "name": "@scms/api-gateway",
   "version": "1.0.0",
-  "description": "Server 0: Ingress, TLS, Rate Limiting & WebSocket Router",
+  "description": "Server 0: Ingress, Reverse Proxy & Single Entry Point Router",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn src/main.ts",
+    "dev": "npx tsx src/main.ts",
+    "start": "npx tsx src/main.ts",
     "build": "tsc"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0"
   }
 }

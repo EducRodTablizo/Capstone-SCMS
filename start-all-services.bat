@@ -26,6 +26,9 @@ start "SCMS Submission Service" cmd /k "cd apps\submission-service && npm run de
 echo - Starting Compliance Monitoring Service (Port 3005)...
 start "SCMS Compliance Service" cmd /k "cd apps\compliance-monitoring-service && npm run dev"
 
+echo - Starting Academic Catalog Service (Port 3006)...
+start "SCMS Academic Catalog Service" cmd /k "cd apps\academic-catalog-service && npm run dev"
+
 echo - Starting Audit Log Service (Port 3004)...
 start "SCMS Audit Service" cmd /k "cd apps\audit-log-service && npm run dev"
 

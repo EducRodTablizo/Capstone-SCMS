@@ -3,10 +3,13 @@
   "schema_version": "1.0.0",
   "timestamp": "2026-10-16T18:00:00+08:00",
   "academic_term": {
+    "academic_term_id": "term-2026-1s",
     "academic_year": "2026-2027",
-    "semester": 1,
+    "semester_number": 1,
+    "semester_label": "1ST_SEMESTER",
     "term_code": "2026-1S",
     "term_name": "Academic Year 2026-2027 First Semester",
+    "display_label": "A.Y. 2026-2027 First Semester",
     "start_date": "2026-09-01",
     "end_date": "2027-01-30"
   },
