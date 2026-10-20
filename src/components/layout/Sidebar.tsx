@@ -12,6 +12,7 @@ import {
   ChevronRight,
   ExternalLink,
   BookOpen,
+  Users,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -33,12 +34,19 @@ export function Sidebar({
     role === 'Academic Head'
       ? [
           {
-            group: 'Live Monitoring',
+            group: 'Academic Catalog Core',
+            items: [
+              { label: 'Academic Programs (SMS-021)', path: '/programs', icon: BookOpen },
+              { label: 'Course Master (SMS-022)', path: '/courses', icon: Layers },
+              { label: 'Cohort Block Sections (SMS-031)', path: '/block-sections', icon: Users },
+              { label: 'Requirements (SMS-004)', path: '/requirements', icon: Calendar },
+            ],
+          },
+          {
+            group: 'Live Monitoring & Review',
             items: [
               { label: 'Live Compliance View', path: '/live-compliance', icon: Activity },
               { label: 'Review Queue', path: '/reviews', icon: CheckSquare },
-              { label: 'Academic Programs (SMS-021)', path: '/programs', icon: BookOpen },
-              { label: 'Requirements & Deadlines', path: '/requirements', icon: Calendar },
             ],
           },
           {
@@ -59,7 +67,7 @@ export function Sidebar({
           {
             group: 'Faculty Submissions',
             items: [
-              { label: 'Academic Programs Catalogue', path: '/programs', icon: BookOpen },
+              { label: 'Academic Catalog', path: '/courses', icon: BookOpen },
               { label: 'My Assigned Requirements', path: '/requirements', icon: FileText },
               { label: 'Submit Syllabus', path: '/submit', icon: Layers },
               { label: 'Review Status & Feedback', path: '/live-compliance', icon: Activity },

@@ -22,6 +22,9 @@ const SERVICES: Record<string, { port: number; name: string }> = {
   '/api/v1/audit-logs': { port: 3004, name: 'audit-log-service' },
   '/api/v1/compliance': { port: 3005, name: 'compliance-monitoring-service' },
   '/api/v1/programs': { port: 3006, name: 'academic-catalog-service' },
+  '/api/v1/courses': { port: 3006, name: 'academic-catalog-service' },
+  '/api/v1/curricula': { port: 3006, name: 'academic-catalog-service' },
+  '/api/v1/block-sections': { port: 3006, name: 'academic-catalog-service' },
   '/api/v1/catalogue': { port: 3006, name: 'academic-catalog-service' },
 };
 

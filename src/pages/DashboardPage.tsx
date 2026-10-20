@@ -92,7 +92,7 @@ export const DashboardPage: React.FC = () => {
                   <p className="text-sm font-semibold text-slate-800">IT 101 - Web Development Technologies</p>
                   <p className="text-xs text-slate-500">BSIT 2nd Year • Deadline: Nov 15, 2026</p>
                 </div>
-                <StatusBadge status="Under Review" />
+                <StatusBadge status="under_review" />
               </div>
 
               <div className="py-3 flex items-center justify-between">
@@ -100,7 +100,7 @@ export const DashboardPage: React.FC = () => {
                   <p className="text-sm font-semibold text-slate-800">IT 204 - Database Management Systems</p>
                   <p className="text-xs text-slate-500">BSIT 2nd Year • Deadline: Nov 15, 2026</p>
                 </div>
-                <StatusBadge status="Approved" />
+                <StatusBadge status="approved" />
               </div>
 
               <div className="py-3 flex items-center justify-between">
@@ -108,7 +108,7 @@ export const DashboardPage: React.FC = () => {
                   <p className="text-sm font-semibold text-slate-800">CS 302 - Software Engineering</p>
                   <p className="text-xs text-slate-500">BSIT 3rd Year • Deadline: Nov 15, 2026</p>
                 </div>
-                <StatusBadge status="Returned" />
+                <StatusBadge status="returned" />
               </div>
             </div>
           </div>

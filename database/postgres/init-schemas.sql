@@ -1,3 +1,18 @@
+-- =========================================================================================
+-- DEPRECATION NOTICE: LEGACY MONOLITHIC SCHEMA DRAFT (ARCHIVE REFERENCE ONLY)
+-- =========================================================================================
+-- NOTICE: This monolithic init-schemas.sql is NOT mounted or used by docker-compose.yml.
+-- SCMS strictly follows the Database-per-Service Microservices Architecture.
+-- Each microservice owns and initializes its private database via its dedicated init script:
+--
+--   1. apps/identity-service              -> database/postgres/init-identity.sql     (sms_identity, Port 5434)
+--   2. apps/academic-catalog-service      -> database/postgres/init-catalog.sql      (sms_catalog, Port 5435)
+--   3. apps/requirements-service          -> database/postgres/init-requirements.sql (sms_requirements, Port 5436)
+--   4. apps/submission-service            -> database/postgres/init-submissions.sql  (sms_submissions, Port 5437)
+--   5. apps/audit-log-service             -> database/postgres/init-audit.sql        (sms_audit, Port 5438)
+--   6. apps/compliance-monitoring-service -> database/postgres/init-compliance.sql   (sms_compliance, Port 5439)
+-- =========================================================================================
+
 ﻿-- Syllabus Compliance Monitoring System (SCMS) - Schema Initialization
 -- Polytechnic University of the Philippines - Quezon City Campus (PUPQC)
 

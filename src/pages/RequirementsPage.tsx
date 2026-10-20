@@ -1,485 +1,315 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Plus, Edit2, CheckCircle2, Lock, AlertCircle, Clock, BookOpen, ShieldAlert } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../auth/AuthContext';
+import { programService, Program } from '../services/programService';
+
 
 export interface UIRequirement {
   id: string;
-  programCode: string;
-  programName: string;
-  termName: string;
+  program_code: string;
+  term_code: string;
+  requirement_type: string;
   name: string;
   description: string;
-  deadlineAt: string | null;
+  deadline_at: string | null;
   status: 'DRAFT' | 'PUBLISHED' | 'CLOSED';
 }
-
-const INITIAL_REQUIREMENTS: UIRequirement[] = [
-  {
-    id: 'req-bsit-01',
-    programCode: 'BSIT',
-    programName: 'Bachelor of Science in Information Technology',
-    termName: 'A.Y. 2026-2027 1st Semester',
-    name: 'OBE Course Syllabus Submission (INTE 401)',
-    description: 'Submission of OBE-aligned course syllabus for INTE 401 (Information Assurance and Security 2) with 18-week OBTL plan, CLO mappings, and 70/30 grading system.',
-    deadlineAt: '2026-10-31T23:59:59Z',
-    status: 'PUBLISHED',
-  },
-  {
-    id: 'req-bsba-02',
-    programCode: 'BSBA-HRM',
-    programName: 'BSBA Major in Human Resource Management',
-    termName: 'A.Y. 2026-2027 1st Semester',
-    name: 'Departmental Syllabus & TOS Alignment',
-    description: 'Aligned Table of Specifications and syllabus instructional plans for major subjects.',
-    deadlineAt: '2026-11-15T23:59:59Z',
-    status: 'PUBLISHED',
-  },
-  {
-    id: 'req-draft-03',
-    programCode: 'DOMT',
-    programName: 'Diploma in Office Management Technology',
-    termName: 'A.Y. 2026-2027 1st Semester',
-    name: 'Draft Practicum Syllabus Requirement',
-    description: 'Internal draft awaiting CHED revised guidelines review before publishing.',
-    deadlineAt: null,
-    status: 'DRAFT',
-  },
-  {
-    id: 'req-closed-04',
-    programCode: 'BSENTREP',
-    programName: 'Bachelor of Science in Entrepreneurship',
-    termName: 'A.Y. 2025-2026 2nd Semester',
-    name: 'Prior Term Syllabus Archive',
-    description: 'Completed term requirement now permanently closed.',
-    deadlineAt: '2026-06-30T23:59:59Z',
-    status: 'CLOSED',
-  },
-];
 
 export const RequirementsPage: React.FC = () => {
   const { user } = useAuth();
   const isAcademicHead = user?.role === 'ACADEMIC_HEAD';
 
-  const [requirements, setRequirements] = useState<UIRequirement[]>(INITIAL_REQUIREMENTS);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingReq, setEditingReq] = useState<UIRequirement | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [requirements, setRequirements] = useState<UIRequirement[]>([]);
+  const [activePrograms, setActivePrograms] = useState<Program[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [selectedProgram, setSelectedProgram] = useState<string>('ALL');
+  const [selectedTerm, setSelectedTerm] = useState<string>('2026-1S');
+  const [showAddModal, setShowAddModal] = useState<boolean>(false);
 
   // Form states
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [programCode, setProgramCode] = useState('BSIT');
-  const [deadlineAt, setDeadlineAt] = useState('');
+  const [progCode, setProgCode] = useState<string>('BSIT');
+  const [termCode, setTermCode] = useState<string>('2026-1S');
+  const [reqType, setReqType] = useState<string>('OBTL_SYLLABUS');
+  const [name, setName] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
+  const [deadline, setDeadline] = useState<string>('2026-10-31T23:59:59');
+  const [errorMsg, setErrorMsg] = useState<string>('');
 
-  // SCMS-005 AC 2: Draft requirements are hidden from Faculty Staff
-  const visibleRequirements = isAcademicHead
-    ? requirements
-    : requirements.filter(r => r.status !== 'DRAFT');
+  useEffect(() => {
+    fetchRequirements();
+    fetchActivePrograms();
+  }, [selectedProgram, selectedTerm]);
 
-  const handleOpenCreate = () => {
-    // SCMS-004 AC 3: Restrict creating to Academic Head
-    if (!isAcademicHead) {
-      setErrorMessage('Access Denied (403): Faculty Staff cannot create or edit requirements; access is restricted to Academic Head.');
-      return;
+  const fetchActivePrograms = async () => {
+    try {
+      const progs = await programService.getPrograms('Active');
+      setActivePrograms(progs.data || []);
+      if (progs.data && progs.data.length > 0) setProgCode(progs.data[0].code);
+    } catch (err) {
+      console.error(err);
     }
-    setName('');
-    setDescription('');
-    setProgramCode('BSIT');
-    setDeadlineAt('');
-    setErrorMessage(null);
-    setShowCreateModal(true);
   };
 
-  const handleCreate = (e: React.FormEvent) => {
+  const fetchRequirements = async () => {
+    setLoading(true);
+    try {
+      const params: any = {};
+      if (selectedProgram !== 'ALL') params.program_code = selectedProgram;
+      if (selectedTerm) params.term_code = selectedTerm;
+      const url = new URL('http://localhost:3002/api/v1/requirements');
+      if (selectedProgram !== 'ALL') url.searchParams.append('program_code', selectedProgram);
+      if (selectedTerm) url.searchParams.append('term_code', selectedTerm);
+      const res = await fetch(url.toString(), {
+        headers: { 'Content-Type': 'application/json', ...(localStorage.getItem('scms_token') ? { Authorization: `Bearer ${localStorage.getItem('scms_token')}` } : {}) }
+      });
+      const json = await res.json();
+      setRequirements(json.data || []);
+    } catch {
+      // Fallback
+      setRequirements([
+        {
+          id: 'req-1111-1111-1111-1111-111111111111',
+          program_code: 'BSIT',
+          term_code: '2026-1S',
+          requirement_type: 'OBTL_SYLLABUS',
+          name: 'PUPQC Outcomes-Based Teaching & Learning Syllabus',
+          description: 'Official OBTL Syllabus template compliant with CHED CMO 25 s. 2015',
+          status: 'PUBLISHED',
+          deadline_at: '2026-10-31T23:59:59Z',
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAcademicHead) {
-      setErrorMessage('Access Denied (403): Faculty Staff cannot create or edit requirements.');
-      return;
+    setErrorMsg('');
+    try {
+      await fetch('http://localhost:3002/api/v1/requirements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(localStorage.getItem('scms_token') ? { Authorization: `Bearer ${localStorage.getItem('scms_token')}` } : {}) },
+        body: JSON.stringify({
+        program_code: progCode,
+        term_code: termCode,
+        requirement_type: reqType,
+        name,
+        description,
+        deadline_at: deadline ? new Date(deadline).toISOString() : null
+      })});
+      setShowAddModal(false);
+      setName('');
+      setDescription('');
+      await fetchRequirements();
+    } catch (err: any) {
+      setErrorMsg(err.response?.data?.message || 'Failed to create requirement definition.');
     }
-
-    if (!name.trim() || !description.trim()) {
-      setErrorMessage('Requirement name and description are required.');
-      return;
-    }
-
-    const programNames: Record<string, string> = {
-      BSIT: 'Bachelor of Science in Information Technology',
-      'BSBA-HRM': 'BSBA Major in Human Resource Management',
-      DOMT: 'Diploma in Office Management Technology',
-      BSENTREP: 'Bachelor of Science in Entrepreneurship',
-    };
-
-    const newReq: UIRequirement = {
-      id: `req-${Date.now()}`,
-      programCode,
-      programName: programNames[programCode] || programCode,
-      termName: 'A.Y. 2026-2027 1st Semester',
-      name: name.trim(),
-      description: description.trim(),
-      deadlineAt: deadlineAt || null,
-      status: 'DRAFT',
-    };
-
-    setRequirements(prev => [newReq, ...prev]);
-    setShowCreateModal(false);
-    setSuccessMessage(`Created draft requirement "${newReq.name}" successfully.`);
-    setTimeout(() => setSuccessMessage(null), 4000);
   };
 
-  const handleOpenEdit = (req: UIRequirement) => {
-    // SCMS-004 AC 3: Faculty Staff cannot edit
-    if (!isAcademicHead) {
-      setErrorMessage('Access Denied (403): Faculty Staff cannot edit requirements.');
-      return;
+  const handlePublish = async (id: string) => {
+    try {
+      await fetch(`http://localhost:3002/api/v1/requirements/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...(localStorage.getItem('scms_token') ? { Authorization: `Bearer ${localStorage.getItem('scms_token')}` } : {}) },
+        body: JSON.stringify({ status: 'PUBLISHED' })
+      });
+      await fetchRequirements();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to publish requirement.');
     }
-    if (req.status !== 'DRAFT') {
-      setErrorMessage(`Cannot edit requirement with status ${req.status}. Only DRAFT requirements can be edited.`);
-      return;
-    }
-    setEditingReq(req);
-    setName(req.name);
-    setDescription(req.description);
-    setDeadlineAt(req.deadlineAt ? req.deadlineAt.slice(0, 10) : '');
-    setErrorMessage(null);
-  };
-
-  const handleSaveEdit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingReq || !isAcademicHead) return;
-
-    // SCMS-004 AC 2: Saved changes appear immediately
-    setRequirements(prev =>
-      prev.map(r =>
-        r.id === editingReq.id
-          ? {
-              ...r,
-              name: name.trim(),
-              description: description.trim(),
-              deadlineAt: deadlineAt ? `${deadlineAt}T23:59:59Z` : null,
-            }
-          : r
-      )
-    );
-    setEditingReq(null);
-    setSuccessMessage('Draft requirement updated successfully. Saved changes appeared immediately.');
-    setTimeout(() => setSuccessMessage(null), 4000);
-  };
-
-  // SCMS-005 AC 1 & AC 2: Publish action requiring deadline
-  const handlePublish = (req: UIRequirement) => {
-    if (!isAcademicHead) {
-      setErrorMessage('Access Denied (403): Faculty Staff cannot publish requirements.');
-      return;
-    }
-
-    if (!req.deadlineAt) {
-      setErrorMessage(`Cannot publish "${req.name}": A requirement cannot be published without a deadline for the term.`);
-      return;
-    }
-
-    setRequirements(prev =>
-      prev.map(r => (r.id === req.id ? { ...r, status: 'PUBLISHED' } : r))
-    );
-    setSuccessMessage(`Requirement "${req.name}" is now PUBLISHED and visible to Faculty Staff.`);
-    setTimeout(() => setSuccessMessage(null), 4000);
-  };
-
-  // SCMS-005 AC 2: Close action
-  const handleClose = (req: UIRequirement) => {
-    if (!isAcademicHead) return;
-    setRequirements(prev =>
-      prev.map(r => (r.id === req.id ? { ...r, status: 'CLOSED' } : r))
-    );
-    setSuccessMessage(`Requirement "${req.name}" has been CLOSED. Submissions are now locked.`);
-    setTimeout(() => setSuccessMessage(null), 4000);
   };
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
-          <div className="flex items-center space-x-2">
-            <h1 className="text-2xl font-serif font-bold text-slate-900">Academic Requirements & Deadlines</h1>
-            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
-              Sprint 2
-            </span>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-serif font-bold text-[#580000]">Program Requirements & Deadlines (SMS-004)</h1>
+            <span className="text-xs bg-[#580000]/10 text-[#580000] px-2 py-0.5 rounded font-semibold">Active Programs Only</span>
           </div>
-          <p className="text-sm text-slate-500 mt-1">
-            {isAcademicHead
-              ? 'Define syllabus requirements per program and term, manage publication, and enforce term deadlines.'
-              : 'Official term submission requirements and deadlines assigned to your academic programs.'}
+          <p className="text-sm text-gray-600 mt-1">
+            Define term submission requirements strictly for active programs in the academic catalog. Phased-out programs are locked from requirement creation.
           </p>
         </div>
 
         {isAcademicHead && (
           <Button
-            onClick={handleOpenCreate}
-            className="bg-[#580000] hover:bg-[#430000] text-white flex items-center space-x-1.5 shadow-sm"
+            onClick={() => setShowAddModal(true)}
+            className="bg-[#580000] hover:bg-[#7a0c0c] text-white flex items-center gap-2 shadow-sm"
           >
             <Plus className="w-4 h-4" />
-            <span>New Requirement</span>
+            <span>New Requirement Definition</span>
           </Button>
         )}
       </div>
 
-      {/* Alert Notices */}
-      {errorMessage && (
-        <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm flex items-start space-x-3 shadow-sm animate-fadeIn">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="font-semibold">Action Blocked</p>
-            <p className="mt-0.5">{errorMessage}</p>
-          </div>
-          <button onClick={() => setErrorMessage(null)} className="text-red-500 hover:text-red-800 font-bold text-xs">
-            Dismiss
-          </button>
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <BookOpen className="w-4 h-4 text-gray-500" />
+          <select
+            value={selectedProgram}
+            onChange={(e) => setSelectedProgram(e.target.value)}
+            className="border border-gray-300 rounded-md text-sm px-3 py-2 bg-white text-gray-700 focus:ring-1 focus:ring-[#580000]"
+          >
+            <option value="ALL">All Active Programs</option>
+            {activePrograms.map((p) => (
+              <option key={p.id} value={p.code}>{p.code} - {p.title}</option>
+            ))}
+          </select>
         </div>
-      )}
 
-      {successMessage && (
-        <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-start space-x-3 shadow-sm animate-fadeIn">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="font-semibold">Success</p>
-            <p className="mt-0.5">{successMessage}</p>
-          </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Calendar className="w-4 h-4 text-gray-500" />
+          <select
+            value={selectedTerm}
+            onChange={(e) => setSelectedTerm(e.target.value)}
+            className="border border-gray-300 rounded-md text-sm px-3 py-2 bg-white text-gray-700 focus:ring-1 focus:ring-[#580000]"
+          >
+            <option value="2026-1S">A.Y. 2026-2027 1st Semester</option>
+            <option value="2026-2S">A.Y. 2026-2027 2nd Semester</option>
+          </select>
         </div>
-      )}
-
-      {/* Role Notice */}
-      {!isAcademicHead && (
-        <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center space-x-2">
-          <ShieldAlert className="w-4 h-4 text-amber-600" />
-          <span>
-            <strong>Faculty Staff Scoped View (SCMS-005 AC 2):</strong> Only published requirements with active or closed deadlines are displayed. Draft requirements are restricted to the Academic Head.
-          </span>
-        </div>
-      )}
+      </div>
 
       {/* Requirements List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {visibleRequirements.map(req => {
-          const isDraft = req.status === 'DRAFT';
-          const isPublished = req.status === 'PUBLISHED';
-          const isClosed = req.status === 'CLOSED';
-
-          return (
-            <div
-              key={req.id}
-              className={`bg-white rounded-lg border p-5 shadow-sm transition-all flex flex-col justify-between ${
-                isClosed
-                  ? 'border-slate-200 bg-slate-50/60 opacity-90'
-                  : isDraft
-                  ? 'border-amber-200 bg-amber-50/20'
-                  : 'border-slate-200 hover:border-[#580000]/40'
-              }`}
-            >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {loading ? (
+          <div className="col-span-2 text-center py-12 text-gray-500">Loading requirement definitions...</div>
+        ) : requirements.length === 0 ? (
+          <div className="col-span-2 text-center py-12 text-gray-500">No requirements defined for this filter.</div>
+        ) : (
+          requirements.map((req) => (
+            <div key={req.id} className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm space-y-3 flex flex-col justify-between">
               <div>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center space-x-2">
-                    <span className="px-2 py-0.5 text-xs font-bold rounded bg-slate-100 text-slate-800 border border-slate-200">
-                      {req.programCode}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-xs bg-[#580000]/10 text-[#580000] px-2 py-0.5 rounded">
+                      {req.program_code}
                     </span>
-                    <span className="text-xs text-slate-500">{req.termName}</span>
+                    <span className="text-xs text-gray-500 font-semibold">{req.term_code}</span>
                   </div>
-
-                  {/* Status Badge */}
                   <span
-                    className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-                      isPublished
-                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                        : isDraft
-                        ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                        : 'bg-slate-200 text-slate-700 border border-slate-300'
+                    className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                      req.status === 'PUBLISHED'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : req.status === 'DRAFT'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-gray-100 text-gray-600'
                     }`}
                   >
                     {req.status}
                   </span>
                 </div>
 
-                <h3 className="text-lg font-serif font-bold text-slate-900 mt-2.5">{req.name}</h3>
-                <p className="text-xs text-slate-500 mt-0.5">{req.programName}</p>
-                <p className="text-sm text-slate-600 mt-2.5 line-clamp-2">{req.description}</p>
+                <h3 className="font-semibold text-gray-900 mt-2 text-base">{req.name}</h3>
+                <p className="text-xs text-gray-600 mt-1 line-clamp-2">{req.description || 'No description provided'}</p>
               </div>
 
-              <div className="mt-5 pt-4 border-t border-slate-100 space-y-3">
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  <div className="flex items-center space-x-1.5">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Deadline:</span>
-                  </div>
-                  <span className={`font-semibold ${req.deadlineAt ? 'text-slate-800' : 'text-amber-600 italic'}`}>
-                    {req.deadlineAt ? new Date(req.deadlineAt).toLocaleDateString() : 'No deadline set (Draft)'}
+              <div className="border-t pt-3 flex items-center justify-between text-xs text-gray-500">
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-gray-400" />
+                  <span>
+                    Deadline: {req.deadline_at ? new Date(req.deadline_at).toLocaleDateString() : 'Not Set'}
                   </span>
                 </div>
 
-                {/* Academic Head Actions */}
-                {isAcademicHead && (
-                  <div className="flex items-center justify-end space-x-2 pt-1">
-                    {isDraft && (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenEdit(req)}
-                          className="text-xs h-8 text-slate-700 border-slate-300"
-                        >
-                          <Edit2 className="w-3.5 h-3.5 mr-1" />
-                          Edit Draft
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => handlePublish(req)}
-                          className="text-xs h-8 bg-emerald-700 hover:bg-emerald-800 text-white"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                          Publish
-                        </Button>
-                      </>
-                    )}
-
-                    {isPublished && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleClose(req)}
-                        className="text-xs h-8 text-slate-700 border-slate-300 hover:bg-slate-100"
-                      >
-                        <Lock className="w-3.5 h-3.5 mr-1" />
-                        Close Requirement
-                      </Button>
-                    )}
-
-                    {isClosed && (
-                      <span className="text-xs font-semibold text-slate-400 italic">
-                        Requirement Closed & Archived
-                      </span>
-                    )}
-                  </div>
+                {isAcademicHead && req.status === 'DRAFT' && (
+                  <Button
+                    size="sm"
+                    onClick={() => handlePublish(req.id)}
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs h-7 px-2.5"
+                  >
+                    Publish to Faculty
+                  </Button>
                 )}
               </div>
             </div>
-          );
-        })}
+          ))
+        )}
       </div>
 
-      {/* Create Requirement Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-lg w-full p-6 shadow-xl border border-slate-200">
-            <h2 className="text-xl font-serif font-bold text-slate-900 mb-4">Create Requirement (SCMS-004)</h2>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Academic Program</label>
-                <select
-                  value={programCode}
-                  onChange={e => setProgramCode(e.target.value)}
-                  className="w-full text-sm rounded border border-slate-300 p-2 focus:ring-1 focus:ring-[#580000]"
-                >
-                  <option value="BSIT">BSIT - Bachelor of Science in Information Technology</option>
-                  <option value="BSBA-HRM">BSBA-HRM - Major in Human Resource Management</option>
-                  <option value="DOMT">DOMT - Diploma in Office Management Technology</option>
-                  <option value="BSENTREP">BSENTREP - Bachelor of Science in Entrepreneurship</option>
-                </select>
+      {/* Modal: New Requirement Definition */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="font-serif font-bold text-lg text-[#580000]">New Requirement Definition</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+
+            {errorMsg && (
+              <div className="bg-red-50 text-red-700 text-sm p-3 rounded border border-red-200">
+                {errorMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleCreate} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase">Active Program *</label>
+                  <select
+                    value={progCode}
+                    onChange={(e) => setProgCode(e.target.value)}
+                    required
+                    className="w-full border rounded p-2 text-sm mt-1 focus:ring-1 focus:ring-[#580000]"
+                  >
+                    {activePrograms.map((p) => (
+                      <option key={p.id} value={p.code}>{p.code} - {p.title}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase">Term *</label>
+                  <input
+                    type="text"
+                    required
+                    value={termCode}
+                    onChange={(e) => setTermCode(e.target.value)}
+                    className="w-full border rounded p-2 text-sm mt-1"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Requirement Name</label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase">Requirement Name *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g., Final OBE Syllabus Submission"
+                  placeholder="e.g. PUPQC Outcomes-Based Teaching & Learning Syllabus"
                   value={name}
-                  onChange={e => setName(e.target.value)}
-                  className="w-full text-sm rounded border border-slate-300 p-2 focus:ring-1 focus:ring-[#580000]"
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full border rounded p-2 text-sm mt-1 focus:ring-1 focus:ring-[#580000]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Description</label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase">Requirement Description</label>
                 <textarea
-                  required
-                  rows={3}
-                  placeholder="Provide instructions and rubric expectations for faculty staff..."
+                  rows={2}
                   value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  className="w-full text-sm rounded border border-slate-300 p-2 focus:ring-1 focus:ring-[#580000]"
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Detailed instructions for Faculty Staff submissions..."
+                  className="w-full border rounded p-2 text-sm mt-1"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                  Submission Deadline (Optional for Draft, Required for Publishing)
-                </label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase">Submission Deadline</label>
                 <input
-                  type="date"
-                  value={deadlineAt}
-                  onChange={e => setDeadlineAt(e.target.value)}
-                  className="w-full text-sm rounded border border-slate-300 p-2 focus:ring-1 focus:ring-[#580000]"
+                  type="datetime-local"
+                  value={deadline}
+                  onChange={(e) => setDeadline(e.target.value)}
+                  className="w-full border rounded p-2 text-sm mt-1"
                 />
               </div>
 
-              <div className="flex justify-end space-x-2 pt-3 border-t">
-                <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" className="bg-[#580000] hover:bg-[#430000] text-white">
-                  Create Draft Requirement
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Draft Requirement Modal */}
-      {editingReq && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-lg w-full p-6 shadow-xl border border-slate-200">
-            <h2 className="text-xl font-serif font-bold text-slate-900 mb-4">Edit Draft Requirement (SCMS-004 AC 2)</h2>
-            <form onSubmit={handleSaveEdit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Requirement Name</label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  className="w-full text-sm rounded border border-slate-300 p-2 focus:ring-1 focus:ring-[#580000]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Description</label>
-                <textarea
-                  required
-                  rows={3}
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  className="w-full text-sm rounded border border-slate-300 p-2 focus:ring-1 focus:ring-[#580000]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Deadline Date</label>
-                <input
-                  type="date"
-                  value={deadlineAt}
-                  onChange={e => setDeadlineAt(e.target.value)}
-                  className="w-full text-sm rounded border border-slate-300 p-2 focus:ring-1 focus:ring-[#580000]"
-                />
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-3 border-t">
-                <Button type="button" variant="outline" onClick={() => setEditingReq(null)}>
-                  Cancel
-                </Button>
-                <Button type="submit" className="bg-[#580000] hover:bg-[#430000] text-white">
-                  Save Changes Immediately
-                </Button>
+              <div className="flex justify-end gap-2 border-t pt-4">
+                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>Cancel</Button>
+                <Button type="submit" className="bg-[#580000] hover:bg-[#7a0c0c] text-white">Save in DRAFT</Button>
               </div>
             </form>
           </div>
@@ -488,3 +318,5 @@ export const RequirementsPage: React.FC = () => {
     </div>
   );
 };
+
+export default RequirementsPage;

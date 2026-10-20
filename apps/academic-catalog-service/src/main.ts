@@ -2,6 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { programRouter } from './programs/program.controller';
+import { courseRouter } from './courses/course.controller';
+import { curriculumRouter } from './curricula/curriculum.controller';
+import { blockSectionRouter } from './block-sections/block-section.controller';
 import { programRepository } from './programs/program.repository';
 
 export const app = express();
@@ -24,8 +27,11 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Mount Program routes under /api/v1/programs (SMS-021)
-app.use('/api/v1/programs', programRouter);
+// SSOT Academic Catalog Routes (Sprint 1 & Sprint 2)
+app.use('/api/v1/programs', programRouter);           // SMS-021: Academic Programs
+app.use('/api/v1/courses', courseRouter);             // SMS-022: Course Master Catalogue
+app.use('/api/v1/curricula', curriculumRouter);       // SMS-030: Curricula & Course Mappings
+app.use('/api/v1/block-sections', blockSectionRouter);// SMS-031: Cohort Block Sections
 
 if (require.main === module) {
   programRepository.init().then(() => {

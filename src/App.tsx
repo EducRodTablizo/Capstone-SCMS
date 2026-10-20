@@ -6,6 +6,8 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { RequirementsPage } from './pages/RequirementsPage';
 import { ProgramsPage } from './pages/ProgramsPage';
+import { CoursesPage } from './pages/CoursesPage';
+import { BlockSectionsPage } from './pages/BlockSectionsPage';
 import { SyllabusUploadPage } from './pages/SyllabusUploadPage';
 import { SubmissionDetailPage } from './pages/SubmissionDetailPage';
 import { AuditLogPage } from './pages/AuditLogPage';
@@ -28,12 +30,16 @@ export const App: React.FC = () => {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/live-compliance" element={<DashboardPage />} />
 
-            {/* Requirements & Deadlines (Sprint 2: SCMS-004, SCMS-005) */}
+            {/* Academic Catalog Core (Sprint 1 & Sprint 2) */}
             <Route path="/programs" element={<ProgramsPage />} />
             <Route path="/academic-programs" element={<ProgramsPage />} />
+            <Route path="/courses" element={<CoursesPage />} />
+            <Route path="/block-sections" element={<BlockSectionsPage />} />
+
+            {/* Requirements & Deadlines (Sprint 2: SMS-004) */}
             <Route path="/requirements" element={<RequirementsPage />} />
 
-            {/* Action Audit Trail (Sprint 2: SCMS-014) */}
+            {/* Action Audit Trail (SMS-014) */}
             <Route path="/audit-trail" element={<AuditLogPage />} />
             <Route path="/audit-logs" element={<AuditLogPage />} />
 

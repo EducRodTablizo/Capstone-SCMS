@@ -86,6 +86,23 @@ services:
     networks:
       - scms-network
 
+  # 6. Compliance Monitoring & Analytics Database (Port 5439) - SMS-006, SMS-012, SMS-037
+  scms_postgres_compliance:
+    image: postgres:16-alpine
+    container_name: scms_postgres_compliance
+    restart: always
+    environment:
+      POSTGRES_USER: scms_admin
+      POSTGRES_PASSWORD: scms_secure_pass_2026
+      POSTGRES_DB: sms_compliance
+    ports:
+      - "127.0.0.1:5439:5432"
+    volumes:
+      - compliance_data:/var/lib/postgresql/data
+      - ./database/postgres/init-compliance.sql:/docker-entrypoint-initdb.d/init-compliance.sql:ro
+    networks:
+      - scms-network
+
   # MongoDB (GridFS syllabus documents & dynamic JSON rubric forms)
   mongo:
     image: mongo:7.0
@@ -129,6 +146,7 @@ services:
       - scms_postgres_requirements
       - scms_postgres_submissions
       - scms_postgres_audit
+      - scms_postgres_compliance
 
 networks:
   scms-network:
@@ -141,5 +159,6 @@ volumes:
   requirements_data:
   submissions_data:
   audit_data:
+  compliance_data:
   mongo_data:
   redis_data:
