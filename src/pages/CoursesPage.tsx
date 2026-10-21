@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { BookOpen, Plus, Search, Filter, Layers, Clock, Cpu, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { courseService, Course } from '../services/courseService';
 import { useAuth } from '../auth/AuthContext';
@@ -63,7 +63,7 @@ export const CoursesPage: React.FC = () => {
       resetForm();
       await fetchCourses();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to register course.');
+      setErrorMsg(err.response?.data?.message || err.message || 'Failed to register course.');
     }
   };
 
@@ -270,7 +270,7 @@ export const CoursesPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow-xl max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="font-serif font-bold text-lg text-[#580000]">New Course Master Specification</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">âœ•</button>
             </div>
 
             {errorMsg && (
@@ -409,3 +409,4 @@ export const CoursesPage: React.FC = () => {
 };
 
 export default CoursesPage;
+

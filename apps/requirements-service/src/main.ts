@@ -1,7 +1,9 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { requirementRouter } from './requirements/requirement.controller';
+import { calendarRouter } from './calendar/calendar.controller';
+import { termRouter } from './calendar/term.controller';
 
 export const app = express();
 const PORT = process.env.PORT || 3002;
@@ -23,14 +25,17 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Mount routes
-app.use('/api/v1/requirements', requirementRouter);
+// Mount routes (Sprint 2 & Sprint 3)
+app.use('/api/v1/requirements', requirementRouter); // SMS-004, SMS-005
+app.use('/api/v1/calendar', calendarRouter);         // SMS-032, SMS-033
+app.use('/api/v1/terms', termRouter);               // SMS-018
 
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log('=======================================================');
     console.log(`  SCMS Requirements Service running on port ${PORT}`);
-    console.log('  Responsibilities: Program Requirement Definitions (SMS-004)');
+    console.log('  Responsibilities: Requirements, Academic Terms & Calendar');
+    console.log('  User Stories: SMS-004, SMS-005, SMS-018, SMS-032, SMS-033');
     console.log('  Database: sms_requirements (Port 5436)');
     console.log('=======================================================');
   });

@@ -1,6 +1,8 @@
-import React from 'react';
-import { Bell, Menu, Calendar, ShieldCheck, Wifi, UserCheck } from 'lucide-react';
+﻿import React, { useState, useEffect } from 'react';
+import { Bell, Menu, Calendar, ShieldCheck, Wifi, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
+import { calendarService, AcademicTerm } from '../../services/calendarService';
 
 interface TopBarProps {
   onToggleSidebar: () => void;
@@ -13,7 +15,15 @@ export function TopBar({
   currentRole = 'Academic Head',
   isLiveConnected = true,
 }: TopBarProps) {
-  const { user, switchRole } = useAuth();
+  const { user, switchRole, logout } = useAuth();
+  const navigate = useNavigate();
+  const [activeTerm, setActiveTerm] = useState<AcademicTerm | null>(null);
+
+  useEffect(() => {
+    calendarService.getActiveTerm().then((term) => {
+      if (term) setActiveTerm(term);
+    });
+  }, []);
 
   const handleToggleRole = () => {
     if (user?.role === 'ACADEMIC_HEAD') {
@@ -21,6 +31,11 @@ export function TopBar({
     } else {
       switchRole('ACADEMIC_HEAD');
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   return (
@@ -47,10 +62,10 @@ export function TopBar({
           <span>{isLiveConnected ? 'Live Updates Active' : 'Connecting...'}</span>
         </div>
 
-        {/* Term Calendar Indicator */}
+        {/* Term Calendar Indicator (SMS-018: Academic Term SSOT from CCMS) */}
         <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-xs font-medium text-muted-foreground">
           <Calendar className="w-3.5 h-3.5 text-secondary" />
-          <span>A.Y. 2026-2027 | 1st Semester</span>
+          <span>{activeTerm ? activeTerm.display_label : 'A.Y. 2026-2027 | 1st Semester'}</span>
         </div>
 
         {/* Role Badge (Clickable to switch demo role for testing) */}
@@ -76,7 +91,7 @@ export function TopBar({
             {user?.name
               ? user.name
                   .split(' ')
-                  .map(n => n[0])
+                  .map((n: string) => n[0])
                   .join('')
                   .slice(0, 2)
               : 'AH'}
@@ -84,6 +99,14 @@ export function TopBar({
           <span className="text-xs font-semibold hidden md:inline text-gray-800">
             {user?.name || currentRole}
           </span>
+          <button
+            onClick={handleLogout}
+            title="Sign out of SCMS"
+            className="p-1.5 rounded-md hover:bg-red-50 text-gray-400 hover:text-red-700 transition-colors ml-1"
+            aria-label="Sign Out"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </header>

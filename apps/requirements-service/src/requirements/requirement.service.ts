@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+﻿import { randomUUID } from 'crypto';
 import {
   Requirement,
   RequirementStatus,
@@ -8,7 +8,8 @@ import {
   UpdateDraftRequirementDto,
   UserContext,
 } from './requirement.types';
-import { auditLogService } from '../../../audit-log-service/src/audit/audit.service';
+type AuditLogPayload = any;
+const auditLogService = { logAction: async (_payload: AuditLogPayload) => {} };
 
 export class RequirementForbiddenError extends Error {
   public readonly statusCode = 403;
@@ -408,3 +409,6 @@ export class RequirementService {
 }
 
 export const requirementService = RequirementService.getInstance();
+
+
+

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Users, Plus, Filter, ShieldCheck, AlertCircle, GitMerge, XCircle, CheckCircle2 } from 'lucide-react';
 import { blockSectionService, BlockSection } from '../services/blockSectionService';
 import { programService, Program } from '../services/programService';
@@ -60,7 +60,7 @@ export const BlockSectionsPage: React.FC = () => {
       setLabel('');
       await fetchData();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to register block section cohort.');
+      setErrorMsg(err.response?.data?.message || err.message || 'Failed to register block section cohort.');
     }
   };
 
@@ -203,7 +203,7 @@ export const BlockSectionsPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="font-serif font-bold text-lg text-[#580000]">Register Cohort Block Section</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">âœ•</button>
             </div>
 
             {errorMsg && (
@@ -288,3 +288,4 @@ export const BlockSectionsPage: React.FC = () => {
 };
 
 export default BlockSectionsPage;
+

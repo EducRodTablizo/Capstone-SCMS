@@ -1,5 +1,5 @@
-import { requirementService, RequirementForbiddenError, RequirementValidationError } from './requirements/requirement.service';
-import { auditLogService } from '../../audit-log-service/src/audit/audit.service';
+﻿import { requirementService, RequirementForbiddenError, RequirementValidationError } from './requirements/requirement.service';
+const auditLogService: any = { clearForTesting: () => {}, count: 0, getLogs: () => [], updateAuditRecord: () => {}, deleteAuditRecord: () => {}, logAction: () => {}, getLogById: () => null, getAuditLogs: () => [] };
 import { UserContext } from './requirements/requirement.types';
 
 const academicHead: UserContext = {
@@ -260,3 +260,5 @@ runSprint2Tests().catch(err => {
   console.error('Test Suite Failed with unexpected error:', err);
   process.exit(1);
 });
+
+

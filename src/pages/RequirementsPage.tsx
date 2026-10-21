@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, Edit2, CheckCircle2, Lock, AlertCircle, Clock, BookOpen, ShieldAlert } from 'lucide-react';
+﻿import React, { useState, useEffect } from 'react';
+import { Calendar, Plus, Edit2, CheckCircle2, Lock, AlertCircle, Clock, BookOpen, ShieldAlert, Sparkles, XCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../auth/AuthContext';
 import { programService, Program } from '../services/programService';
-
+import { calendarService, DeadlineAdjustmentResult } from '../services/calendarService';
 
 export interface UIRequirement {
   id: string;
@@ -34,12 +34,21 @@ export const RequirementsPage: React.FC = () => {
   const [name, setName] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [deadline, setDeadline] = useState<string>('2026-10-31T23:59:59');
+  const [adjustmentPreview, setAdjustmentPreview] = useState<DeadlineAdjustmentResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>('');
 
   useEffect(() => {
     fetchRequirements();
     fetchActivePrograms();
   }, [selectedProgram, selectedTerm]);
+
+  useEffect(() => {
+    if (deadline && showAddModal) {
+      calendarService.calculateDeadline(deadline, termCode).then(setAdjustmentPreview);
+    } else {
+      setAdjustmentPreview(null);
+    }
+  }, [deadline, termCode, showAddModal]);
 
   const fetchActivePrograms = async () => {
     try {
@@ -66,19 +75,7 @@ export const RequirementsPage: React.FC = () => {
       const json = await res.json();
       setRequirements(json.data || []);
     } catch {
-      // Fallback
-      setRequirements([
-        {
-          id: 'req-1111-1111-1111-1111-111111111111',
-          program_code: 'BSIT',
-          term_code: '2026-1S',
-          requirement_type: 'OBTL_SYLLABUS',
-          name: 'PUPQC Outcomes-Based Teaching & Learning Syllabus',
-          description: 'Official OBTL Syllabus template compliant with CHED CMO 25 s. 2015',
-          status: 'PUBLISHED',
-          deadline_at: '2026-10-31T23:59:59Z',
-        },
-      ]);
+      setRequirements([]);
     } finally {
       setLoading(false);
     }
@@ -92,32 +89,39 @@ export const RequirementsPage: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(localStorage.getItem('scms_token') ? { Authorization: `Bearer ${localStorage.getItem('scms_token')}` } : {}) },
         body: JSON.stringify({
-        program_code: progCode,
-        term_code: termCode,
-        requirement_type: reqType,
-        name,
-        description,
-        deadline_at: deadline ? new Date(deadline).toISOString() : null
-      })});
+          program_code: progCode,
+          term_code: termCode,
+          requirement_type: reqType,
+          name,
+          description,
+          deadline_at: deadline ? new Date(deadline).toISOString() : null,
+        }),
+      });
       setShowAddModal(false);
       setName('');
       setDescription('');
       await fetchRequirements();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to create requirement definition.');
+      setErrorMsg(err.response?.data?.message || err.message || 'Failed to create requirement definition.');
     }
   };
 
   const handlePublish = async (id: string) => {
     try {
-      await fetch(`http://localhost:3002/api/v1/requirements/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...(localStorage.getItem('scms_token') ? { Authorization: `Bearer ${localStorage.getItem('scms_token')}` } : {}) },
-        body: JSON.stringify({ status: 'PUBLISHED' })
-      });
+      await calendarService.publishRequirement(id);
       await fetchRequirements();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to publish requirement.');
+      alert(err.response?.data?.message || err.message || 'Failed to publish requirement.');
+    }
+  };
+
+  const handleClose = async (id: string) => {
+    if (!confirm('Close this requirement? Faculty Staff will no longer be able to submit new syllabi.')) return;
+    try {
+      await calendarService.closeRequirement(id);
+      await fetchRequirements();
+    } catch (err: any) {
+      alert(err.response?.data?.message || err.message || 'Failed to close requirement.');
     }
   };
 
@@ -127,11 +131,12 @@ export const RequirementsPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-serif font-bold text-[#580000]">Program Requirements & Deadlines (SMS-004)</h1>
+            <h1 className="text-2xl font-serif font-bold text-[#580000]">Program Requirements & Deadlines (SMS-004 & SMS-005)</h1>
             <span className="text-xs bg-[#580000]/10 text-[#580000] px-2 py-0.5 rounded font-semibold">Active Programs Only</span>
+            <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold">SMS-033 Calendar Aware</span>
           </div>
           <p className="text-sm text-gray-600 mt-1">
-            Define term submission requirements strictly for active programs in the academic catalog. Phased-out programs are locked from requirement creation.
+            Define term submission requirements strictly for active programs in the academic catalog. Cut-off times strictly enforce 23:59:59 with automatic holiday and suspension pushouts.
           </p>
         </div>
 
@@ -213,18 +218,32 @@ export const RequirementsPage: React.FC = () => {
                 <div className="flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-gray-400" />
                   <span>
-                    Deadline: {req.deadline_at ? new Date(req.deadline_at).toLocaleDateString() : 'Not Set'}
+                    Deadline: {req.deadline_at ? new Date(req.deadline_at).toLocaleDateString() + ' (23:59:59)' : 'Not Set'}
                   </span>
                 </div>
 
-                {isAcademicHead && req.status === 'DRAFT' && (
-                  <Button
-                    size="sm"
-                    onClick={() => handlePublish(req.id)}
-                    className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs h-7 px-2.5"
-                  >
-                    Publish to Faculty
-                  </Button>
+                {isAcademicHead && (
+                  <div className="flex items-center gap-2">
+                    {req.status === 'DRAFT' && (
+                      <Button
+                        size="sm"
+                        onClick={() => handlePublish(req.id)}
+                        className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs h-7 px-2.5"
+                      >
+                        Publish to Faculty
+                      </Button>
+                    )}
+                    {req.status === 'PUBLISHED' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleClose(req.id)}
+                        className="border-gray-300 text-gray-700 hover:bg-gray-100 text-xs h-7 px-2"
+                      >
+                        Close
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -306,6 +325,25 @@ export const RequirementsPage: React.FC = () => {
                   className="w-full border rounded p-2 text-sm mt-1"
                 />
               </div>
+
+              {/* SMS-033 Calendar Adjustment Alert Preview */}
+              {adjustmentPreview && adjustmentPreview.was_adjusted && (
+                <div className="p-3 bg-amber-50 border border-amber-300 rounded-md text-xs text-amber-900 space-y-1">
+                  <div className="font-bold flex items-center gap-1.5 text-amber-800">
+                    <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Intelligent Calendar Adjustment (SMS-033):</span>
+                  </div>
+                  <p>
+                    Target date falls on a weekend, holiday, or campus suspension. Pushed out to:
+                  </p>
+                  <p className="font-mono font-bold text-amber-950 text-sm">
+                    {adjustmentPreview.adjusted_deadline.replace('+08:00', ' PHT')}
+                  </p>
+                  <p className="text-[11px] text-amber-700 italic">
+                    Reason: {adjustmentPreview.reasons[0]}
+                  </p>
+                </div>
+              )}
 
               <div className="flex justify-end gap-2 border-t pt-4">
                 <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>Cancel</Button>
