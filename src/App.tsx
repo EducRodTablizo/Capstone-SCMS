@@ -55,6 +55,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/submit" element={<SyllabusUploadPage />} />
         <Route path="/submissions/new" element={<SyllabusUploadPage />} />
         <Route path="/submissions/:id/review" element={<SubmissionDetailPage />} />
+        <Route path="/submissions/:id" element={<SubmissionDetailPage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

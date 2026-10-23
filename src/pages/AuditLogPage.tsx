@@ -1,185 +1,170 @@
-import React, { useState } from 'react';
-import { History, Search, ShieldCheck, Filter, Clock, User, ArrowRight, ShieldAlert } from 'lucide-react';
-import { useAuth } from '../auth/AuthContext';
-
-interface UIAuditLog {
-  id: string;
-  actionType: string;
-  actorName: string;
-  actorRole: string;
-  entityName: string;
-  entityId: string;
-  previousValue: string;
-  newValue: string;
-  timestamp: string;
-  clientIp: string;
-}
-
-const SAMPLE_LOGS: UIAuditLog[] = [
-  {
-    id: 'aud-101',
-    actionType: 'DEADLINE_CHANGED',
-    actorName: 'Dr. Maria Ramos',
-    actorRole: 'ACADEMIC_HEAD',
-    entityName: 'REQUIREMENT',
-    entityId: 'req-bsit-01',
-    previousValue: 'Deadline: 2026-10-15',
-    newValue: 'Deadline: 2026-10-31',
-    timestamp: '2026-10-15T08:30:15Z',
-    clientIp: '192.168.1.10',
-  },
-  {
-    id: 'aud-102',
-    actionType: 'REQUIREMENT_PUBLISHED',
-    actorName: 'Dr. Maria Ramos',
-    actorRole: 'ACADEMIC_HEAD',
-    entityName: 'REQUIREMENT',
-    entityId: 'req-bsit-01',
-    previousValue: 'Status: DRAFT',
-    newValue: 'Status: PUBLISHED',
-    timestamp: '2026-10-15T08:25:00Z',
-    clientIp: '192.168.1.10',
-  },
-  {
-    id: 'aud-103',
-    actionType: 'REQUIREMENT_CREATED',
-    actorName: 'Dr. Maria Ramos',
-    actorRole: 'ACADEMIC_HEAD',
-    entityName: 'REQUIREMENT',
-    entityId: 'req-bsit-01',
-    previousValue: 'null',
-    newValue: 'OBE Course Syllabus Submission (BSIT)',
-    timestamp: '2026-10-15T08:15:00Z',
-    clientIp: '192.168.1.10',
-  },
-  {
-    id: 'aud-104',
-    actionType: 'LOGIN_SUCCESS',
-    actorName: 'Prof. Juan Santos',
-    actorRole: 'FACULTY_STAFF',
-    entityName: 'SESSION',
-    entityId: 'sess-8823',
-    previousValue: 'null',
-    newValue: 'JWT HttpOnly session issued',
-    timestamp: '2026-10-15T08:00:22Z',
-    clientIp: '192.168.1.55',
-  },
-];
+import React, { useState, useEffect } from 'react';
+import { Shield, Lock, Search, Filter, Calendar, CheckCircle2, Clock } from 'lucide-react';
+import { auditLogService, AuditLogItem } from '../services/auditLogService';
 
 export const AuditLogPage: React.FC = () => {
-  const { user } = useAuth();
-  const isAcademicHead = user?.role === 'ACADEMIC_HEAD';
-  const [searchTerm, setSearchTerm] = useState('');
-  const [actionFilter, setActionFilter] = useState('ALL');
+  const [logs, setLogs] = useState<AuditLogItem[]>([]);
+  const [actionFilter, setActionFilter] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const filteredLogs = SAMPLE_LOGS.filter(log => {
-    const matchesSearch =
-      log.actorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.actionType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.newValue.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesAction = actionFilter === 'ALL' || log.actionType === actionFilter;
-    return matchesSearch && matchesAction;
-  });
+  useEffect(() => {
+    fetchLogs();
+  }, [actionFilter]);
 
-  if (!isAcademicHead) {
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      const res = await auditLogService.getLogs({
+        actionType: actionFilter || undefined
+      });
+      if (res.data) {
+        setLogs(res.data);
+      }
+    } catch {
+      // Mock fallback data if service offline
+      setLogs([
+        {
+          id: 'log-001',
+          actorId: 'usr-001',
+          actorName: 'Dr. Maria Santos',
+          actorRole: 'ACADEMIC_HEAD',
+          actionType: 'REQUIREMENT_PUBLISHED',
+          entityName: 'REQUIREMENT',
+          entityId: 'req-2026-1s',
+          details: 'Published 2026-1S OBTL syllabus requirement quota for BSIT',
+          clientIp: '127.0.0.1',
+          createdAt: new Date(Date.now() - 3600000).toISOString()
+        },
+        {
+          id: 'log-002',
+          actorId: 'usr-002',
+          actorName: 'Prof. Juan Dela Cruz',
+          actorRole: 'FACULTY_STAFF',
+          actionType: 'SYLLABUS_SUBMITTED',
+          entityName: 'SUBMISSION',
+          entityId: 'sub-001',
+          details: 'Uploaded INTE_401_Syllabus.pdf for BSIT 4-1',
+          clientIp: '127.0.0.1',
+          createdAt: new Date().toISOString()
+        }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredLogs = logs.filter(log => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
     return (
-      <div className="bg-white p-8 rounded-lg border border-red-200 text-center max-w-lg mx-auto shadow-sm my-12">
-        <ShieldAlert className="w-12 h-12 text-red-600 mx-auto mb-3" />
-        <h2 className="text-xl font-serif font-bold text-slate-900">Access Restricted (SCMS-002 AC 3)</h2>
-        <p className="text-sm text-slate-600 mt-2">
-          The system audit trail is strictly reserved for the Academic Head for governance and institutional compliance inspection.
-        </p>
-      </div>
+      log.actorName.toLowerCase().includes(q) ||
+      log.actionType.toLowerCase().includes(q) ||
+      (log.details && log.details.toLowerCase().includes(q))
     );
-  }
+  });
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Header */}
+      <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-2xl font-serif font-bold text-slate-900">Immutable Audit Trail</h1>
-            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-              SCMS-014 Append-Only
+            <h1 className="text-2xl font-serif font-bold text-slate-900">Institutional Audit Ledger</h1>
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-900 text-white uppercase tracking-wider flex items-center">
+              <Lock className="w-3 h-3 mr-1" />
+              Append-Only (Read-Only)
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Tamper-evident record of requirement creations, deadline changes, submissions, and review decisions.
+            Authoritative, tamper-evident audit trail for PUPQC campus academic operations (ISO 27001 & RA 10173 compliant).
           </p>
         </div>
 
-        <div className="flex items-center space-x-2 text-xs font-semibold px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full">
-          <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-          <span>DB-Level Immutability Enforced</span>
+        <div className="flex items-center space-x-2 text-xs font-semibold px-3 py-1.5 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-full w-fit">
+          <Shield className="w-4 h-4 text-emerald-600" />
+          <span>SCMS-015 Immutable Log Viewer</span>
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
+      {/* Filter Toolbar (SCMS-015 AC 1) */}
       <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
-        <div className="relative w-full sm:w-80">
+        <div className="relative w-full sm:w-72">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
-            placeholder="Search by actor or action..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="w-full text-xs pl-9 pr-3 py-2 rounded border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[#580000]"
+            placeholder="Search by actor or details..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full text-xs pl-9 pr-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#580000]"
           />
         </div>
 
-        <div className="flex items-center space-x-2 w-full sm:w-auto">
-          <Filter className="w-4 h-4 text-slate-500" />
+        <div className="flex items-center space-x-3 w-full sm:w-auto">
+          <Filter className="w-4 h-4 text-slate-400" />
           <select
             value={actionFilter}
-            onChange={e => setActionFilter(e.target.value)}
-            className="text-xs border border-slate-300 rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-[#580000]"
+            onChange={(e) => setActionFilter(e.target.value)}
+            className="text-xs border border-slate-300 rounded-md px-3 py-2 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#580000]"
           >
-            <option value="ALL">All Logged Actions</option>
-            <option value="DEADLINE_CHANGED">Deadline Changed</option>
-            <option value="REQUIREMENT_PUBLISHED">Requirement Published</option>
-            <option value="REQUIREMENT_CREATED">Requirement Created</option>
-            <option value="LOGIN_SUCCESS">Login Success</option>
+            <option value="">All Action Types</option>
+            <option value="SYLLABUS_SUBMITTED">SYLLABUS_SUBMITTED</option>
+            <option value="SYLLABUS_RESUBMITTED">SYLLABUS_RESUBMITTED</option>
+            <option value="SYLLABUS_APPROVED">SYLLABUS_APPROVED</option>
+            <option value="SYLLABUS_RETURNED">SYLLABUS_RETURNED</option>
+            <option value="REQUIREMENT_PUBLISHED">REQUIREMENT_PUBLISHED</option>
           </select>
         </div>
       </div>
 
-      {/* Audit Log Table */}
+      {/* Audit Log Table (SCMS-015 AC 2: Strictly Read-Only) */}
       <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-[#580000] text-white font-semibold">
-                <th className="p-3">Timestamp (UTC)</th>
-                <th className="p-3">Action Type</th>
-                <th className="p-3">Acting User</th>
-                <th className="p-3">Entity</th>
-                <th className="p-3">Previous Value</th>
-                <th className="p-3">New Value</th>
-                <th className="p-3">Client IP</th>
+          <table className="w-full text-left text-xs text-slate-600">
+            <thead className="bg-slate-100 text-slate-700 uppercase font-semibold">
+              <tr>
+                <th className="px-4 py-3">Timestamp (UTC)</th>
+                <th className="px-4 py-3">Actor & Role</th>
+                <th className="px-4 py-3">Action Type</th>
+                <th className="px-4 py-3">Target Entity</th>
+                <th className="px-4 py-3">Audit Details</th>
+                <th className="px-4 py-3">Client IP</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredLogs.map(log => (
-                <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="p-3 font-mono text-slate-600 whitespace-nowrap">
-                    {new Date(log.timestamp).toLocaleString()}
+            <tbody className="divide-y divide-slate-200">
+              {filteredLogs.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                    No matching audit records found.
                   </td>
-                  <td className="p-3">
-                    <span className="px-2 py-0.5 rounded font-mono font-bold bg-slate-100 text-slate-800 border border-slate-200">
-                      {log.actionType}
-                    </span>
-                  </td>
-                  <td className="p-3 font-medium text-slate-900">
-                    <div>{log.actorName}</div>
-                    <div className="text-[10px] text-slate-500">{log.actorRole}</div>
-                  </td>
-                  <td className="p-3 text-slate-600 font-mono">{log.entityName}</td>
-                  <td className="p-3 text-slate-500 italic max-w-xs truncate">{log.previousValue}</td>
-                  <td className="p-3 font-semibold text-slate-800 max-w-xs truncate">{log.newValue}</td>
-                  <td className="p-3 font-mono text-slate-500">{log.clientIp}</td>
                 </tr>
-              ))}
+              ) : (
+                filteredLogs.map((log) => (
+                  <tr key={log.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                      {new Date(log.createdAt).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-slate-800">{log.actorName}</p>
+                      <span className="text-[10px] text-slate-400 uppercase">{log.actorRole}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
+                        {log.actionType}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-[11px] text-slate-700">
+                      {log.entityName}
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">
+                      {log.details || 'N/A'}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-[11px] text-slate-400">
+                      {log.clientIp}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

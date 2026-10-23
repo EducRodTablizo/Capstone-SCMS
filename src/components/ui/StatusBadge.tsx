@@ -10,6 +10,7 @@ export type ComplianceStatus =
   | 'resubmitted'
   | 'approved'
   | 'overdue'
+  | 'unassigned'
   | 'pending'
   | 'in_progress'
   | 'completed'
@@ -49,6 +50,11 @@ export function StatusBadge({ status }: StatusBadgeProps) {
       label: 'Approved',
       icon: <CheckCircle2 style={{ width: 14, height: 14 }} />,
       style: { backgroundColor: 'var(--success-bg)', color: 'var(--success)', borderColor: 'rgba(29, 158, 117, 0.3)', fontWeight: 600 },
+    },
+        unassigned: {
+      label: 'Unassigned',
+      icon: <Clock style={{ width: 14, height: 14 }} />,
+      style: { backgroundColor: '#f3e8ff', color: '#7c3aed', borderColor: 'rgba(124, 58, 237, 0.3)', fontWeight: 600 },
     },
     overdue: {
       label: 'Overdue',

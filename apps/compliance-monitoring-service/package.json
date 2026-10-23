@@ -6,5 +6,9 @@
   "scripts": {
     "dev": "ts-node-dev --respawn src/main.ts",
     "build": "tsc"
+  },
+  "dependencies": {
+    "@types/ws": "^8.18.2",
+    "ws": "^8.22.0"
   }
 }
