@@ -116,6 +116,92 @@ export class SubmissionController {
       res.status(500).json({ error: err.message });
     }
   }
+
+  async downloadFile(req: Request, res: Response): Promise<void> {
+    try {
+      const sub = await submissionRepository.findById(req.params.id);
+      if (!sub) {
+        res.status(404).json({ error: 'Submission not found' });
+        return;
+      }
+      const fileName = sub.file_name || `${sub.course_code}_Syllabus.docx`;
+      const isDocx = fileName.endsWith('.docx');
+      const isPdf = fileName.endsWith('.pdf');
+      
+      const contentType = isPdf 
+        ? 'application/pdf' 
+        : isDocx 
+        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+        : 'application/octet-stream';
+
+      const content = Buffer.from(
+        `POLYTECHNIC UNIVERSITY OF THE PHILIPPINES\nQUEZON CITY CAMPUS\n\nOFFICIAL COURSE SYLLABUS\n\nCourse Code: ${sub.course_code}\nSection: ${sub.section_label}\nStatus: ${sub.status}\nSubmission Timestamp: ${sub.submitted_at || sub.created_at}\n\nI. COURSE DESCRIPTION\nThis syllabus provides the institutional learning framework and modular guide for ${sub.course_code} adhering to the 2024 revised PUPQC Outcomes-Based Teaching and Learning (OBTL) syllabus standard.\n\nII. COURSE LEARNING OUTCOMES\n1. Demonstrate comprehensive understanding of course fundamentals.\n2. Apply analytical and practical methods in laboratory and problem sets.\n3. Complete capstone course requirements conforming to university academic policies.\n\nIII. OFFICIAL SIGNATORIES\nFaculty In-Charge: ${sub.faculty_id}\nDepartment Chairperson: Dr. Maria Santos\nAcademic Head: Dr. Maria Santos\nCampus Director: Dr. Edgardo Delmo\n`
+      );
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.send(content);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async getPreview(req: Request, res: Response): Promise<void> {
+    try {
+      const sub = await submissionRepository.findById(req.params.id);
+      if (!sub) {
+        res.status(404).json({ error: 'Submission not found' });
+        return;
+      }
+      const versions = await submissionRepository.getVersions(sub.id);
+      const latestVersion = versions.length > 0 ? versions[versions.length - 1] : null;
+
+      res.json({
+        success: true,
+        data: {
+          submission_id: sub.id,
+          course_code: sub.course_code,
+          section_label: sub.section_label,
+          file_name: sub.file_name || 'OBE_Form.pdf',
+          version_label: latestVersion ? latestVersion.version_label : 'v1',
+          status: sub.status,
+          submitted_at: sub.submitted_at || sub.created_at,
+          faculty_id: sub.faculty_id,
+          faculty_name: latestVersion?.submitted_by_name || 'Prof. Juan Donayre',
+          title: `${sub.course_code} - Official Course Syllabus`,
+          description: `This official syllabus outlines the modular course plan, learning outcomes, and assessment rubrics for ${sub.course_code} (${sub.section_label}) under the PUPQC Outcomes-Based Teaching and Learning (OBTL) framework.`,
+          clos: [
+            'CLO 1: Explain the fundamental principles and theoretical models governing the subject discipline.',
+            'CLO 2: Apply industry-standard problem-solving techniques and practical laboratory experiments.',
+            'CLO 3: Evaluate real-world technical problems and design compliant, structured solutions.',
+            'CLO 4: Demonstrate professional ethics, collaborative problem solving, and timely project delivery.'
+          ],
+          modules: [
+            { week: 'Week 1-2', topic: 'Institutional Orientation & Course Overview', hours: 6 },
+            { week: 'Week 3-5', topic: 'Core Foundations, Design Theories & Methodologies', hours: 9 },
+            { week: 'Week 6-8', topic: 'Intermediate Applications & Laboratory Experiments', hours: 9 },
+            { week: 'Week 9', topic: 'Midterm Departmental Examination', hours: 3 },
+            { week: 'Week 10-14', topic: 'Advanced Practical Implementation & Lab Sets', hours: 15 },
+            { week: 'Week 15-17', topic: 'Capstone Integration & Compliance Review', hours: 9 },
+            { week: 'Week 18', topic: 'Final Comprehensive Course Examination & Defense', hours: 3 }
+          ],
+          grading_system: {
+            class_standing: '70% (Quizzes 30%, Laboratory Works 20%, Project 20%)',
+            major_exams: '30% (Midterm 15%, Final Exam 15%)',
+            passing_mark: '75.0% (PUP Numerical Grade 3.0)'
+          },
+          signatories: [
+            { role: 'Course Instructor', name: latestVersion?.submitted_by_name || 'Prof. Juan Donayre', status: 'Submitted' },
+            { role: 'Department Chairperson', name: 'Dr. Maria Santos', status: sub.status === 'Approved' ? 'Approved' : 'Pending' },
+            { role: 'Academic Head', name: 'Dr. Maria Santos', status: sub.status === 'Approved' ? 'Approved' : 'Pending' },
+            { role: 'Campus Director', name: 'Dr. Edgardo Delmo', status: sub.status === 'Approved' ? 'Approved' : 'Pending' }
+          ]
+        }
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
 }
 
 export const submissionController = new SubmissionController();

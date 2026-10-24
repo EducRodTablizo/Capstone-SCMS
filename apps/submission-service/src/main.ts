@@ -22,6 +22,8 @@ app.patch('/api/v1/submissions/:id/open-review', (req, res) => submissionControl
 app.post('/api/v1/submissions/:id/review', (req, res) => submissionController.review(req, res));
 app.post('/api/v1/submissions/:id/resubmit', (req, res) => submissionController.resubmit(req, res));
 app.get('/api/v1/submissions/:id/versions', (req, res) => submissionController.getVersions(req, res));
+app.get('/api/v1/submissions/:id/file', (req, res) => submissionController.downloadFile(req, res));
+app.get('/api/v1/submissions/:id/preview', (req, res) => submissionController.getPreview(req, res));
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, '0.0.0.0', () => {

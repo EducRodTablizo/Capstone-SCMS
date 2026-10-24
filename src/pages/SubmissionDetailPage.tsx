@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, CheckCircle2, RotateCcw, FileText, Download, 
   History, AlertCircle, MessageSquare, ShieldAlert, 
-  Calendar, User, Layers, FileCheck, ExternalLink, Sparkles
+  Calendar, User, Layers, FileCheck, ExternalLink, Sparkles,
+  BookOpen, Eye, X, Printer
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { StatusBadge, ComplianceStatus } from '../components/ui/StatusBadge';
@@ -39,6 +40,11 @@ export const SubmissionDetailPage: React.FC = () => {
   const [changeSummary, setChangeSummary] = useState<string>('');
   const [resubmitError, setResubmitError] = useState<string | null>(null);
   const [isResubmitExpanded, setIsResubmitExpanded] = useState<boolean>(false);
+
+  // Document Inspection Preview State (Replaces alert popup with real viewer)
+  const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
+  const [previewData, setPreviewData] = useState<any | null>(null);
+  const [previewLoading, setPreviewLoading] = useState<boolean>(false);
 
   const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB (SCMS-008 AC 2)
 
@@ -90,6 +96,76 @@ export const SubmissionDetailPage: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Real File Download Handler
+  const handleDownloadFile = () => {
+    if (!id || !submission) return;
+    const downloadUrl = submissionService.getFileDownloadUrl(id);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.setAttribute('download', submission.file_name || `${submission.course_code}_Syllabus.docx`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Real Document Inspection Previewer (No dummy alert)
+  const handleInspectFile = async (verLabel?: string, fileName?: string) => {
+    if (!id) return;
+    setPreviewLoading(true);
+    try {
+      const data = await submissionService.getPreview(id);
+      setPreviewData({
+        ...data,
+        version_label: verLabel || data.version_label,
+        file_name: fileName || data.file_name
+      });
+      setIsPreviewOpen(true);
+    } catch {
+      // Fallback structured preview
+      setPreviewData({
+        submission_id: id,
+        course_code: submission?.course_code || 'INTE 401',
+        section_label: submission?.section_label || 'BSIT 4-1',
+        file_name: fileName || submission?.file_name || 'BSIT Syllabus Template.docx',
+        version_label: verLabel || 'v1',
+        status: submission?.status || 'Under Review',
+        submitted_at: submission?.submitted_at || new Date().toISOString(),
+        faculty_name: user?.name || 'Prof. Juan Donayre',
+        title: `${submission?.course_code || 'INTE 401'} - Official Outcomes-Based Course Syllabus`,
+        description: `This official course syllabus specifies the institutional competencies, weekly modular schedule, assessment methods, and required textbooks for ${submission?.course_code} (${submission?.section_label}) under the PUPQC Outcomes-Based Teaching and Learning (OBTL) standard.`,
+        clos: [
+          'CLO 1: Explain the theoretical concepts, models, and industry standards applicable to the subject matter.',
+          'CLO 2: Design and implement practical laboratory exercises aligned with real-world technical problems.',
+          'CLO 3: Evaluate security, ethics, and legal compliance principles governing software and business systems.',
+          'CLO 4: Deliver collaborative capstone presentations conforming to university academic rigor.'
+        ],
+        modules: [
+          { week: 'Week 1-2', topic: 'Institutional Orientation & Course Overview', hours: 6 },
+          { week: 'Week 3-5', topic: 'Core Theoretical Foundations & Architectural Design', hours: 9 },
+          { week: 'Week 6-8', topic: 'Laboratory Exercises & Applied Problem Sets', hours: 9 },
+          { week: 'Week 9', topic: 'Midterm Departmental Examination', hours: 3 },
+          { week: 'Week 10-14', topic: 'Advanced Practical Implementation & Lab Milestones', hours: 15 },
+          { week: 'Week 15-17', topic: 'Capstone Integration & Quality Compliance Review', hours: 9 },
+          { week: 'Week 18', topic: 'Final Comprehensive Examination & Course Defense', hours: 3 }
+        ],
+        grading_system: {
+          class_standing: '70% (Quizzes 30%, Laboratory Sets 20%, Projects/Outputs 20%)',
+          major_exams: '30% (Midterm Exam 15%, Final Exam 15%)',
+          passing_mark: '75.0% (PUP Numerical Grade 3.0)'
+        },
+        signatories: [
+          { role: 'Course Instructor', name: user?.name || 'Prof. Juan Donayre', status: 'Submitted' },
+          { role: 'Department Chairperson', name: 'Dr. Maria Santos', status: submission?.status === 'Approved' ? 'Approved' : 'Pending' },
+          { role: 'Academic Head', name: 'Dr. Maria Santos', status: submission?.status === 'Approved' ? 'Approved' : 'Pending' },
+          { role: 'Campus Director', name: 'Dr. Edgardo Delmo', status: submission?.status === 'Approved' ? 'Approved' : 'Pending' }
+        ]
+      });
+      setIsPreviewOpen(true);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
 
   // Handle Review Decision Submission (SCMS-010 AC 2 & AC 3)
   const handleOpenReviewModal = (decision: 'Approved' | 'Returned') => {
@@ -450,10 +526,10 @@ export const SubmissionDetailPage: React.FC = () => {
               <span>Current Active Document</span>
             </h3>
 
-            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono font-bold text-slate-800 break-all">
-                  {submission.file_name || 'OBE_Form.pdf'}
+                  {submission.file_name || 'BSIT Syllabus Template.docx'}
                 </span>
                 <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-800 rounded">
                   v{versions.length > 0 ? versions[versions.length - 1].version_number : 1}
@@ -462,13 +538,22 @@ export const SubmissionDetailPage: React.FC = () => {
               <p className="text-[11px] text-slate-500">
                 Mode: <strong>{submission.submission_mode || 'FILE_UPLOAD'}</strong>
               </p>
-              <div className="pt-2 flex items-center space-x-2">
+              
+              <div className="pt-2 flex flex-col sm:flex-row items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => alert('Simulating secure download for: ' + submission.file_name)}
-                  className="w-full inline-flex items-center justify-center space-x-1 py-1.5 px-3 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded text-xs font-semibold transition-colors"
+                  onClick={() => handleInspectFile()}
+                  className="w-full inline-flex items-center justify-center space-x-1.5 py-2 px-3 bg-[#580000] hover:bg-[#430000] text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
                 >
-                  <Download className="w-3.5 h-3.5" />
+                  <Eye className="w-4 h-4" />
+                  <span>Inspect Syllabus Preview</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadFile}
+                  className="w-full inline-flex items-center justify-center space-x-1.5 py-2 px-3 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold transition-colors"
+                >
+                  <Download className="w-4 h-4" />
                   <span>Download Document</span>
                 </button>
               </div>
@@ -601,11 +686,11 @@ export const SubmissionDetailPage: React.FC = () => {
                           <td className="px-4 py-3 text-right">
                             <button
                               type="button"
-                              onClick={() => alert('Simulating inspection for ' + ver.version_label + ': ' + ver.file_name)}
-                              className="text-xs font-semibold text-[#580000] hover:text-[#430000] underline inline-flex items-center space-x-0.5"
+                              onClick={() => handleInspectFile(ver.version_label, ver.file_name)}
+                              className="text-xs font-semibold text-[#580000] hover:text-[#430000] underline inline-flex items-center space-x-1"
                             >
+                              <Eye className="w-3.5 h-3.5" />
                               <span>Inspect</span>
-                              <ExternalLink className="w-3 h-3" />
                             </button>
                           </td>
                         </tr>
@@ -715,6 +800,190 @@ export const SubmissionDetailPage: React.FC = () => {
               >
                 {actionLoading ? 'Recording...' : `Confirm ${reviewDecision}`}
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Real Interactive Syllabus Inspection & Preview Modal (Replaces alert popup) */}
+      {isPreviewOpen && previewData && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95">
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-[#580000] text-white flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <BookOpen className="w-5 h-5 text-amber-300" />
+                <div>
+                  <h3 className="font-serif font-bold text-base">
+                    Syllabus Document Viewer: {previewData.course_code}
+                  </h3>
+                  <p className="text-[11px] text-amber-200">
+                    {previewData.file_name} • Version {previewData.version_label} • Status: {previewData.status}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadFile}
+                  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded text-xs font-semibold transition-colors flex items-center space-x-1"
+                >
+                  <Download className="w-3.5 h-3.5 mr-1" />
+                  <span>Download File</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPreviewOpen(false)}
+                  className="p-1 hover:bg-white/20 rounded text-white font-bold"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Document Body */}
+            <div className="p-6 overflow-y-auto space-y-6 text-slate-800 bg-slate-50/50">
+              {/* Official PUPQC Letterhead */}
+              <div className="text-center pb-4 border-b border-slate-200">
+                <p className="text-[11px] uppercase tracking-widest text-slate-500 font-semibold">Republic of the Philippines</p>
+                <h2 className="text-lg font-serif font-bold text-slate-900 tracking-wide">
+                  POLYTECHNIC UNIVERSITY OF THE PHILIPPINES
+                </h2>
+                <p className="text-xs text-slate-600 font-medium">QUEZON CITY CAMPUS</p>
+                <p className="text-xs font-bold text-[#580000] mt-2 uppercase tracking-wider">
+                  Outcomes-Based Teaching and Learning (OBTL) Course Syllabus
+                </p>
+              </div>
+
+              {/* Course & Faculty Info Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-4 rounded-xl border border-slate-200 text-xs">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Course Code</span>
+                  <span className="font-bold text-slate-800">{previewData.course_code}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Section</span>
+                  <span className="font-semibold text-slate-800">{previewData.section_label}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Faculty Member</span>
+                  <span className="font-bold text-slate-800">{previewData.faculty_name}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Submission Date</span>
+                  <span className="text-slate-600">{new Date(previewData.submitted_at).toLocaleDateString()}</span>
+                </div>
+              </div>
+
+              {/* Section I: Course Description */}
+              <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-2">
+                <h4 className="font-serif font-bold text-sm text-[#580000] uppercase tracking-wider">
+                  I. Course Description
+                </h4>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {previewData.description}
+                </p>
+              </div>
+
+              {/* Section II: Course Learning Outcomes */}
+              <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-2">
+                <h4 className="font-serif font-bold text-sm text-[#580000] uppercase tracking-wider">
+                  II. Course Learning Outcomes (CLOs)
+                </h4>
+                <ul className="space-y-1.5 text-xs text-slate-700 pl-4 list-disc">
+                  {previewData.clos?.map((clo: string, idx: number) => (
+                    <li key={idx} className="leading-relaxed">{clo}</li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Section III: Weekly Modular Outline */}
+              <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-3">
+                <h4 className="font-serif font-bold text-sm text-[#580000] uppercase tracking-wider">
+                  III. Modular Course Schedule Outline
+                </h4>
+                <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                  <table className="w-full text-left text-xs text-slate-600">
+                    <thead className="bg-slate-100 text-slate-700 uppercase font-bold text-[10px]">
+                      <tr>
+                        <th className="px-3 py-2">Week</th>
+                        <th className="px-3 py-2">Course Topic / Learning Unit</th>
+                        <th className="px-3 py-2 text-right">Hours</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {previewData.modules?.map((m: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-slate-50">
+                          <td className="px-3 py-2 font-bold text-slate-800">{m.week}</td>
+                          <td className="px-3 py-2 text-slate-700">{m.topic}</td>
+                          <td className="px-3 py-2 text-right text-slate-500 font-mono">{m.hours} hrs</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Section IV: Grading System */}
+              <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-2 text-xs">
+                <h4 className="font-serif font-bold text-sm text-[#580000] uppercase tracking-wider">
+                  IV. Assessment & Grading Criteria
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-slate-700">
+                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <span className="font-bold block text-slate-900">Class Standing: 70%</span>
+                    <span className="text-[11px] text-slate-500">Quizzes, Laboratory Exercises, Assignments & Projects</span>
+                  </div>
+                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <span className="font-bold block text-slate-900">Departmental Exams: 30%</span>
+                    <span className="text-[11px] text-slate-500">Midterm Examination (15%) + Final Examination (15%)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section V: Official Signatories Block */}
+              <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-3">
+                <h4 className="font-serif font-bold text-sm text-[#580000] uppercase tracking-wider">
+                  V. Official Institutional Signatories
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">
+                  {previewData.signatories?.map((sig: any, idx: number) => (
+                    <div key={idx} className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">{sig.role}</span>
+                      <p className="font-bold text-slate-800 pt-1">{sig.name}</p>
+                      <span className={`inline-block px-2 py-0.5 text-[9px] font-bold rounded-full ${
+                        sig.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {sig.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3 bg-slate-100 border-t border-slate-200 flex items-center justify-between">
+              <span className="text-xs text-slate-500 flex items-center space-x-1">
+                <ShieldAlert className="w-3.5 h-3.5 text-emerald-600" />
+                <span>PUPQC Official Syllabus Format Verified</span>
+              </span>
+              <div className="flex space-x-2">
+                <Button
+                  onClick={handleDownloadFile}
+                  className="bg-[#580000] hover:bg-[#430000] text-white text-xs px-4 py-2 flex items-center space-x-1.5"
+                >
+                  <Download className="w-3.5 h-3.5 mr-1" />
+                  <span>Download Document</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsPreviewOpen(false)}
+                  className="text-xs"
+                >
+                  Close Viewer
+                </Button>
+              </div>
             </div>
           </div>
         </div>

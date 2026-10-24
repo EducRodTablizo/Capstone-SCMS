@@ -4,7 +4,8 @@
   "description": "Server 3: Syllabus Upload & Review Decisions",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn src/main.ts",
-    "build": "tsc"
+    "dev": "ts-node src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js"
   }
 }

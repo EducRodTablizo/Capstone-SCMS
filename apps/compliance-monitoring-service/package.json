@@ -4,8 +4,9 @@
   "description": "Server 5: Live Compliance Monitoring & CCMS Feed",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn src/main.ts",
-    "build": "tsc"
+    "dev": "ts-node src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js"
   },
   "dependencies": {
     "@types/ws": "^8.18.2",

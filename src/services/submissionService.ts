@@ -140,11 +140,24 @@ export const submissionService = {
     return res.json();
   },
 
-  async getVersions(id: string): Promise<{ success: boolean; count: number; data: SubmissionVersionItem[] }> {
+    async getVersions(id: string): Promise<{ success: boolean; count: number; data: SubmissionVersionItem[] }> {
     const res = await fetch(`${SUBMISSION_API_URL}/submissions/${id}/versions`, {
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
+  },
+
+  getFileDownloadUrl(id: string): string {
+    return `${SUBMISSION_API_URL}/submissions/${id}/file`;
+  },
+
+  async getPreview(id: string): Promise<any> {
+    const res = await fetch(`${SUBMISSION_API_URL}/submissions/${id}/preview`, {
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const body = await res.json();
+    return body.data;
   }
 };
