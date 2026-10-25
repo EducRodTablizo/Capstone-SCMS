@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { AppLayout } from './components/layout/AppLayout';
@@ -11,6 +11,8 @@ import { BlockSectionsPage } from './pages/BlockSectionsPage';
 import { SyllabusUploadPage } from './pages/SyllabusUploadPage';
 import { SubmissionDetailPage } from './pages/SubmissionDetailPage';
 import { AuditLogPage } from './pages/AuditLogPage';
+import { FmsSyncPage } from './pages/FmsSyncPage';
+import { CcmsFeedPage } from './pages/CcmsFeedPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -49,6 +51,10 @@ const AppRoutes: React.FC = () => {
         {/* Action Audit Trail (SMS-014) */}
         <Route path="/audit-trail" element={<AuditLogPage />} />
         <Route path="/audit-logs" element={<AuditLogPage />} />
+
+        {/* External Integrations Diagnostic Pages (Option 1) */}
+        <Route path="/fms-sync" element={<FmsSyncPage />} />
+        <Route path="/ccms-feed" element={<CcmsFeedPage />} />
 
         {/* Submission & Review Routes */}
         <Route path="/reviews" element={<DashboardPage />} />

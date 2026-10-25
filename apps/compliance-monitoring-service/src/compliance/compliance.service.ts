@@ -1,3 +1,5 @@
+import { complianceExportService } from './compliance-export.service';
+import { ccmsPushService, CcmsPushLog, CcmsSummaryPayload } from '../integrations/ccms-push.service';
 import { complianceRepository } from './compliance.repository';
 import { ComplianceRecord, ComplianceMetrics, SyllabusHeaderDetails, CanonicalStatus } from './compliance.entity';
 
@@ -165,6 +167,79 @@ export class ComplianceService {
       consultation_hours: consultationHours,
       locked: true // Locked in SMS (SMS-024 AC 2)
     };
+  }
+
+  /**
+   * Export Compliance Matrix to CSV (SMS-037 AC 1)
+   */
+  public async exportMatrixCsv(filter?: { term_id?: string; program_code?: string }): Promise<string> {
+    const records = await this.listRecords(filter);
+    return complianceExportService.generateCsv(records);
+  }
+
+  /**
+   * Export Compliance Matrix to PDF (SMS-037 AC 1 & AC 2)
+   */
+  public async exportMatrixPdf(filter?: { term_id?: string; program_code?: string }, actorName?: string): Promise<Buffer> {
+    const records = await this.listRecords(filter);
+    const metrics = await this.getMetrics(filter);
+    return complianceExportService.generatePdf(records, metrics, actorName);
+  }
+
+  /**
+   * Get Outbound CCMS Summary Payload (SMS-019 AC 1 & AC 3)
+   */
+  public async getCcmsSummary(termCode?: string): Promise<CcmsSummaryPayload> {
+    const metrics = await this.getMetrics();
+    return ccmsPushService.buildSummaryPayload(metrics, termCode);
+  }
+
+  /**
+   * Push Compliance Summary to CCMS (SMS-019 AC 2 & AC 4)
+   */
+  public async pushCcmsSummary(options?: { trigger?: any; actorName?: string }): Promise<CcmsPushLog> {
+    const metrics = await this.getMetrics();
+    return ccmsPushService.pushToCcms(metrics, options);
+  }
+
+  /**
+   * Get Push Logs
+   */
+  public getCcmsPushLogs(): CcmsPushLog[] {
+    return ccmsPushService.getPushHistory();
+  }
+
+  /**
+   * Sync Assignment Reassignment from FMS (SMS-023)
+   */
+  public async syncAssignmentReassignment(params: {
+    courseCode: string;
+    sectionLabel: string;
+    newFacultyId: string;
+    newFacultyName?: string;
+  }): Promise<ComplianceRecord | null> {
+    const records = await complianceRepository.list();
+    const target = records.find(r => r.course_code === params.courseCode && r.section_label === params.sectionLabel);
+    if (!target) return null;
+
+    target.faculty_id = params.newFacultyId;
+    if (params.newFacultyName) target.faculty_name = params.newFacultyName;
+    await complianceRepository.save(target);
+    return target;
+  }
+
+  /**
+   * Sync Assignment Withdrawal from FMS (SMS-023 AC 3)
+   */
+  public async syncAssignmentWithdrawal(params: {
+    courseCode: string;
+    sectionLabel: string;
+  }): Promise<ComplianceRecord | null> {
+    return complianceRepository.updateStatusByCourseSection(
+      params.courseCode,
+      params.sectionLabel,
+      'Unassigned'
+    );
   }
 }
 

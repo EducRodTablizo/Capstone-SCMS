@@ -25,6 +25,14 @@ app.get('/api/v1/submissions/:id/versions', (req, res) => submissionController.g
 app.get('/api/v1/submissions/:id/file', (req, res) => submissionController.downloadFile(req, res));
 app.get('/api/v1/submissions/:id/preview', (req, res) => submissionController.getPreview(req, res));
 
+// Sprint 7 Endpoints (SMS-023, SMS-025, SMS-035)
+app.get('/api/v1/submissions/:id/pdf', (req, res) => submissionController.downloadPdf(req, res));
+app.get('/api/v1/signatories', (req, res) => submissionController.getSignatories(req, res));
+app.put('/api/v1/signatories', (req, res) => submissionController.updateSignatories(req, res));
+app.post('/api/v1/integrations/fms/assignments/reassign', (req, res) => submissionController.reassignAssignment(req, res));
+app.post('/api/v1/integrations/fms/assignments/withdraw', (req, res) => submissionController.withdrawAssignment(req, res));
+app.post('/api/v1/integrations/fms/assignments/substitute', (req, res) => submissionController.assignSubstitute(req, res));
+
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[Server 3: Submission Service] running on port ${PORT}`);

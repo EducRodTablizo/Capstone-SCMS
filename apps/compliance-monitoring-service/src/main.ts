@@ -55,6 +55,15 @@ app.post('/api/v1/compliance/events', async (req, res) => {
   }
 });
 
+// Sprint 7 Endpoints (SMS-019, SMS-023, SMS-037)
+app.get('/api/v1/compliance/export/csv', (req, res) => complianceController.exportCsv(req, res));
+app.get('/api/v1/compliance/export/pdf', (req, res) => complianceController.exportPdf(req, res));
+app.get('/api/v1/compliance/ccms/summary', (req, res) => complianceController.getCcmsSummary(req, res));
+app.post('/api/v1/compliance/ccms/push', (req, res) => complianceController.pushCcmsSummary(req, res));
+app.get('/api/v1/compliance/ccms/logs', (req, res) => complianceController.getCcmsPushLogs(req, res));
+app.post('/api/v1/integrations/fms/assignments/reassign', (req, res) => complianceController.syncReassignment(req, res));
+app.post('/api/v1/integrations/fms/assignments/withdraw', (req, res) => complianceController.syncWithdrawal(req, res));
+
 const server = http.createServer(app);
 
 // WebSocket Gateway Server (SMS-013)

@@ -220,6 +220,61 @@ export class SubmissionRepository {
       return this.fallbackReviews.filter(r => r.submission_id === submissionId);
     }
   }
+
+  async findByCourseAndSection(courseCode: string, sectionLabel: string): Promise<Submission | null> {
+    try {
+      const res = await pool.query(
+        'SELECT * FROM submissions WHERE course_code = $1 AND section_label = $2 ORDER BY created_at DESC LIMIT 1',
+        [courseCode, sectionLabel]
+      );
+      if (res.rows[0]) return res.rows[0];
+    } catch {
+      // fallback
+    }
+    const found = Array.from(this.fallbackStore.values()).find(
+      s => s.course_code === courseCode && s.section_label === sectionLabel
+    );
+    return found || null;
+  }
+
+  async updateFacultyAssignment(id: string, newFacultyId: string, versionBump: number = 1): Promise<Submission | null> {
+    const now = new Date().toISOString();
+    try {
+      const res = await pool.query(
+        'UPDATE submissions SET faculty_id = $1, fms_assignment_version = COALESCE(fms_assignment_version, 1) + $2, updated_at = $3 WHERE id = $4 RETURNING *;',
+        [newFacultyId, versionBump, now, id]
+      );
+      if (res.rows[0]) return res.rows[0];
+    } catch {
+      // fallback
+    }
+    const sub = this.fallbackStore.get(id);
+    if (!sub) return null;
+    sub.faculty_id = newFacultyId;
+    sub.fms_assignment_version = (sub.fms_assignment_version || 1) + versionBump;
+    sub.updated_at = now;
+    this.fallbackStore.set(id, sub);
+    return sub;
+  }
+
+  async updateSubstitute(id: string, substituteId: string | null): Promise<Submission | null> {
+    const now = new Date().toISOString();
+    try {
+      const res = await pool.query(
+        'UPDATE submissions SET substitute_id = $1, updated_at = $2 WHERE id = $3 RETURNING *;',
+        [substituteId, now, id]
+      );
+      if (res.rows[0]) return res.rows[0];
+    } catch {
+      // fallback
+    }
+    const sub = this.fallbackStore.get(id);
+    if (!sub) return null;
+    sub.substitute_id = substituteId;
+    sub.updated_at = now;
+    this.fallbackStore.set(id, sub);
+    return sub;
+  }
 }
 
 export const submissionRepository = new SubmissionRepository();

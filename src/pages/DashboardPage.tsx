@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
+import {
+  Download,
   Activity, Clock, CheckCircle2, AlertTriangle, 
   FileText, User, Filter, RefreshCw, ShieldCheck, 
   Layers, Lock, ExternalLink, Calendar, Search, 
@@ -33,6 +34,22 @@ export const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [wsActive, setWsActive] = useState<boolean>(true);
   const [lastSyncTime, setLastSyncTime] = useState<string>(new Date().toLocaleTimeString());
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
+
+  const handleExportCsv = () => {
+    const url = complianceService.getExportCsvUrl(selectedTerm, selectedProgram === 'ALL' ? undefined : selectedProgram);
+    window.open(url, '_blank');
+    setExportNotice('Compliance Matrix CSV export generated. Event recorded in immutable audit log (SMS-037 AC 3).');
+    setTimeout(() => setExportNotice(null), 6000);
+  };
+
+  const handleExportPdf = () => {
+    const url = complianceService.getExportPdfUrl(selectedTerm, selectedProgram === 'ALL' ? undefined : selectedProgram, user?.name || 'Dr. Maria Santos');
+    window.open(url, '_blank');
+    setExportNotice('Official Compliance Matrix PDF export generated for QA & AACCUP audit. Event recorded in audit log (SMS-037 AC 3).');
+    setTimeout(() => setExportNotice(null), 6000);
+  };
+
 
   // Locked Header Modal State (SMS-024)
   const [selectedHeader, setSelectedHeader] = useState<SyllabusHeaderDetails | null>(null);
@@ -338,19 +355,56 @@ export const DashboardPage: React.FC = () => {
 
           {/* Compliance Records Roster Table (SMS-012 AC 1) */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-2">
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+            <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="font-serif font-bold text-base text-slate-900">
-                  Campus Compliance Roster
-                </h3>
-                <p className="text-xs text-slate-500">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-serif font-bold text-base text-slate-900">
+                    Campus Compliance Roster
+                  </h3>
+                  {/* Dedicated compliance_level badge placeholder (REQ-MON-04 / AUD-017) */}
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200" title="Reserved field and placeholder badge per institutional specification. Formula pending stakeholder confirmation.">
+                    <Sparkles className="w-3 h-3 text-amber-600" />
+                    <span>Level: <strong className="font-bold">Tier 1 Baseline</strong> (Pending Formula)</span>
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
                   Showing {filteredRecords.length} course sections matching selected filters.
                 </p>
               </div>
-              <span className="text-xs text-slate-500 font-medium">
-                Live Data Synchronized
-              </span>
+
+              {/* Official Matrix Export Controls (SMS-037 / REQ-REP-02) */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 shadow-sm transition-colors"
+                  title="Export live compliance roster to standard CSV format"
+                >
+                  <Download className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Export CSV</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportPdf}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-[#580000] text-white hover:bg-[#400000] shadow-sm transition-colors"
+                  title="Export official PUPQC compliance matrix PDF for QA and AACCUP accreditation"
+                >
+                  <FileText className="w-3.5 h-3.5 text-[#C8960C]" />
+                  <span>Export PDF</span>
+                </button>
+              </div>
             </div>
+
+            {/* Export Notification Banner */}
+            {exportNotice && (
+              <div className="mx-4 mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-900 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{exportNotice}</span>
+                </div>
+                <button onClick={() => setExportNotice(null)} className="text-emerald-700 hover:text-emerald-950 font-bold text-xs">Dismiss</button>
+              </div>
+            )}
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-600">

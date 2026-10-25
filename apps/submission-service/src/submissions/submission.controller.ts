@@ -202,6 +202,94 @@ export class SubmissionController {
       res.status(500).json({ error: err.message });
     }
   }
+
+  async reassignAssignment(req: Request, res: Response): Promise<void> {
+    try {
+      const { courseCode, sectionLabel, newFacultyId, newFacultyName, assignmentVersion, reason } = req.body;
+      if (!courseCode || !sectionLabel || !newFacultyId) {
+        res.status(400).json({ error: 'Missing required fields: courseCode, sectionLabel, newFacultyId' });
+        return;
+      }
+      const result = await submissionService.reassignAssignment({
+        courseCode,
+        sectionLabel,
+        newFacultyId,
+        newFacultyName,
+        assignmentVersion,
+        reason
+      });
+      res.json({ success: true, ...result });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async withdrawAssignment(req: Request, res: Response): Promise<void> {
+    try {
+      const { courseCode, sectionLabel, reason } = req.body;
+      if (!courseCode || !sectionLabel) {
+        res.status(400).json({ error: 'Missing required fields: courseCode, sectionLabel' });
+        return;
+      }
+      const result = await submissionService.withdrawAssignment({
+        courseCode,
+        sectionLabel,
+        reason
+      });
+      res.json({ success: true, data: result });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async assignSubstitute(req: Request, res: Response): Promise<void> {
+    try {
+      const { courseCode, sectionLabel, substituteId, substituteName, reason } = req.body;
+      if (!courseCode || !sectionLabel || !substituteId) {
+        res.status(400).json({ error: 'Missing required fields: courseCode, sectionLabel, substituteId' });
+        return;
+      }
+      const result = await submissionService.assignSubstitute({
+        courseCode,
+        sectionLabel,
+        substituteId,
+        substituteName,
+        reason
+      });
+      res.json({ success: true, data: result });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  getSignatories(req: Request, res: Response): void {
+    const signatories = submissionService.getSignatories();
+    res.json({ success: true, data: signatories });
+  }
+
+  updateSignatories(req: Request, res: Response): void {
+    try {
+      const updated = submissionService.updateSignatories(req.body, req.body.updated_by || 'Dr. Maria Santos');
+      res.json({ success: true, data: updated });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+
+  async downloadPdf(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const pdfBuffer = await submissionService.generateObtlPdf(id);
+      const sub = await submissionRepository.findById(id);
+      const fileName = (sub ? sub.course_code.replace(/\s+/g, '_') : 'Syllabus') + '_OBTL_Official.pdf';
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="' + fileName + '"');
+      res.send(pdfBuffer);
+    } catch (err: any) {
+      res.status(404).json({ error: err.message });
+    }
+  }
 }
 
 export const submissionController = new SubmissionController();

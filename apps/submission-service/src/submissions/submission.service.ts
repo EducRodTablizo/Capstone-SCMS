@@ -1,3 +1,6 @@
+import { signatoryService } from '../signatories/signatory.service';
+import { SignatoryConfig } from '../signatories/signatory.entity';
+import { obtlPdfService } from './obtl-pdf.service';
 import { submissionRepository } from './submission.repository';
 import { Submission, SubmissionVersion, CanonicalStatus, ALLOWED_TRANSITIONS, ReviewDecision } from './submission.entity';
 import * as http from 'http';
@@ -398,6 +401,197 @@ export class SubmissionService {
    */
   public async getVersionHistory(submissionId: string): Promise<SubmissionVersion[]> {
     return submissionRepository.getVersions(submissionId);
+  }
+
+  /**
+   * Reassign Teaching Assignment from FMS (SMS-023 AC 1 & AC 2)
+   */
+  public async reassignAssignment(params: {
+    courseCode: string;
+    sectionLabel: string;
+    newFacultyId: string;
+    newFacultyName?: string;
+    assignmentVersion?: number;
+    reason?: string;
+  }): Promise<{ submission: Submission; reassignmentType: 'UNAPPROVED_REASSIGNED' | 'APPROVED_ADOPTED' }> {
+    let existing = await submissionRepository.findByCourseAndSection(params.courseCode, params.sectionLabel);
+
+    if (!existing) {
+      existing = await submissionRepository.create({
+        requirement_id: 'req-2026-1t',
+        faculty_id: params.newFacultyId,
+        course_code: params.courseCode,
+        section_label: params.sectionLabel,
+        status: 'Not Submitted',
+        fms_assignment_version: params.assignmentVersion || 1
+      });
+    }
+
+    const prevFacultyId = existing.faculty_id;
+    const isApproved = existing.status === 'Approved';
+
+    const updated = await submissionRepository.updateFacultyAssignment(existing.id, params.newFacultyId, 1);
+    if (!updated) throw new Error('Failed to update faculty assignment.');
+
+    const latestVersion = await submissionRepository.getLatestVersionNumber(existing.id);
+    const newVersionNum = latestVersion + 1;
+    const newVersionLabel = 'v' + newVersionNum;
+
+    if (isApproved) {
+      await submissionRepository.createVersion({
+        submission_id: existing.id,
+        version_number: newVersionNum,
+        version_label: newVersionLabel,
+        file_name: existing.file_name || 'Approved_Syllabus.docx',
+        submitted_by: params.newFacultyId,
+        submitted_by_name: params.newFacultyName || 'New Assigned Instructor',
+        status_at_version: 'Approved',
+        change_summary: 'Adopted official approved syllabus upon instructor reassignment from ' + prevFacultyId
+      });
+
+      await this.dispatchAuditLog({
+        actorId: 'system-fms-m2m',
+        actorName: 'FMS Webhook Ingestion Engine',
+        actorRole: 'SYSTEM_INTEGRATION',
+        actionType: 'ASSIGNMENT_REASSIGNED_ADOPTED_APPROVED',
+        entityId: existing.id,
+        previousValue: prevFacultyId,
+        newValue: params.newFacultyId,
+        details: 'Approved syllabus adopted by new instructor ' + (params.newFacultyName || params.newFacultyId) + '. Reason: ' + (params.reason || 'Instructor reassignment')
+      });
+
+      this.dispatchComplianceEvent({
+        courseCode: existing.course_code,
+        sectionLabel: existing.section_label,
+        status: 'Approved',
+        submissionId: existing.id
+      });
+
+      return { submission: updated, reassignmentType: 'APPROVED_ADOPTED' };
+    } else {
+      await submissionRepository.createVersion({
+        submission_id: existing.id,
+        version_number: newVersionNum,
+        version_label: newVersionLabel,
+        file_name: existing.file_name || 'Pending_Syllabus.docx',
+        submitted_by: params.newFacultyId,
+        submitted_by_name: params.newFacultyName || 'New Assigned Instructor',
+        status_at_version: existing.status,
+        change_summary: 'Responsibility moved to ' + (params.newFacultyName || params.newFacultyId) + ' upon FMS reassignment: ' + (params.reason || 'Department scheduling update')
+      });
+
+      await this.dispatchAuditLog({
+        actorId: 'system-fms-m2m',
+        actorName: 'FMS Webhook Ingestion Engine',
+        actorRole: 'SYSTEM_INTEGRATION',
+        actionType: 'ASSIGNMENT_REASSIGNED_UNAPPROVED',
+        entityId: existing.id,
+        previousValue: prevFacultyId,
+        newValue: params.newFacultyId,
+        details: 'Unapproved syllabus moved to ' + (params.newFacultyName || params.newFacultyId) + '. Status: ' + existing.status
+      });
+
+      this.dispatchComplianceEvent({
+        courseCode: existing.course_code,
+        sectionLabel: existing.section_label,
+        status: existing.status,
+        submissionId: existing.id
+      });
+
+      return { submission: updated, reassignmentType: 'UNAPPROVED_REASSIGNED' };
+    }
+  }
+
+  /**
+   * Withdraw Assignment from FMS -> moves to UNASSIGNED without penalty (SMS-023 AC 3)
+   */
+  public async withdrawAssignment(params: {
+    courseCode: string;
+    sectionLabel: string;
+    reason?: string;
+  }): Promise<Submission> {
+    const existing = await submissionRepository.findByCourseAndSection(params.courseCode, params.sectionLabel);
+    if (!existing) {
+      throw new Error('Record Not Found: No assignment tracking found for ' + params.courseCode + ' ' + params.sectionLabel);
+    }
+
+    const updated = await submissionRepository.updateStatus(existing.id, 'Unassigned');
+    if (!updated) throw new Error('Failed to transition status to Unassigned.');
+
+    await this.dispatchAuditLog({
+      actorId: 'system-fms-m2m',
+      actorName: 'FMS Webhook Ingestion Engine',
+      actorRole: 'SYSTEM_INTEGRATION',
+      actionType: 'ASSIGNMENT_WITHDRAWN_UNASSIGNED',
+      entityId: existing.id,
+      previousValue: existing.status,
+      newValue: 'Unassigned',
+      details: 'Assignment withdrawn by FMS without penalty. Reason: ' + (params.reason || 'Class dissolved or unassigned')
+    });
+
+    this.dispatchComplianceEvent({
+      courseCode: existing.course_code,
+      sectionLabel: existing.section_label,
+      status: 'Unassigned',
+      submissionId: existing.id
+    });
+
+    return updated;
+  }
+
+  /**
+   * Assign Temporary Substitute Instructor (SMS-023 AC 4)
+   */
+  public async assignSubstitute(params: {
+    courseCode: string;
+    sectionLabel: string;
+    substituteId: string;
+    substituteName?: string;
+    reason?: string;
+  }): Promise<Submission> {
+    const existing = await submissionRepository.findByCourseAndSection(params.courseCode, params.sectionLabel);
+    if (!existing) {
+      throw new Error('Record Not Found: No assignment found for ' + params.courseCode + ' ' + params.sectionLabel);
+    }
+
+    const updated = await submissionRepository.updateSubstitute(existing.id, params.substituteId);
+    if (!updated) throw new Error('Failed to assign substitute.');
+
+    await this.dispatchAuditLog({
+      actorId: 'system-fms-m2m',
+      actorName: 'FMS Webhook Ingestion Engine',
+      actorRole: 'SYSTEM_INTEGRATION',
+      actionType: 'SUBSTITUTE_INSTRUCTOR_ASSIGNED',
+      entityId: existing.id,
+      previousValue: existing.substitute_id || 'None',
+      newValue: params.substituteId,
+      details: 'Temporary substitute ' + (params.substituteName || params.substituteId) + ' granted co-instructor access. Primary instructor ' + existing.faculty_id + ' remains accountable.'
+    });
+
+    return updated;
+  }
+
+  /**
+   * Signatory Configuration (SMS-035)
+   */
+  public getSignatories(): SignatoryConfig {
+    return signatoryService.getSignatories();
+  }
+
+  public updateSignatories(update: Partial<SignatoryConfig>, actorName?: string): SignatoryConfig {
+    return signatoryService.updateSignatories(update, actorName);
+  }
+
+  /**
+   * Generate Official PUPQC OBTL Syllabus PDF (SMS-025)
+   */
+  public async generateObtlPdf(submissionId: string): Promise<Buffer> {
+    const sub = await submissionRepository.findById(submissionId);
+    if (!sub) {
+      throw new Error('Record Not Found: Submission ' + submissionId + ' does not exist.');
+    }
+    const signatories = signatoryService.getSignatories();
+    return obtlPdfService.generateObtlPdf(sub, signatories);
   }
 }
 

@@ -40,6 +40,55 @@ export const SubmissionDetailPage: React.FC = () => {
   const [changeSummary, setChangeSummary] = useState<string>('');
   const [resubmitError, setResubmitError] = useState<string | null>(null);
   const [isResubmitExpanded, setIsResubmitExpanded] = useState<boolean>(false);
+  // Signatory State (SMS-035)
+  const [signatories, setSignatories] = useState<{
+    prepared_by_title: string;
+    reviewed_by_name: string;
+    reviewed_by_title: string;
+    recommending_name: string;
+    recommending_title: string;
+    approved_by_name: string;
+    approved_by_title: string;
+  }>({
+    prepared_by_title: 'Course Instructor / Faculty Member',
+    reviewed_by_name: 'Dr. Maria Santos',
+    reviewed_by_title: 'Academic Head, PUP Quezon City',
+    recommending_name: 'Assoc. Prof. Demetrio C. Quirino, Jr.',
+    recommending_title: 'Campus Director, PUP Quezon City Campus',
+    approved_by_name: 'Assoc. Prof. Anna Ruby P. Gapasin',
+    approved_by_title: 'Vice President for Campuses'
+  });
+  const [isSignatoryModalOpen, setIsSignatoryModalOpen] = useState(false);
+  const [signatoryForm, setSignatoryForm] = useState({ ...signatories });
+
+  useEffect(() => {
+    submissionService.getSignatories().then(data => {
+      if (data) {
+        setSignatories(data);
+        setSignatoryForm(data);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleSaveSignatories = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const updated = await submissionService.updateSignatories(signatoryForm);
+      setSignatories(updated);
+      setIsSignatoryModalOpen(false);
+      setSuccessMessage('Official OBTL syllabus signatory block updated successfully (SMS-035).');
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to update signatories');
+    }
+  };
+
+  const handleDownloadObtlPdf = () => {
+    if (!id) return;
+    const url = submissionService.getObtlPdfUrl(id);
+    window.open(url, '_blank');
+  };
+
 
   // Document Inspection Preview State (Replaces alert popup with real viewer)
   const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
@@ -539,23 +588,78 @@ export const SubmissionDetailPage: React.FC = () => {
                 Mode: <strong>{submission.submission_mode || 'FILE_UPLOAD'}</strong>
               </p>
               
-              <div className="pt-2 flex flex-col sm:flex-row items-center gap-2">
+              <div className="pt-2 space-y-2">
+                <div className="flex flex-col sm:flex-row items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleInspectFile()}
+                    className="w-full inline-flex items-center justify-center space-x-1.5 py-2 px-3 bg-[#580000] hover:bg-[#430000] text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>Inspect Syllabus Preview</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadFile}
+                    className="w-full inline-flex items-center justify-center space-x-1.5 py-2 px-3 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download Original</span>
+                  </button>
+                </div>
+                {/* Official OBTL Syllabus PDF Generation (SMS-025) */}
                 <button
                   type="button"
-                  onClick={() => handleInspectFile()}
-                  className="w-full inline-flex items-center justify-center space-x-1.5 py-2 px-3 bg-[#580000] hover:bg-[#430000] text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                  onClick={handleDownloadObtlPdf}
+                  className="w-full inline-flex items-center justify-center space-x-1.5 py-2 px-3 bg-[#C8960C] hover:bg-[#b0840a] text-slate-950 rounded-lg text-xs font-bold shadow-sm transition-colors"
+                  title="Generate and download official PUPQC Outcomes-Based Teaching & Learning Syllabus PDF with 4-line signatory block"
                 >
-                  <Eye className="w-4 h-4" />
-                  <span>Inspect Syllabus Preview</span>
+                  <Printer className="w-4 h-4 text-slate-950" />
+                  <span>Download Official OBTL Syllabus (PDF)</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={handleDownloadFile}
-                  className="w-full inline-flex items-center justify-center space-x-1.5 py-2 px-3 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download Document</span>
-                </button>
+              </div>
+            </div>
+          </div>
+
+                    {/* Signatory Authority Block Card (SMS-035) */}
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h3 className="font-serif font-bold text-sm text-slate-900 flex items-center space-x-2">
+                <FileCheck className="w-4 h-4 text-[#580000]" />
+                <span>4-Line Signatory Block (SMS-035)</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setSignatoryForm({ ...signatories });
+                  setIsSignatoryModalOpen(true);
+                }}
+                className="text-[11px] font-bold text-[#580000] hover:underline"
+              >
+                Configure
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="p-2 bg-slate-50 rounded border border-slate-200">
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">1. Prepared by (Faculty)</span>
+                <span className="font-bold text-slate-900">Prof. Juan Dela Cruz</span>
+                <span className="text-[11px] text-slate-500 block">{signatories.prepared_by_title}</span>
+              </div>
+              <div className="p-2 bg-slate-50 rounded border border-slate-200">
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">2. Reviewed & Checked by</span>
+                <span className="font-bold text-slate-900">{signatories.reviewed_by_name}</span>
+                <span className="text-[11px] text-slate-500 block">{signatories.reviewed_by_title}</span>
+              </div>
+              <div className="p-2 bg-slate-50 rounded border border-slate-200">
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">3. Recommending Approval</span>
+                <span className="font-bold text-slate-900">{signatories.recommending_name}</span>
+                <span className="text-[11px] text-slate-500 block">{signatories.recommending_title}</span>
+              </div>
+              <div className="p-2 bg-slate-50 rounded border border-slate-200">
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">4. Approved by</span>
+                <span className="font-bold text-slate-900">{signatories.approved_by_name}</span>
+                <span className="text-[11px] text-slate-500 block">{signatories.approved_by_title}</span>
               </div>
             </div>
           </div>
