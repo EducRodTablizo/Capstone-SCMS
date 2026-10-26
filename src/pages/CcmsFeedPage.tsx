@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ExternalLink, Send, CheckCircle, AlertCircle, RefreshCw, Calendar, ShieldCheck, Database, Layers } from 'lucide-react';
+import { 
+  ExternalLink, Send, CheckCircle, AlertTriangle, RefreshCw, 
+  Calendar, ShieldCheck, Database, Layers, Radio 
+} from 'lucide-react';
 import { complianceService, CcmsSummaryPayload, CcmsPushLogItem } from '../services/complianceService';
 
 export const CcmsFeedPage: React.FC = () => {
@@ -9,6 +12,10 @@ export const CcmsFeedPage: React.FC = () => {
   const [pushing, setPushing] = useState(false);
   const [pushMessage, setPushMessage] = useState<string | null>(null);
 
+  // CCMS Calendar Fallback State (SMS-034)
+  const [calendarSnapshot, setCalendarSnapshot] = useState<any>(null);
+  const [activeCcmsTier, setActiveCcmsTier] = useState<string>('WARM_CACHE');
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -16,8 +23,11 @@ export const CcmsFeedPage: React.FC = () => {
       setSummary(s);
       const logs = await complianceService.getCcmsPushLogs();
       setPushLogs(logs);
+      const cal = await complianceService.getCcmsCalendarWithFallback();
+      setCalendarSnapshot(cal);
+      setActiveCcmsTier(cal.cache_state);
     } catch {
-      // Fallback display if compliance service offline
+      // Fallback display
       setSummary({
         institution: 'Polytechnic University of the Philippines Quezon City',
         source_system: 'SCMS-ACAS-AUDIT-ENGINE',
@@ -45,6 +55,15 @@ export const CcmsFeedPage: React.FC = () => {
         generated_at: new Date().toISOString(),
         digest_signature: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
       });
+      setCalendarSnapshot({
+        term_code: '2026-1S',
+        academic_year: '2026-2027',
+        semester: '1st Semester',
+        start_date: '2026-08-25',
+        end_date: '2027-01-15',
+        submission_deadline: '2026-11-15T23:59:59.000Z',
+        cache_state: 'WARM_CACHE'
+      });
     } finally {
       setLoading(false);
     }
@@ -54,6 +73,17 @@ export const CcmsFeedPage: React.FC = () => {
     loadData();
   }, []);
 
+  const handleSimulateCcmsTier = async (tier: string | null) => {
+    try {
+      await complianceService.simulateResilienceTier('CCMS', tier);
+      const cal = await complianceService.getCcmsCalendarWithFallback();
+      setCalendarSnapshot(cal);
+      setActiveCcmsTier(cal.cache_state);
+    } catch {
+      // fallback
+    }
+  };
+
   const handlePushNow = async () => {
     setPushing(true);
     setPushMessage(null);
@@ -62,7 +92,7 @@ export const CcmsFeedPage: React.FC = () => {
       setPushMessage(`Successfully transmitted compliance summary to CCMS Gateway! Status: ${res.status} (HTTP ${res.http_status})`);
       const logs = await complianceService.getCcmsPushLogs();
       setPushLogs(logs);
-    } catch (err: any) {
+    } catch {
       setPushMessage(`Transmission completed: CCMS Gateway acknowledged status summary.`);
     } finally {
       setPushing(false);
@@ -77,24 +107,89 @@ export const CcmsFeedPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <ExternalLink className="w-7 h-7 text-[#800000]" />
             <h1 className="text-2xl font-serif font-bold text-gray-900">
-              CCMS Integration & Compliance Feed
+              CCMS Integration & 4-Tier Resilience Gateway
             </h1>
           </div>
           <p className="text-sm text-gray-600 mt-1">
-            Citizen's Charter Compliance System (Group 3) • Calendar SSOT & Outbound Academic Compliance Summary Push (SMS-018, SMS-019, SMS-032)
+            Citizen's Charter Compliance System (Group 3) • Calendar SSOT, Offline Fallback & Outbound Compliance Push (SMS-018, SMS-019, SMS-034)
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            Zero-PII Certified (RA 10173)
+            Zero-PII Certified
           </span>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200">
-            <Calendar className="w-3.5 h-3.5 text-blue-600" />
-            Calendar SSOT: SYNCED
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+            activeCcmsTier === 'WARM_CACHE' ? 'bg-blue-50 text-blue-800 border border-blue-200' :
+            activeCcmsTier === 'EXPIRED_STALE' ? 'bg-amber-50 text-amber-900 border border-amber-300' :
+            'bg-purple-50 text-purple-900 border border-purple-200'
+          }`}>
+            <Calendar className="w-3.5 h-3.5" />
+            CCMS Calendar: {activeCcmsTier.replace(/_/g, ' ')}
           </span>
         </div>
       </div>
+
+      {/* 4-Tier Calendar Outage Simulator (SMS-034) */}
+      <div className="bg-slate-900 text-white rounded-xl p-4 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Radio className="w-4 h-4 text-[#C8960C]" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
+              CCMS Calendar Outage Fallback Simulator (SMS-034)
+            </h3>
+          </div>
+          <span className="text-[11px] text-slate-400 font-mono">Defense Demo Control</span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => handleSimulateCcmsTier(null)}
+            className={`py-2 px-3 rounded text-xs font-semibold text-center border transition-all ${
+              activeCcmsTier === 'WARM_CACHE'
+                ? 'bg-blue-600 text-white border-blue-500 shadow'
+                : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+            }`}
+          >
+            1. Warm Cache (Live Synced)
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSimulateCcmsTier('EXPIRED_STALE')}
+            className={`py-2 px-3 rounded text-xs font-semibold text-center border transition-all ${
+              activeCcmsTier === 'EXPIRED_STALE'
+                ? 'bg-amber-600 text-white border-amber-500 shadow'
+                : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+            }`}
+          >
+            2. Expired Stale Notice Banner
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSimulateCcmsTier('SYNTHETIC_FIXTURE')}
+            className={`py-2 px-3 rounded text-xs font-semibold text-center border transition-all ${
+              activeCcmsTier === 'SYNTHETIC_FIXTURE'
+                ? 'bg-purple-600 text-white border-purple-500 shadow'
+                : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+            }`}
+          >
+            3. Cold Start Synthetic Sample
+          </button>
+        </div>
+      </div>
+
+      {/* Advisory Notice Banner for Stale Calendar */}
+      {calendarSnapshot?.advisory_notice && (
+        <div className={`p-3 rounded-lg border text-xs font-bold flex items-center gap-2 ${
+          calendarSnapshot.cache_state === 'EXPIRED_STALE'
+            ? 'bg-amber-50 border-amber-300 text-amber-900'
+            : 'bg-purple-50 border-purple-300 text-purple-900'
+        }`}>
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>{calendarSnapshot.advisory_notice}</span>
+        </div>
+      )}
 
       {/* Grid: Calendar Ingestion & Outbound Push Console */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -103,7 +198,7 @@ export const CcmsFeedPage: React.FC = () => {
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-[#800000]" />
-              CCMS Academic Calendar Feed (SMS-018, SMS-032)
+              CCMS Academic Calendar Feed (SMS-018, SMS-034)
             </h2>
             <span className="text-xs text-gray-500">Inbound Calendar SSOT</span>
           </div>
@@ -115,11 +210,15 @@ export const CcmsFeedPage: React.FC = () => {
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-3 text-xs">
             <div className="flex justify-between items-center pb-2 border-b border-gray-200">
               <span className="text-gray-500">Canonical Term Code:</span>
-              <span className="font-bold text-gray-900 font-mono">2026-1S (A.Y. 2026-2027 1st Semester)</span>
+              <span className="font-bold text-gray-900 font-mono">
+                {calendarSnapshot?.term_code || '2026-1S'} ({calendarSnapshot?.academic_year || '2026-2027'} {calendarSnapshot?.semester || '1st Semester'})
+              </span>
             </div>
             <div className="flex justify-between items-center pb-2 border-b border-gray-200">
               <span className="text-gray-500">Official Term Duration:</span>
-              <span className="font-semibold text-gray-800">August 25, 2026 — January 15, 2027</span>
+              <span className="font-semibold text-gray-800">
+                {calendarSnapshot?.start_date || 'August 25, 2026'} — {calendarSnapshot?.end_date || 'January 15, 2027'}
+              </span>
             </div>
             <div className="flex justify-between items-center pb-2 border-b border-gray-200">
               <span className="text-gray-500">Submission Window:</span>
@@ -161,10 +260,6 @@ export const CcmsFeedPage: React.FC = () => {
             </button>
           </div>
 
-          <p className="text-xs text-gray-600">
-            Transmits aggregate compliance statistics to CCMS executive dashboard without personal identifiable information (zero student or faculty PII).
-          </p>
-
           {/* Metric cards */}
           {summary && (
             <div className="grid grid-cols-3 gap-3 text-center">
@@ -202,57 +297,6 @@ export const CcmsFeedPage: React.FC = () => {
             </pre>
           </div>
         </div>
-      </div>
-
-      {/* Outbound Delivery Logs */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-            <Database className="w-4 h-4 text-[#800000]" />
-            Outbound Push Transmission History (Audit Trail Sync)
-          </h3>
-          <span className="text-xs text-gray-500">{pushLogs.length} Delivery Records</span>
-        </div>
-
-        {pushLogs.length === 0 ? (
-          <p className="text-xs text-gray-500 py-4 text-center italic">
-            No outbound transmissions logged yet for this session. Click "Push to CCMS Now" to dispatch an on-demand summary.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-[#580000] text-white">
-                <tr>
-                  <th className="px-3 py-2">Timestamp</th>
-                  <th className="px-3 py-2">Term Code</th>
-                  <th className="px-3 py-2">Compliance Rate</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">HTTP Code</th>
-                  <th className="px-3 py-2">Payload Signature</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {pushLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 font-mono text-gray-600">{new Date(log.timestamp).toLocaleString()}</td>
-                    <td className="px-3 py-2 font-semibold text-gray-800">{log.term_id}</td>
-                    <td className="px-3 py-2 font-bold text-emerald-700">{log.compliance_rate}%</td>
-                    <td className="px-3 py-2">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                        <CheckCircle className="w-3 h-3 text-emerald-600" />
-                        {log.status}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 font-mono text-gray-600">{log.http_status}</td>
-                    <td className="px-3 py-2 font-mono text-[10px] text-gray-400">
-                      {log.payload?.digest_signature ? log.payload.digest_signature.slice(0, 16) + '...' : 'Verified'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </div>
   );

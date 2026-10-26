@@ -64,6 +64,16 @@ app.get('/api/v1/compliance/ccms/logs', (req, res) => complianceController.getCc
 app.post('/api/v1/integrations/fms/assignments/reassign', (req, res) => complianceController.syncReassignment(req, res));
 app.post('/api/v1/integrations/fms/assignments/withdraw', (req, res) => complianceController.syncWithdrawal(req, res));
 
+// Sprint 8 Endpoints (SMS-020, SMS-027, SMS-029, SMS-034)
+app.get('/api/v1/integrations/resilience/status', (req, res) => complianceController.getResilienceStatus(req, res));
+app.post('/api/v1/integrations/resilience/simulate', (req, res) => complianceController.simulateResilienceTier(req, res));
+app.post('/api/v1/integrations/fms/reconcile', (req, res) => complianceController.reconcileFms(req, res));
+app.get('/api/v1/integrations/fms/profile/:facultyId', (req, res) => complianceController.getFacultyProfile(req, res));
+app.get('/api/v1/integrations/ccms/calendar', (req, res) => complianceController.getCcmsCalendar(req, res));
+app.post('/api/v1/catalog/webhooks/fms/dispatch', (req, res) => complianceController.dispatchCatalogWebhook(req, res));
+app.get('/api/v1/catalog/webhooks/fms/logs', (req, res) => complianceController.getCatalogWebhookLogs(req, res));
+app.get('/api/v1/integrations/fixtures/catalog', (req, res) => complianceController.getJointSeedFixtures(req, res));
+
 const server = http.createServer(app);
 
 // WebSocket Gateway Server (SMS-013)

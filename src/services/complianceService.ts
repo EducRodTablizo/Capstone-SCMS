@@ -243,5 +243,73 @@ export const complianceService = {
       isClosed = true;
       if (ws) ws.close();
     };
+  },
+
+  /**
+   * Sprint 8 Resilience & Integration Methods (SMS-020, SMS-027, SMS-029, SMS-034)
+   */
+  async getResilienceStatus(): Promise<any> {
+    const res = await fetch('http://localhost:3005/api/v1/integrations/resilience/status', {
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const body = await res.json();
+    return body.data;
+  },
+
+  async simulateResilienceTier(system: 'FMS' | 'CCMS', state: string | null): Promise<any> {
+    const res = await fetch('http://localhost:3005/api/v1/integrations/resilience/simulate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ system, state })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
+  async reconcileFms(): Promise<any> {
+    const res = await fetch('http://localhost:3005/api/v1/integrations/fms/reconcile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
+  async getFacultyProfileWithFallback(facultyId: string): Promise<any> {
+    const res = await fetch(`http://localhost:3005/api/v1/integrations/fms/profile/${facultyId}`, {
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const body = await res.json();
+    return body.data;
+  },
+
+  async getCcmsCalendarWithFallback(): Promise<any> {
+    const res = await fetch('http://localhost:3005/api/v1/integrations/ccms/calendar', {
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const body = await res.json();
+    return body.data;
+  },
+
+  async getCatalogWebhookLogs(): Promise<any[]> {
+    const res = await fetch('http://localhost:3005/api/v1/catalog/webhooks/fms/logs', {
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const body = await res.json();
+    return body.data || [];
+  },
+
+  async dispatchCatalogWebhook(payload: any): Promise<any> {
+    const res = await fetch('http://localhost:3005/api/v1/catalog/webhooks/fms/dispatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
   }
 };

@@ -1,9 +1,36 @@
+import * as http from 'http';
 import { Router, Request, Response } from 'express';
 import { courseRepository } from './course.repository';
 import { authenticate, requireRole } from '../guards/role.guard';
 import { CourseStatus } from './course.entity';
 
 export const courseRouter = Router();
+
+function notifyFmsWebhook(eventType: string, course: any) {
+  if (!course) return;
+  const body = JSON.stringify({
+    eventType,
+    courseId: course.id,
+    courseCode: course.course_code,
+    courseTitle: course.title,
+    creditUnits: course.credit_units || 3,
+    lectureHours: course.lecture_hours || 2,
+    labHours: course.lab_hours || 3,
+    requiresLaboratory: course.requires_laboratory || false,
+    status: course.status === 'Retired' ? 'RETIRED' : (course.status === 'Revised' ? 'REVISED' : 'ACTIVE')
+  });
+  const req = http.request({
+    hostname: 'localhost',
+    port: 3005,
+    path: '/api/v1/catalog/webhooks/fms/dispatch',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+  });
+  req.on('error', () => {});
+  req.write(body);
+  req.end();
+}
+
 
 // GET /api/v1/courses (Both Academic Head & Faculty Staff can view)
 courseRouter.get('/', authenticate, async (req: Request, res: Response) => {
@@ -77,6 +104,7 @@ courseRouter.post('/', authenticate, requireRole(['ACADEMIC_HEAD']), async (req:
     }
 
     const newCourse = await courseRepository.create(req.body);
+    notifyFmsWebhook('COURSE_CREATED', newCourse);
     res.status(201).json({
       statusCode: 201,
       message: 'Course created successfully in Master Catalogue (SMS-022).',
@@ -102,6 +130,7 @@ courseRouter.patch('/:id', authenticate, requireRole(['ACADEMIC_HEAD']), async (
     }
 
     const updated = await courseRepository.update(req.params.id, req.body);
+    notifyFmsWebhook(updated?.status === 'Retired' ? 'COURSE_RETIRED' : 'COURSE_UPDATED', updated);
     res.status(200).json({
       statusCode: 200,
       message: 'Course updated successfully.',
@@ -122,6 +151,7 @@ courseRouter.post('/:id/version', authenticate, requireRole(['ACADEMIC_HEAD']), 
     }
 
     const versioned = await courseRepository.createVersion(req.params.id);
+    notifyFmsWebhook('COURSE_UPDATED', versioned);
     res.status(201).json({
       statusCode: 201,
       message: `Created version ${versioned?.version} for course '${existing.course_code}' (SMS-022 AC4).`,
