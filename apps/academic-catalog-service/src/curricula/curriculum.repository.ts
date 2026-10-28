@@ -1,57 +1,103 @@
-import { pool } from '../config/db';
-import { Curriculum, CurriculumStatus, CreateCurriculumDto, AddCurriculumCourseDto, CurriculumCourseItem } from './curriculum.entity';
+import { Pool, pool } from '../config/db';
+import {
+  Curriculum,
+  CurriculumStatus,
+  CreateCurriculumDto,
+  AddCurriculumCourseDto,
+  CurriculumCourseItem,
+} from './curriculum.entity';
 
 export class CurriculumRepository {
+  constructor(private readonly db: Pool = pool) {}
+
   async findAll(programId?: string): Promise<Curriculum[]> {
-    try {
-      let query = 'SELECT * FROM curricula WHERE 1=1';
-      const params: any[] = [];
-      if (programId) {
-        params.push(programId);
-        query += ` AND program_id = $${params.length}`;
-      }
-      query += ' ORDER BY curriculum_code ASC';
-      const result = await pool.query(query, params);
-      return result.rows.map(this.mapRowToCurriculum);
-    } catch {
-      return [];
+    let query = 'SELECT * FROM curricula WHERE 1=1';
+    const params: any[] = [];
+    if (programId) {
+      params.push(programId);
+      query += ` AND program_id = $${params.length}`;
     }
+    query += ' ORDER BY curriculum_code ASC';
+    const result = await this.db.query(query, params);
+    return (result.rows || []).map((r) => this.mapRowToCurriculum(r));
   }
 
   async findById(id: string): Promise<Curriculum | null> {
-    try {
-      const result = await pool.query('SELECT * FROM curricula WHERE id = $1', [id]);
-      if (result.rows.length === 0) return null;
-      const curr = this.mapRowToCurriculum(result.rows[0]);
-      curr.courses = await this.getCurriculumCourses(id);
-      return curr;
-    } catch {
-      return null;
-    }
+    const result = await this.db.query('SELECT * FROM curricula WHERE id = $1', [id]);
+    if (!result.rows || result.rows.length === 0) return null;
+    const curr = this.mapRowToCurriculum(result.rows[0]);
+    curr.courses = await this.getCurriculumCourses(id);
+    return curr;
   }
 
   async findByCode(code: string): Promise<Curriculum | null> {
-    try {
-      const result = await pool.query('SELECT * FROM curricula WHERE curriculum_code = $1', [code]);
-      if (result.rows.length === 0) return null;
-      return this.mapRowToCurriculum(result.rows[0]);
-    } catch {
-      return null;
-    }
+    const result = await this.db.query('SELECT * FROM curricula WHERE curriculum_code = $1', [
+      code,
+    ]);
+    if (!result.rows || result.rows.length === 0) return null;
+    return this.mapRowToCurriculum(result.rows[0]);
   }
 
   async create(dto: CreateCurriculumDto): Promise<Curriculum> {
-    const result = await pool.query(
+    const result = await this.db.query(
       `INSERT INTO curricula (program_id, curriculum_code, name, effective_start_term, description, status)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [dto.program_id, dto.curriculum_code.trim(), dto.name.trim(), dto.effective_start_term.trim(), dto.description || null, dto.status || 'Active']
+      [
+        dto.program_id,
+        dto.curriculum_code.trim(),
+        dto.name.trim(),
+        dto.effective_start_term.trim(),
+        dto.description || null,
+        dto.status || 'Active',
+      ]
     );
     return this.mapRowToCurriculum(result.rows[0]);
   }
 
+  async update(
+    id: string,
+    data: {
+      name?: string;
+      effective_start_term?: string;
+      description?: string;
+      status?: CurriculumStatus;
+    }
+  ): Promise<Curriculum | null> {
+    const existing = await this.findById(id);
+    if (!existing) return null;
+
+    const result = await this.db.query(
+      `UPDATE curricula
+       SET name = $1,
+           effective_start_term = $2,
+           description = $3,
+           status = $4,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $5
+       RETURNING *`,
+      [
+        data.name !== undefined ? data.name.trim() : existing.name,
+        data.effective_start_term !== undefined
+          ? data.effective_start_term.trim()
+          : existing.effective_start_term,
+        data.description !== undefined ? data.description : existing.description || null,
+        data.status !== undefined ? data.status : existing.status,
+        id,
+      ]
+    );
+
+    if (!result.rows || result.rows.length === 0) return null;
+    return this.mapRowToCurriculum(result.rows[0]);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const res = await this.db.query('DELETE FROM curricula WHERE id = $1', [id]);
+    return (res.rowCount || 0) > 0;
+  }
+
   async addCourse(curriculumId: string, dto: AddCurriculumCourseDto): Promise<CurriculumCourseItem> {
-    const result = await pool.query(
+    const result = await this.db.query(
       `INSERT INTO curriculum_courses (curriculum_id, course_id, year_level, semester, is_major)
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (curriculum_id, course_id) DO UPDATE SET
@@ -59,10 +105,19 @@ export class CurriculumRepository {
          semester = EXCLUDED.semester,
          is_major = EXCLUDED.is_major
        RETURNING *`,
-      [curriculumId, dto.course_id, dto.year_level, dto.semester, dto.is_major !== undefined ? dto.is_major : true]
+      [
+        curriculumId,
+        dto.course_id,
+        dto.year_level,
+        dto.semester,
+        dto.is_major !== undefined ? dto.is_major : true,
+      ]
     );
 
-    const courseDetails = await pool.query('SELECT course_code, title, credit_units, contact_hours FROM courses WHERE id = $1', [dto.course_id]);
+    const courseDetails = await this.db.query(
+      'SELECT course_code, title, credit_units, contact_hours FROM courses WHERE id = $1',
+      [dto.course_id]
+    );
     const c = courseDetails.rows[0] || {};
     return {
       id: result.rows[0].id,
@@ -78,6 +133,14 @@ export class CurriculumRepository {
     };
   }
 
+  async removeCourse(curriculumId: string, courseId: string): Promise<boolean> {
+    const res = await this.db.query(
+      'DELETE FROM curriculum_courses WHERE curriculum_id = $1 AND course_id = $2',
+      [curriculumId, courseId]
+    );
+    return (res.rowCount || 0) > 0;
+  }
+
   async getCurriculumCourses(curriculumId: string): Promise<CurriculumCourseItem[]> {
     const query = `
       SELECT cc.id, cc.curriculum_id, cc.course_id, cc.year_level, cc.semester, cc.is_major,
@@ -87,8 +150,8 @@ export class CurriculumRepository {
       WHERE cc.curriculum_id = $1
       ORDER BY cc.year_level ASC, cc.semester ASC, c.course_code ASC
     `;
-    const result = await pool.query(query, [curriculumId]);
-    return result.rows.map(r => ({
+    const result = await this.db.query(query, [curriculumId]);
+    return (result.rows || []).map((r) => ({
       id: r.id,
       curriculum_id: r.curriculum_id,
       course_id: r.course_id,
@@ -117,4 +180,4 @@ export class CurriculumRepository {
   }
 }
 
-export const curriculumRepository = new CurriculumRepository();
+export const curriculumRepository = new CurriculumRepository(pool);
