@@ -1,6 +1,10 @@
-﻿import express from 'express';
+import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import { pool } from './config/db';
+import { requirementRepository } from './requirements/requirement.repository';
+import { calendarRepository } from './calendar/calendar.repository';
+import { termRepository } from './calendar/term.repository';
 import { requirementRouter } from './requirements/requirement.controller';
 import { calendarRouter } from './calendar/calendar.controller';
 import { termRouter } from './calendar/term.controller';
@@ -30,13 +34,28 @@ app.use('/api/v1/requirements', requirementRouter); // SMS-004, SMS-005
 app.use('/api/v1/calendar', calendarRouter);         // SMS-032, SMS-033
 app.use('/api/v1/terms', termRouter);               // SMS-018
 
+export async function bootstrap(): Promise<void> {
+  await pool.query('SELECT 1');
+  await termRepository.init();
+  await requirementRepository.init();
+  await calendarRepository.init();
+  console.log('Connected to PostgreSQL sms_requirements');
+}
+
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log('=======================================================');
-    console.log(`  SCMS Requirements Service running on port ${PORT}`);
-    console.log('  Responsibilities: Requirements, Academic Terms & Calendar');
-    console.log('  User Stories: SMS-004, SMS-005, SMS-018, SMS-032, SMS-033');
-    console.log('  Database: sms_requirements (Port 5436)');
-    console.log('=======================================================');
-  });
+  bootstrap()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log('=======================================================');
+        console.log(`  SCMS Requirements Service running on port ${PORT}`);
+        console.log('  Responsibilities: Requirements, Academic Terms & Calendar');
+        console.log('  User Stories: SMS-004, SMS-005, SMS-018, SMS-032, SMS-033');
+        console.log('  Database: sms_requirements (Port 5436)');
+        console.log('=======================================================');
+      });
+    })
+    .catch((err) => {
+      console.error('Failed to connect to PostgreSQL sms_requirements:', err);
+      process.exit(1);
+    });
 }

@@ -1,5 +1,5 @@
-﻿import { Router, Request, Response } from 'express';
-import { calendarRepository } from './calendar.repository';
+import { Router, Request, Response } from 'express';
+import { termRepository } from './term.repository';
 import { authenticate, requireRole } from '../guards/role.guard';
 import { TermStatus } from './calendar.entity';
 
@@ -11,7 +11,7 @@ export const termRouter = Router();
  */
 termRouter.get('/', authenticate, async (req: Request, res: Response) => {
   try {
-    const terms = await calendarRepository.getTerms();
+    const terms = await termRepository.findAll();
     res.status(200).json({
       statusCode: 200,
       count: terms.length,
@@ -24,8 +24,7 @@ termRouter.get('/', authenticate, async (req: Request, res: Response) => {
 
 termRouter.get('/active', authenticate, async (req: Request, res: Response) => {
   try {
-    const terms = await calendarRepository.getTerms();
-    const active = terms.find(t => t.status === 'Active') || terms[0] || null;
+    const active = await termRepository.getActiveTerm();
     if (!active) {
       res.status(404).json({ statusCode: 404, message: 'No active academic term configured.' });
       return;
@@ -38,7 +37,7 @@ termRouter.get('/active', authenticate, async (req: Request, res: Response) => {
 
 termRouter.get('/:termCode', authenticate, async (req: Request, res: Response) => {
   try {
-    const term = await calendarRepository.getTermByCode(req.params.termCode);
+    const term = await termRepository.findByCode(req.params.termCode);
     if (!term) {
       res.status(404).json({ statusCode: 404, message: `Term '${req.params.termCode}' not found.` });
       return;
@@ -71,13 +70,12 @@ termRouter.patch(
         return;
       }
 
-      const term = await calendarRepository.getTermByCode(termCode);
+      const term = await termRepository.findByCode(termCode);
       if (!term) {
         res.status(404).json({ statusCode: 404, message: `Term '${termCode}' not found.` });
         return;
       }
 
-      // Validate window falls within term dates
       const start = new Date(window_start);
       const end = new Date(window_end);
       if (start >= end) {
@@ -89,7 +87,7 @@ termRouter.patch(
         return;
       }
 
-      const updated = await calendarRepository.updateSubmissionWindow(termCode, window_start, window_end);
+      const updated = await termRepository.updateSubmissionWindow(termCode, window_start, window_end);
 
       res.status(200).json({
         statusCode: 200,
@@ -114,17 +112,26 @@ termRouter.patch(
       const { termCode } = req.params;
       const { status } = req.body;
 
-      const allowedStatuses: TermStatus[] = ['Upcoming', 'Active', 'Closed', 'Archived'];
+      const allowedStatuses: TermStatus[] = [
+        'UPCOMING',
+        'ACTIVE',
+        'CLOSED',
+        'ARCHIVED',
+        'Upcoming',
+        'Active',
+        'Closed',
+        'Archived',
+      ];
       if (!allowedStatuses.includes(status)) {
         res.status(422).json({
           statusCode: 422,
           error: 'Unprocessable Entity',
-          message: `Invalid term status. Allowed values: ${allowedStatuses.join(', ')}`,
+          message: `Invalid term status. Allowed values: UPCOMING, ACTIVE, CLOSED, ARCHIVED`,
         });
         return;
       }
 
-      const updated = await calendarRepository.updateTermStatus(termCode, status);
+      const updated = await termRepository.updateStatus(termCode, status);
       if (!updated) {
         res.status(404).json({ statusCode: 404, message: `Term '${termCode}' not found.` });
         return;
@@ -132,7 +139,7 @@ termRouter.patch(
 
       res.status(200).json({
         statusCode: 200,
-        message: `Term '${termCode}' status updated to '${status}'.`,
+        message: `Term '${termCode}' status updated to '${updated.status}'.`,
         data: updated,
       });
     } catch (err: any) {
