@@ -1,11 +1,85 @@
 import { pool } from '../config/db';
-import { Submission, ReviewDecision, SubmissionVersion, CanonicalStatus } from './submission.entity';
+import { Submission, ReviewDecision, SubmissionVersion, CanonicalStatus, FmsScheduleDetails } from './submission.entity';
 import { randomUUID } from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
+
+interface SubmissionsPersistenceStore {
+  submissions: Submission[];
+  versions: Record<string, SubmissionVersion[]>;
+  reviews: ReviewDecision[];
+}
 
 export class SubmissionRepository {
   private fallbackStore: Map<string, Submission> = new Map();
   private fallbackVersions: Map<string, SubmissionVersion[]> = new Map();
   private fallbackReviews: ReviewDecision[] = [];
+  private readonly filePath: string;
+
+  constructor() {
+    this.filePath = path.resolve(process.cwd(), 'submissions.json');
+    this.loadFromDisk();
+  }
+
+  private loadFromDisk(): void {
+    try {
+      if (fs.existsSync(this.filePath)) {
+        const raw = fs.readFileSync(this.filePath, 'utf-8');
+        const parsed: SubmissionsPersistenceStore = JSON.parse(raw);
+        this.fallbackStore.clear();
+        this.fallbackVersions.clear();
+        this.fallbackReviews = [];
+
+        if (Array.isArray(parsed.submissions)) {
+          for (const sub of parsed.submissions) {
+            this.fallbackStore.set(sub.id, sub);
+          }
+        }
+        if (parsed.versions && typeof parsed.versions === 'object') {
+          for (const [subId, verList] of Object.entries(parsed.versions)) {
+            if (Array.isArray(verList)) {
+              this.fallbackVersions.set(subId, verList);
+            }
+          }
+        }
+        if (Array.isArray(parsed.reviews)) {
+          this.fallbackReviews = parsed.reviews;
+        }
+      }
+    } catch {
+      // Ignore read errors on startup and initialize empty
+    }
+  }
+
+  private saveToDisk(): void {
+    try {
+      const versionsObj: Record<string, SubmissionVersion[]> = {};
+      for (const [subId, verList] of this.fallbackVersions.entries()) {
+        versionsObj[subId] = verList;
+      }
+      const payload: SubmissionsPersistenceStore = {
+        submissions: Array.from(this.fallbackStore.values()),
+        versions: versionsObj,
+        reviews: this.fallbackReviews,
+      };
+      fs.writeFileSync(this.filePath, JSON.stringify(payload, null, 2), 'utf-8');
+    } catch {
+      // Fallback in restricted environments
+    }
+  }
+
+  public clearForTesting(): void {
+    this.fallbackStore.clear();
+    this.fallbackVersions.clear();
+    this.fallbackReviews = [];
+    if (fs.existsSync(this.filePath)) {
+      try {
+        fs.unlinkSync(this.filePath);
+      } catch {
+        // ignore
+      }
+    }
+  }
 
   async create(data: Omit<Submission, 'id' | 'created_at' | 'updated_at'>): Promise<Submission> {
     const id = randomUUID();
@@ -38,9 +112,12 @@ export class SubmissionRepository {
         now,
         now,
       ]);
+      this.fallbackStore.set(id, res.rows[0]);
+      this.saveToDisk();
       return res.rows[0];
     } catch {
       this.fallbackStore.set(id, newSubmission);
+      this.saveToDisk();
       return newSubmission;
     }
   }
@@ -102,7 +179,11 @@ export class SubmissionRepository {
         RETURNING *;
       `;
       const res = await pool.query(query, [status, submittedAt || null, now, id]);
-      if (res.rows[0]) return res.rows[0];
+      if (res.rows[0]) {
+        this.fallbackStore.set(id, res.rows[0]);
+        this.saveToDisk();
+        return res.rows[0];
+      }
     } catch {
       // fallback
     }
@@ -113,6 +194,7 @@ export class SubmissionRepository {
     if (submittedAt) sub.submitted_at = submittedAt;
     sub.updated_at = now;
     this.fallbackStore.set(id, sub);
+    this.saveToDisk();
     return sub;
   }
 
@@ -126,7 +208,11 @@ export class SubmissionRepository {
         RETURNING *;
       `;
       const res = await pool.query(query, [fileName, submittedAt, now, id]);
-      if (res.rows[0]) return res.rows[0];
+      if (res.rows[0]) {
+        this.fallbackStore.set(id, res.rows[0]);
+        this.saveToDisk();
+        return res.rows[0];
+      }
     } catch {
       // fallback
     }
@@ -138,6 +224,7 @@ export class SubmissionRepository {
     sub.submitted_at = submittedAt;
     sub.updated_at = now;
     this.fallbackStore.set(id, sub);
+    this.saveToDisk();
     return sub;
   }
 
@@ -167,11 +254,16 @@ export class SubmissionRepository {
         data.change_summary || null,
         now,
       ]);
+      const list = this.fallbackVersions.get(data.submission_id) || [];
+      list.push(res.rows[0]);
+      this.fallbackVersions.set(data.submission_id, list);
+      this.saveToDisk();
       return res.rows[0];
     } catch {
       const list = this.fallbackVersions.get(data.submission_id) || [];
       list.push(newVersion);
       this.fallbackVersions.set(data.submission_id, list);
+      this.saveToDisk();
       return newVersion;
     }
   }
@@ -204,9 +296,12 @@ export class SubmissionRepository {
         RETURNING *;
       `;
       const res = await pool.query(query, [id, data.submission_id, data.reviewer_name, data.decision, data.comment, now]);
+      this.fallbackReviews.push(res.rows[0]);
+      this.saveToDisk();
       return res.rows[0];
     } catch {
       this.fallbackReviews.push(newReview);
+      this.saveToDisk();
       return newReview;
     }
   }
@@ -231,10 +326,11 @@ export class SubmissionRepository {
     } catch {
       // fallback
     }
-    const found = Array.from(this.fallbackStore.values()).find(
+    const allMatching = Array.from(this.fallbackStore.values()).filter(
       s => s.course_code === courseCode && s.section_label === sectionLabel
     );
-    return found || null;
+    if (allMatching.length === 0) return null;
+    return allMatching[allMatching.length - 1];
   }
 
   async updateFacultyAssignment(id: string, newFacultyId: string, versionBump: number = 1): Promise<Submission | null> {
@@ -244,7 +340,11 @@ export class SubmissionRepository {
         'UPDATE submissions SET faculty_id = $1, fms_assignment_version = COALESCE(fms_assignment_version, 1) + $2, updated_at = $3 WHERE id = $4 RETURNING *;',
         [newFacultyId, versionBump, now, id]
       );
-      if (res.rows[0]) return res.rows[0];
+      if (res.rows[0]) {
+        this.fallbackStore.set(id, res.rows[0]);
+        this.saveToDisk();
+        return res.rows[0];
+      }
     } catch {
       // fallback
     }
@@ -254,6 +354,7 @@ export class SubmissionRepository {
     sub.fms_assignment_version = (sub.fms_assignment_version || 1) + versionBump;
     sub.updated_at = now;
     this.fallbackStore.set(id, sub);
+    this.saveToDisk();
     return sub;
   }
 
@@ -264,7 +365,11 @@ export class SubmissionRepository {
         'UPDATE submissions SET substitute_id = $1, updated_at = $2 WHERE id = $3 RETURNING *;',
         [substituteId, now, id]
       );
-      if (res.rows[0]) return res.rows[0];
+      if (res.rows[0]) {
+        this.fallbackStore.set(id, res.rows[0]);
+        this.saveToDisk();
+        return res.rows[0];
+      }
     } catch {
       // fallback
     }
@@ -273,7 +378,50 @@ export class SubmissionRepository {
     sub.substitute_id = substituteId;
     sub.updated_at = now;
     this.fallbackStore.set(id, sub);
+    this.saveToDisk();
     return sub;
+  }
+
+  async findByAssignmentId(assignmentId: string): Promise<Submission | null> {
+    for (const sub of this.fallbackStore.values()) {
+      if (sub.assignment_id === assignmentId) {
+        return sub;
+      }
+    }
+    return null;
+  }
+
+  async updateAssignmentSchedule(
+    id: string,
+    schedule: FmsScheduleDetails,
+    assignmentVersion: number
+  ): Promise<Submission | null> {
+    const now = new Date().toISOString();
+    const sub = this.fallbackStore.get(id);
+    if (!sub) return null;
+    sub.schedule = schedule;
+    sub.fms_assignment_version = assignmentVersion;
+    sub.updated_at = now;
+    this.fallbackStore.set(id, sub);
+    this.saveToDisk();
+    return sub;
+  }
+
+  async updateApprovedAssignment(
+    id: string,
+    updates: Partial<Submission>
+  ): Promise<Submission | null> {
+    const now = new Date().toISOString();
+    const sub = this.fallbackStore.get(id);
+    if (!sub) return null;
+    const updatedSub: Submission = {
+      ...sub,
+      ...updates,
+      updated_at: now,
+    };
+    this.fallbackStore.set(id, updatedSub);
+    this.saveToDisk();
+    return updatedSub;
   }
 }
 

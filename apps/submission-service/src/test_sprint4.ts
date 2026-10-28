@@ -23,6 +23,9 @@ async function runSprint4Verification() {
     }
   }
 
+  // Clean state before running test suite
+  submissionRepository.clearForTesting();
+
   // -------------------------------------------------------------------------
   // TEST 1: SCMS-008 AC 1 & AC 3 - Valid File Submission
   // -------------------------------------------------------------------------
@@ -198,6 +201,23 @@ async function runSprint4Verification() {
   // Filter logs
   const logs = auditLogService.getLogs({ actorId: 'acad-head-01' });
   assert(logs.length >= 1, 'Academic Head can filter audit records by actor');
+
+  // Verify SHA-256 Hash Chaining (SMS-014)
+  const secondEntry = auditLogService.logAction({
+    actorId: 'acad-head-01',
+    actorName: 'Dr. Maria Santos',
+    actorRole: 'ACADEMIC_HEAD',
+    actionType: 'DEADLINE_CHANGED',
+    entityName: 'REQUIREMENT',
+    entityId: 'req-01',
+    newValue: { deadline: '2026-11-15' },
+    details: { note: 'Extended deadline' }
+  });
+  assert(
+    !!auditEntry.previous_hash && !!auditEntry.current_hash && secondEntry.previous_hash === auditEntry.current_hash,
+    'Audit log entries form a cryptographic SHA-256 hash chain (previous_hash matches prior current_hash)'
+  );
+  assert(auditLogService.verifyChain() === true, 'verifyChain() confirms unbroken tamper-evident hash chain');
 
   console.log('\n===============================================================');
   console.log(`📊 SPRINT 4 VERIFICATION COMPLETE: ${passedTests}/${totalTests} TESTS PASSED`);

@@ -1,9 +1,23 @@
-import { Pool } from 'pg';
-import * as dotenv from 'dotenv';
+let PoolClass: any;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  PoolClass = require('pg').Pool;
+} catch {
+  PoolClass = class FallbackPool {
+    async query() {
+      throw new Error('PostgreSQL driver not installed; using in-memory repository fallback');
+    }
+  };
+}
 
-dotenv.config();
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('dotenv').config();
+} catch {
+  // dotenv not installed; environment variables read from process.env directly
+}
 
-export const pool = new Pool({
+export const pool = new PoolClass({
   host: process.env.POSTGRES_HOST || 'localhost',
   port: parseInt(process.env.SUBMISSIONS_DB_PORT || '5437', 10),
   user: process.env.POSTGRES_USER || 'scms_admin',

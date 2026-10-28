@@ -60,6 +60,15 @@ export class AuditLogController {
     }
   }
 
+  async verify(req: Request, res: Response): Promise<void> {
+    try {
+      const valid = auditLogService.verifyChain();
+      res.json({ valid });
+    } catch (err: any) {
+      res.status(500).json({ valid: false, error: err.message });
+    }
+  }
+
   rejectModification(req: Request, res: Response): void {
     res.status(405).json({
       error: 'Method Not Allowed',

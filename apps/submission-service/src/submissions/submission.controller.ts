@@ -262,6 +262,23 @@ export class SubmissionController {
     }
   }
 
+  async approveAssignment(req: Request, res: Response): Promise<void> {
+    try {
+      const result = await submissionService.ingestApprovedAssignment(req.body);
+      res.status(result.statusCode).json({
+        success: true,
+        action: result.action,
+        data: result.data,
+      });
+    } catch (err: any) {
+      const status = err.statusCode || 400;
+      res.status(status).json({
+        success: false,
+        error: err.message,
+      });
+    }
+  }
+
   getSignatories(req: Request, res: Response): void {
     const signatories = submissionService.getSignatories();
     res.json({ success: true, data: signatories });

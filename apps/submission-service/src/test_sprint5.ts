@@ -22,6 +22,9 @@ async function runSprint5Verification() {
     }
   }
 
+  // Clean state before running test suite
+  submissionRepository.clearForTesting();
+
   // -------------------------------------------------------------------------
   // SECTION 1: SCMS-010 (Review Decisions Approve or Return)
   // -------------------------------------------------------------------------

@@ -8,8 +8,19 @@ export type CanonicalStatus =
   | 'Overdue'
   | 'Unassigned';
 
+export interface FmsScheduleDetails {
+  schedule_day_time?: string | null;
+  room_id?: string | null;
+  room_label?: string | null;
+  [key: string]: any;
+}
+
 export interface Submission {
   id: string;
+  assignment_id?: string | null;
+  academic_term_id?: string | null;
+  course_id?: string | null;
+  block_section_id?: string | null;
   requirement_id: string;
   faculty_id: string;
   substitute_id?: string | null;
@@ -17,6 +28,7 @@ export interface Submission {
   course_code: string;
   section_label: string;
   status: CanonicalStatus;
+  schedule?: FmsScheduleDetails | null;
   file_id?: string | null;
   file_name?: string | null;
   file_size?: number | null;

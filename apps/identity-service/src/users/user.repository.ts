@@ -1,12 +1,44 @@
-import { User, UserRole } from './user.entity';
+import { User } from './user.entity';
 import { hashPassword } from '../auth/password.util';
+import * as fs from 'fs';
+import * as path from 'path';
 
 class UserRepository {
-  private users: Map<string, User> = new Map();
+  private users: User[] = [];
   private isInitialized = false;
+  private readonly filePath: string;
+
+  constructor() {
+    this.filePath = path.resolve(process.cwd(), 'users.json');
+  }
+
+  private saveToDisk(): void {
+    try {
+      fs.writeFileSync(this.filePath, JSON.stringify(this.users, null, 2), 'utf-8');
+    } catch {
+      // Fallback in restricted environments
+    }
+  }
 
   async init(): Promise<void> {
     if (this.isInitialized) return;
+
+    if (fs.existsSync(this.filePath)) {
+      try {
+        const raw = fs.readFileSync(this.filePath, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          this.users = parsed.map((u: any) => ({
+            ...u,
+            created_at: new Date(u.created_at),
+          }));
+          this.isInitialized = true;
+          return;
+        }
+      } catch {
+        // Proceed to create seed users if file is corrupted or empty
+      }
+    }
 
     // SCMS Seed Accounts (Pre-hashed with Argon2id)
     const headHash = await hashPassword('AcademicHead2026!');
@@ -54,30 +86,42 @@ class UserRepository {
       },
     ];
 
-    for (const u of seedUsers) {
-      this.users.set(u.email.toLowerCase(), u);
-    }
-
+    this.users = seedUsers;
+    this.saveToDisk();
     this.isInitialized = true;
+  }
+
+  async create(user: User): Promise<User> {
+    await this.init();
+    this.users.push(user);
+    this.saveToDisk();
+    return user;
+  }
+
+  async update(id: string, updates: Partial<User>): Promise<User | null> {
+    await this.init();
+    const idx = this.users.findIndex((u) => u.id === id);
+    if (idx === -1) return null;
+    this.users[idx] = { ...this.users[idx], ...updates };
+    this.saveToDisk();
+    return this.users[idx];
   }
 
   async findByEmail(email: string): Promise<User | null> {
     await this.init();
-    const user = this.users.get(email.toLowerCase().trim());
+    const normalized = email.toLowerCase().trim();
+    const user = this.users.find((u) => u.email.toLowerCase() === normalized);
     return user || null;
   }
 
   async findById(id: string): Promise<User | null> {
     await this.init();
-    for (const user of this.users.values()) {
-      if (user.id === id) return user;
-    }
-    return null;
+    return this.users.find((u) => u.id === id) || null;
   }
 
   async getAllUsers(): Promise<User[]> {
     await this.init();
-    return Array.from(this.users.values());
+    return [...this.users];
   }
 }
 

@@ -22,6 +22,8 @@ export interface AuditEntry {
   newValue?: Record<string, any> | null;
   details?: Record<string, any> | null;
   clientIp?: string;
+  previous_hash?: string;
+  current_hash?: string;
   createdAt?: string;
 }
 

@@ -22,6 +22,9 @@ async function runSprint7Tests() {
     }
   }
 
+  // Clean state before running test suite
+  submissionRepository.clearForTesting();
+
   // 1. Signatory Authority Configuration (SMS-035)
   console.log('--- 1. Testing Signatory Authority Configuration (SMS-035) ---');
   const signatories = signatoryService.getSignatories();

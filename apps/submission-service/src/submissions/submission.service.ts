@@ -2,7 +2,8 @@ import { signatoryService } from '../signatories/signatory.service';
 import { SignatoryConfig } from '../signatories/signatory.entity';
 import { obtlPdfService } from './obtl-pdf.service';
 import { submissionRepository } from './submission.repository';
-import { Submission, SubmissionVersion, CanonicalStatus, ALLOWED_TRANSITIONS, ReviewDecision } from './submission.entity';
+import { Submission, SubmissionVersion, CanonicalStatus, ALLOWED_TRANSITIONS, ReviewDecision, FmsScheduleDetails } from './submission.entity';
+import { auditLogService } from '../../../audit-log-service/src/audit/audit.service';
 import * as http from 'http';
 
 export const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25MB (SCMS-008 AC 2)
@@ -10,7 +11,7 @@ export const ALLOWED_EXTENSIONS = ['.pdf', '.docx'];
 
 export class SubmissionService {
   /**
-   * Dispatches audit event to Audit Log Service (:3004)
+   * Dispatches audit event to Audit Log Service (:3004) and records via auditLogService.logAction()
    */
   private async dispatchAuditLog(payload: {
     actorId: string;
@@ -22,6 +23,19 @@ export class SubmissionService {
     newValue?: string;
     details?: string;
   }): Promise<void> {
+    auditLogService.logAction({
+      actorId: payload.actorId,
+      actorName: payload.actorName,
+      actorRole: payload.actorRole,
+      actionType: payload.actionType,
+      entityName: 'SUBMISSION',
+      entityId: payload.entityId,
+      previousValue: payload.previousValue ? { status: payload.previousValue } : null,
+      newValue: payload.newValue ? { status: payload.newValue } : null,
+      details: payload.details ? { note: payload.details } : null,
+      clientIp: '127.0.0.1'
+    });
+
     const body = JSON.stringify({
       actorId: payload.actorId,
       actorName: payload.actorName,
@@ -592,6 +606,160 @@ export class SubmissionService {
     }
     const signatories = signatoryService.getSignatories();
     return obtlPdfService.generateObtlPdf(sub, signatories);
+  }
+
+  private resolveCourseCode(courseId: string): string {
+    const map: Record<string, string> = {
+      'crs-inte401': 'INTE 401',
+      'crs-inte302': 'INTE 302',
+      'crs-comp101': 'COMP 101',
+      'crs-cs301': 'CS 301',
+    };
+    return map[courseId] || `Course from FMS (${courseId})`;
+  }
+
+  private resolveSectionLabel(blockSectionId: string): string {
+    const map: Record<string, string> = {
+      'sec-bsit-4-1': 'BSIT 4-1',
+      'sec-bsit-4-2': 'BSIT 4-2',
+      'sec-bsit-1-1': 'BSIT 1-1',
+      'sec-bscs-3-1': 'BSCS 3-1',
+    };
+    return map[blockSectionId] || `Section from FMS (${blockSectionId})`;
+  }
+
+  /**
+   * FMS Teaching Assignment Approved Intake (SMS-017 AC 1 - AC 5)
+   */
+  public async ingestApprovedAssignment(payload: {
+    assignment_id: string;
+    assignment_version: number;
+    academic_term_id: string;
+    course_id: string;
+    block_section_id: string;
+    faculty_id: string;
+    assignment_status?: string;
+    status?: string;
+    schedule?: FmsScheduleDetails | null;
+  }): Promise<{ statusCode: number; action: 'CREATED' | 'SCHEDULE_UPDATED' | 'UPDATED'; data: Submission }> {
+    // AC 5: Course Validation - ensure course_id is not empty and not retired
+    if (!payload.course_id || typeof payload.course_id !== 'string' || payload.course_id.trim() === '') {
+      const err: any = new Error('Unprocessable Entity (SMS-017 AC 5): course_id is required and must reference an active course.');
+      err.statusCode = 422;
+      throw err;
+    }
+    if (payload.course_id.toLowerCase().includes('retired')) {
+      const err: any = new Error(`Unprocessable Entity (SMS-017 AC 5): Course '${payload.course_id}' is not Active.`);
+      err.statusCode = 422;
+      throw err;
+    }
+
+    if (!payload.assignment_id) {
+      const err: any = new Error('Bad Request: assignment_id is required.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const incomingVersion = typeof payload.assignment_version === 'number' ? payload.assignment_version : 1;
+    const existing = await submissionRepository.findByAssignmentId(payload.assignment_id);
+
+    // AC 3: Idempotency & Stale Version Check
+    if (existing) {
+      const storedVersion = existing.fms_assignment_version ?? 1;
+      if (incomingVersion <= storedVersion) {
+        const err: any = new Error(
+          `Conflict: Stale Version (SMS-017 AC 3). Incoming assignment_version (${incomingVersion}) is less than or equal to stored version (${storedVersion}).`
+        );
+        err.statusCode = 409;
+        throw err;
+      }
+
+      // AC 4: Schedule Update - If assignment already exists and payload has non-null schedule,
+      // update only schedule details without changing compliance status or deadline.
+      if (payload.schedule !== null && payload.schedule !== undefined) {
+        const updated = await submissionRepository.updateAssignmentSchedule(
+          existing.id,
+          payload.schedule,
+          incomingVersion
+        );
+        if (!updated) {
+          throw new Error('Failed to update assignment schedule.');
+        }
+
+        await this.dispatchAuditLog({
+          actorId: 'system-fms-m2m',
+          actorName: 'FMS Assignment Ingestion Engine',
+          actorRole: 'SYSTEM_INTEGRATION',
+          actionType: 'ASSIGNMENT_SCHEDULE_UPDATED',
+          entityId: updated.id,
+          previousValue: existing.status,
+          newValue: updated.status,
+          details: `Schedule updated for assignment ${payload.assignment_id} (v${incomingVersion}) without altering status '${updated.status}'`
+        });
+
+        return { statusCode: 200, action: 'SCHEDULE_UPDATED', data: updated };
+      }
+
+      // Higher version without schedule update
+      const updated = await submissionRepository.updateApprovedAssignment(existing.id, {
+        fms_assignment_version: incomingVersion,
+        faculty_id: payload.faculty_id || existing.faculty_id,
+      });
+      if (!updated) {
+        throw new Error('Failed to update assignment.');
+      }
+
+      await this.dispatchAuditLog({
+        actorId: 'system-fms-m2m',
+        actorName: 'FMS Assignment Ingestion Engine',
+        actorRole: 'SYSTEM_INTEGRATION',
+        actionType: 'ASSIGNMENT_UPDATED',
+        entityId: updated.id,
+        previousValue: existing.status,
+        newValue: updated.status,
+        details: `Assignment ${payload.assignment_id} updated to version ${incomingVersion}`
+      });
+
+      return { statusCode: 200, action: 'UPDATED', data: updated };
+    }
+
+    // AC 2: Creation - Create exactly ONE new submission tracking entry with status 'Not Submitted'
+    const courseCode = this.resolveCourseCode(payload.course_id);
+    const sectionLabel = this.resolveSectionLabel(payload.block_section_id || 'sec-default');
+
+    const created = await submissionRepository.create({
+      assignment_id: payload.assignment_id,
+      academic_term_id: payload.academic_term_id || 'term-2026-1s',
+      course_id: payload.course_id,
+      block_section_id: payload.block_section_id || 'sec-bsit-4-1',
+      requirement_id: `req-${payload.academic_term_id || 'term-2026-1s'}`,
+      faculty_id: payload.faculty_id,
+      fms_assignment_version: incomingVersion,
+      course_code: courseCode,
+      section_label: sectionLabel,
+      status: 'Not Submitted',
+      schedule: payload.schedule ?? null,
+    });
+
+    await this.dispatchAuditLog({
+      actorId: 'system-fms-m2m',
+      actorName: 'FMS Assignment Ingestion Engine',
+      actorRole: 'SYSTEM_INTEGRATION',
+      actionType: 'TEACHING_ASSIGNMENT_APPROVED',
+      entityId: created.id,
+      previousValue: 'None',
+      newValue: 'Not Submitted',
+      details: `Provisioned compliance tracking entry for assignment ${payload.assignment_id} (v${incomingVersion}): ${courseCode} - ${sectionLabel}`
+    });
+
+    this.dispatchComplianceEvent({
+      courseCode,
+      sectionLabel,
+      status: 'Not Submitted',
+      submissionId: created.id,
+    });
+
+    return { statusCode: 201, action: 'CREATED', data: created };
   }
 }
 

@@ -78,11 +78,11 @@
     - *Acceptance Criteria (AC 2)*: Each item shows its current status with the signature status badge.
 
 - **SCMS-014 (AUD-019): Append-Only Audit Trail Logging Middleware & Table (5 pts)** — *Assignee: Developers*
-  - [ ] **TASK-314.1 (Task 1)**: Implement audit logger middleware that records create, update, and status-change actions (action type, acting user, timestamp, previous and new value) to an append-only table.
+  - [x] **TASK-314.1 (Task 1)**: Implement audit logger middleware that records create, update, and status-change actions (action type, acting user, timestamp, previous and new value) to an append-only table.
     - *Acceptance Criteria (AC 1)*: Every logged action stores action type, actor, timestamp, previous and new values.
-  - [ ] **TASK-314.2 (Task 2)**: Enforce append-only at the database level by withholding update and delete permissions on the audit table.
+  - [x] **TASK-314.2 (Task 2)**: Enforce append-only at the database level by withholding update and delete permissions on the audit table.
     - *Acceptance Criteria (AC 2)*: Update and delete attempts on audit records are rejected at database level.
-  - [ ] **TASK-314.3 (Task 3)**: Provide one reusable logging call so submissions, decisions and resubmissions in later sprints write to the same log.
+  - [x] **TASK-314.3 (Task 3)**: Provide one reusable logging call so submissions, decisions and resubmissions in later sprints write to the same log.
     - *Acceptance Criteria (AC 3)*: New action types can be logged without changing the log structure.
 
 ---
@@ -106,9 +106,9 @@
     - *Acceptance Criteria (AC 2)*: Every status change is timestamped, attributed to the acting user, and logged.
 
 - **SCMS-015 (AUD-020): Read-Only Audit Log Viewer & Filter Scoping (3 pts)** — *Assignee: Developers*
-  - [ ] **TASK-415.1 (Task 1)**: Build the audit log viewer for the Academic Head, covering campus-wide academic operations, with filters by date, user, and action type.
+  - [x] **TASK-415.1 (Task 1)**: Build the audit log viewer for the Academic Head, covering campus-wide academic operations, with filters by date, user, and action type.
     - *Acceptance Criteria (AC 1)*: Authorized users can view and filter the audit log within their scope.
-  - [ ] **TASK-415.2 (Task 2)**: Make the viewer read-only, with no edit or delete controls in UI and no update or delete endpoints in API.
+  - [x] **TASK-415.2 (Task 2)**: Make the viewer read-only, with no edit or delete controls in UI and no update or delete endpoints in API.
     - *Acceptance Criteria (AC 2)*: No edit or delete control or endpoint exists for audit records.
 
 ---
