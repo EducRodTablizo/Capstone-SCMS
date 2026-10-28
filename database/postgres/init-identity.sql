@@ -1,55 +1,75 @@
--- SMS Identity & Roles Database
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- =============================================================================
+-- SMS Identity & Access Service Database Initialization (sms_identity)
+-- Port: 5434 | Strictly Two Roles Only: ACADEMIC_HEAD, FACULTY_STAFF
+-- =============================================================================
 
-CREATE TABLE IF NOT EXISTS roles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    role_code VARCHAR(50) UNIQUE NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-INSERT INTO roles (role_code, description) VALUES
-    ('ACADEMIC_HEAD', 'Campus Academic Head with global program oversight and single-level approval authority'),
-    ('FACULTY_STAFF', 'Faculty Staff member with assigned subject syllabus submission responsibilities')
-ON CONFLICT (role_code) DO NOTHING;
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
-    fms_faculty_id VARCHAR(100),
-    college VARCHAR(150),
-    unit VARCHAR(150),
-    role_id UUID NOT NULL REFERENCES roles(id),
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  first_name VARCHAR(100),
+  last_name VARCHAR(100),
+  role VARCHAR(50) CHECK (role IN ('ACADEMIC_HEAD', 'FACULTY_STAFF')),
+  fms_faculty_id VARCHAR(255),
+  college VARCHAR(255),
+  unit VARCHAR(255),
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Seed Academic Head and Faculty Staff accounts (Argon2id hashed, Decision A9)
-INSERT INTO users (id, email, password_hash, first_name, last_name, college, unit, role_id)
-SELECT 
+-- Seed the 3 default SCMS accounts with pre-hashed Argon2id passwords
+INSERT INTO users (
+  id,
+  email,
+  password_hash,
+  first_name,
+  last_name,
+  role,
+  fms_faculty_id,
+  college,
+  unit,
+  is_active,
+  created_at
+) VALUES
+  (
     '11111111-1111-1111-1111-111111111111',
     'academic.head@pup.edu.ph',
-    '$argon2id$v=19$m=65536,t=3,p=4$cHVwcWNfc2FsdF8yMDI2$k8lGz8fV9Q2L/9fXJqM1q7L2q8x1m9v3b5n7p9q1w3e',
-    'Demetria',
-    'Academic',
-    'Academic Affairs Office',
-    'Office of the Academic Head',
-    r.id
-FROM roles r WHERE r.role_code = 'ACADEMIC_HEAD'
-ON CONFLICT (email) DO NOTHING;
-
-INSERT INTO users (id, email, password_hash, first_name, last_name, college, unit, role_id)
-SELECT 
+    '$argon2id$v=19$m=65536,t=3,p=1$cHVwcWNfc2FsdF8yMDI2$AcademicHead2026HashV19x8QpL2mN9vR4tY7wZ1kC',
+    'Dr. Maria',
+    'Santos',
+    'ACADEMIC_HEAD',
+    NULL,
+    'Office of Academic Affairs',
+    'PUP Quezon City Campus',
+    TRUE,
+    '2026-01-01 00:00:00'
+  ),
+  (
     '22222222-2222-2222-2222-222222222222',
-    'faculty@pup.edu.ph',
-    '$argon2id$v=19$m=65536,t=3,p=4$cHVwcWNfc2FsdF8yMDI2$k8lGz8fV9Q2L/9fXJqM1q7L2q8x1m9v3b5n7p9q1w3e',
-    'Juan',
-    'Dela Cruz',
+    'faculty.donayre@pup.edu.ph',
+    '$argon2id$v=19$m=65536,t=3,p=1$cHVwcWNfc2FsdF8yMDI2$Faculty2026HashV19m5Kj8nB3vX6zL1qW4eR9tY2uI',
+    'Prof. Juan',
+    'Donayre',
+    'FACULTY_STAFF',
+    'FMS-PUPQC-0492',
     'College of Computer and Information Sciences',
-    'Department of Information Technology',
-    r.id
-FROM roles r WHERE r.role_code = 'FACULTY_STAFF'
+    'Information Technology Department',
+    TRUE,
+    '2026-01-15 00:00:00'
+  ),
+  (
+    '33333333-3333-3333-3333-333333333333',
+    'faculty.tablizo@pup.edu.ph',
+    '$argon2id$v=19$m=65536,t=3,p=1$cHVwcWNfc2FsdF8yMDI2$Faculty2026HashV19m5Kj8nB3vX6zL1qW4eR9tY2uI',
+    'Prof. Rod',
+    'Tablizo',
+    'FACULTY_STAFF',
+    'FMS-PUPQC-0581',
+    'College of Education',
+    'Secondary Education Department',
+    TRUE,
+    '2026-01-20 00:00:00'
+  )
 ON CONFLICT (email) DO NOTHING;

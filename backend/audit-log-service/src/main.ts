@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import { auditLogController } from './audit/audit.controller';
+import { auditLogService } from './audit/audit.service';
+import { pool } from './config/db';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3004', 10);
@@ -9,7 +11,7 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 // Health
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({ service: 'audit-log-service', status: 'OK', port: PORT, timestamp: new Date().toISOString() });
 });
 
@@ -31,9 +33,20 @@ app.put('/api/v1/audit/*', (req, res) => auditLogController.rejectModification(r
 app.patch('/api/v1/audit/*', (req, res) => auditLogController.rejectModification(req, res));
 app.delete('/api/v1/audit/*', (req, res) => auditLogController.rejectModification(req, res));
 
-if (process.env.NODE_ENV !== 'test') {
+export async function startServer(): Promise<void> {
+  await pool.query('SELECT 1');
+  await auditLogService.init();
+  console.log('Connected to PostgreSQL sms_audit');
+
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[Server 4: Audit Log Service] running on port ${PORT}`);
+  });
+}
+
+if (process.env.NODE_ENV !== 'test' && require.main === module) {
+  startServer().catch((err) => {
+    console.error('Failed to connect to PostgreSQL sms_audit:', err);
+    process.exit(1);
   });
 }
 

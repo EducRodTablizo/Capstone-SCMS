@@ -1,5 +1,6 @@
 import { submissionService } from './submissions/submission.service';
 import { submissionRepository } from './submissions/submission.repository';
+import { pool } from './config/db';
 
 async function runSprint5Verification() {
   console.log('===============================================================');
@@ -314,6 +315,18 @@ async function runSprint5Verification() {
   } catch (err: any) {
     assert(false, 'SCMS-021 AC 2: Version entities include complete metadata for comparison', err.message);
   }
+
+  // Verify PostgreSQL table counts for submission_versions and review_decisions
+  const versionsCountRes = await pool.query('SELECT COUNT(*) FROM submission_versions;');
+  const reviewsCountRes = await pool.query('SELECT COUNT(*) FROM review_decisions;');
+  const versionsCount = parseInt(versionsCountRes.rows[0]?.count || '0', 10);
+  const reviewsCount = parseInt(reviewsCountRes.rows[0]?.count || '0', 10);
+  console.log(`\n[PostgreSQL Verification] SELECT COUNT(*) FROM submission_versions; -> ${versionsCount}`);
+  console.log(`[PostgreSQL Verification] SELECT COUNT(*) FROM review_decisions;    -> ${reviewsCount}`);
+  assert(
+    versionsCount >= 5 && reviewsCount >= 4,
+    `PostgreSQL persistence verified: submission_versions (${versionsCount} rows), review_decisions (${reviewsCount} rows)`
+  );
 
   // -------------------------------------------------------------------------
   // FINAL SUMMARY

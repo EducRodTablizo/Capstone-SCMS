@@ -18,13 +18,14 @@ export interface FmsScheduleDetails {
 export interface Submission {
   id: string;
   assignment_id?: string | null;
+  assignment_version?: number;
+  fms_assignment_version?: number;
   academic_term_id?: string | null;
   course_id?: string | null;
   block_section_id?: string | null;
   requirement_id: string;
   faculty_id: string;
   substitute_id?: string | null;
-  fms_assignment_version?: number;
   course_code: string;
   section_label: string;
   status: CanonicalStatus;
@@ -57,10 +58,19 @@ export interface SubmissionVersion {
 export interface ReviewDecision {
   id: string;
   submission_id: string;
+  reviewer_id: string;
   reviewer_name: string;
   decision: 'Approved' | 'Returned';
   comment: string;
   created_at: string;
+}
+
+export interface SignatoryRow {
+  id: string;
+  reviewed_by_name: string;
+  recommending_name: string;
+  approving_name: string;
+  updated_at: string;
 }
 
 export const ALLOWED_TRANSITIONS: Record<CanonicalStatus, CanonicalStatus[]> = {

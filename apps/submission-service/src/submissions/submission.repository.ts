@@ -1,394 +1,289 @@
-import { pool } from '../config/db';
-import { Submission, ReviewDecision, SubmissionVersion, CanonicalStatus, FmsScheduleDetails } from './submission.entity';
+import { Pool, pool } from '../config/db';
+import {
+  Submission,
+  ReviewDecision,
+  SubmissionVersion,
+  CanonicalStatus,
+  FmsScheduleDetails,
+  SignatoryRow,
+} from './submission.entity';
 import { randomUUID } from 'crypto';
-import * as fs from 'fs';
-import * as path from 'path';
-
-interface SubmissionsPersistenceStore {
-  submissions: Submission[];
-  versions: Record<string, SubmissionVersion[]>;
-  reviews: ReviewDecision[];
-}
 
 export class SubmissionRepository {
-  private fallbackStore: Map<string, Submission> = new Map();
-  private fallbackVersions: Map<string, SubmissionVersion[]> = new Map();
-  private fallbackReviews: ReviewDecision[] = [];
-  private readonly filePath: string;
+  private isInitialized = false;
 
-  constructor() {
-    this.filePath = path.resolve(process.cwd(), 'submissions.json');
-    this.loadFromDisk();
-  }
+  constructor(private readonly db: Pool = pool) {}
 
-  private loadFromDisk(): void {
+  public async init(): Promise<void> {
+    if (this.isInitialized) return;
+    const client = await this.db.connect();
     try {
-      if (fs.existsSync(this.filePath)) {
-        const raw = fs.readFileSync(this.filePath, 'utf-8');
-        const parsed: SubmissionsPersistenceStore = JSON.parse(raw);
-        this.fallbackStore.clear();
-        this.fallbackVersions.clear();
-        this.fallbackReviews = [];
-
-        if (Array.isArray(parsed.submissions)) {
-          for (const sub of parsed.submissions) {
-            this.fallbackStore.set(sub.id, sub);
-          }
-        }
-        if (parsed.versions && typeof parsed.versions === 'object') {
-          for (const [subId, verList] of Object.entries(parsed.versions)) {
-            if (Array.isArray(verList)) {
-              this.fallbackVersions.set(subId, verList);
-            }
-          }
-        }
-        if (Array.isArray(parsed.reviews)) {
-          this.fallbackReviews = parsed.reviews;
-        }
-      }
-    } catch {
-      // Ignore read errors on startup and initialize empty
+      await client.query('SELECT 1');
+      this.isInitialized = true;
+      console.log('Connected to PostgreSQL sms_submissions');
+    } finally {
+      client.release();
     }
   }
 
-  private saveToDisk(): void {
-    try {
-      const versionsObj: Record<string, SubmissionVersion[]> = {};
-      for (const [subId, verList] of this.fallbackVersions.entries()) {
-        versionsObj[subId] = verList;
-      }
-      const payload: SubmissionsPersistenceStore = {
-        submissions: Array.from(this.fallbackStore.values()),
-        versions: versionsObj,
-        reviews: this.fallbackReviews,
-      };
-      fs.writeFileSync(this.filePath, JSON.stringify(payload, null, 2), 'utf-8');
-    } catch {
-      // Fallback in restricted environments
-    }
+  private mapSubmissionRow(row: any): Submission {
+    const version = Number(row.assignment_version ?? row.fms_assignment_version ?? 1);
+    return {
+      id: row.id,
+      assignment_id: row.assignment_id ?? null,
+      assignment_version: version,
+      fms_assignment_version: version,
+      academic_term_id: row.academic_term_id ?? null,
+      course_id: row.course_id ?? null,
+      block_section_id: row.block_section_id ?? null,
+      requirement_id: row.requirement_id,
+      faculty_id: row.faculty_id,
+      substitute_id: row.substitute_id ?? null,
+      course_code: row.course_code,
+      section_label: row.section_label,
+      status: row.status as CanonicalStatus,
+      schedule: row.schedule ?? null,
+      file_id: row.file_id ?? null,
+      file_name: row.file_name ?? null,
+      file_size: row.file_size ?? null,
+      submitted_at:
+        row.submitted_at instanceof Date
+          ? row.submitted_at.toISOString()
+          : row.submitted_at ?? null,
+      created_at:
+        row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+      updated_at:
+        row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
+    };
   }
 
   public clearForTesting(): void {
-    this.fallbackStore.clear();
-    this.fallbackVersions.clear();
-    this.fallbackReviews = [];
-    if (fs.existsSync(this.filePath)) {
-      try {
-        fs.unlinkSync(this.filePath);
-      } catch {
-        // ignore
-      }
-    }
+    this.db.resetEmbeddedForTest();
+  }
+
+  // ---------------------------------------------------------------------------
+  // CRUD for `submissions`
+  // ---------------------------------------------------------------------------
+
+  async createSubmission(data: Omit<Submission, 'id' | 'created_at' | 'updated_at'>): Promise<Submission> {
+    await this.init();
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    const assignmentVersion = data.assignment_version ?? data.fms_assignment_version ?? 1;
+
+    const query = `
+      INSERT INTO submissions (
+        id,
+        assignment_id,
+        assignment_version,
+        requirement_id,
+        academic_term_id,
+        course_id,
+        block_section_id,
+        faculty_id,
+        substitute_id,
+        course_code,
+        section_label,
+        status,
+        schedule,
+        file_id,
+        file_name,
+        submitted_at,
+        created_at,
+        updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      RETURNING *
+    `;
+
+    const res = await this.db.query(query, [
+      id,
+      data.assignment_id ?? null,
+      assignmentVersion,
+      data.requirement_id,
+      data.academic_term_id ?? null,
+      data.course_id ?? null,
+      data.block_section_id ?? null,
+      data.faculty_id,
+      data.substitute_id ?? null,
+      data.course_code,
+      data.section_label,
+      data.status,
+      data.schedule ? JSON.stringify(data.schedule) : null,
+      data.file_id ?? null,
+      data.file_name ?? null,
+      data.submitted_at ?? null,
+      now,
+      now,
+    ]);
+
+    return this.mapSubmissionRow(res.rows[0]);
   }
 
   async create(data: Omit<Submission, 'id' | 'created_at' | 'updated_at'>): Promise<Submission> {
-    const id = randomUUID();
-    const now = new Date().toISOString();
-    const newSubmission: Submission = {
-      id,
-      ...data,
-      created_at: now,
-      updated_at: now,
-    };
-
-    try {
-      const query = `
-        INSERT INTO submissions (id, requirement_id, faculty_id, substitute_id, fms_assignment_version, course_code, section_label, status, file_id, file_name, submitted_at, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-        RETURNING *;
-      `;
-      const res = await pool.query(query, [
-        id,
-        data.requirement_id,
-        data.faculty_id,
-        data.substitute_id || null,
-        data.fms_assignment_version || 1,
-        data.course_code,
-        data.section_label,
-        data.status,
-        data.file_id || null,
-        data.file_name || null,
-        data.submitted_at || null,
-        now,
-        now,
-      ]);
-      this.fallbackStore.set(id, res.rows[0]);
-      this.saveToDisk();
-      return res.rows[0];
-    } catch {
-      this.fallbackStore.set(id, newSubmission);
-      this.saveToDisk();
-      return newSubmission;
-    }
+    return this.createSubmission(data);
   }
 
   async findById(id: string): Promise<Submission | null> {
-    try {
-      const res = await pool.query('SELECT * FROM submissions WHERE id = $1', [id]);
-      return res.rows[0] || this.fallbackStore.get(id) || null;
-    } catch {
-      return this.fallbackStore.get(id) || null;
-    }
-  }
-
-  async findByFaculty(facultyId: string): Promise<Submission[]> {
-    try {
-      const res = await pool.query('SELECT * FROM submissions WHERE faculty_id = $1 ORDER BY created_at DESC', [facultyId]);
-      return res.rows;
-    } catch {
-      return Array.from(this.fallbackStore.values()).filter(s => s.faculty_id === facultyId);
-    }
-  }
-
-  async listAll(filter?: { requirement_id?: string; status?: string; course_code?: string }): Promise<Submission[]> {
-    try {
-      let q = 'SELECT * FROM submissions WHERE 1=1';
-      const params: any[] = [];
-      let idx = 1;
-      if (filter?.requirement_id) {
-        q += ` AND requirement_id = $${idx++}`;
-        params.push(filter.requirement_id);
-      }
-      if (filter?.status) {
-        q += ` AND status = $${idx++}`;
-        params.push(filter.status);
-      }
-      if (filter?.course_code) {
-        q += ` AND course_code = $${idx++}`;
-        params.push(filter.course_code);
-      }
-      q += ' ORDER BY created_at DESC';
-      const res = await pool.query(q, params);
-      return res.rows;
-    } catch {
-      let items = Array.from(this.fallbackStore.values());
-      if (filter?.requirement_id) items = items.filter(s => s.requirement_id === filter.requirement_id);
-      if (filter?.status) items = items.filter(s => s.status === filter.status);
-      if (filter?.course_code) items = items.filter(s => s.course_code === filter.course_code);
-      return items;
-    }
-  }
-
-  async updateStatus(id: string, status: CanonicalStatus, submittedAt?: string): Promise<Submission | null> {
-    const now = new Date().toISOString();
-    try {
-      const query = `
-        UPDATE submissions 
-        SET status = $1, submitted_at = COALESCE($2, submitted_at), updated_at = $3
-        WHERE id = $4
-        RETURNING *;
-      `;
-      const res = await pool.query(query, [status, submittedAt || null, now, id]);
-      if (res.rows[0]) {
-        this.fallbackStore.set(id, res.rows[0]);
-        this.saveToDisk();
-        return res.rows[0];
-      }
-    } catch {
-      // fallback
-    }
-
-    const sub = this.fallbackStore.get(id);
-    if (!sub) return null;
-    sub.status = status;
-    if (submittedAt) sub.submitted_at = submittedAt;
-    sub.updated_at = now;
-    this.fallbackStore.set(id, sub);
-    this.saveToDisk();
-    return sub;
-  }
-
-  async updateFileMetadata(id: string, fileName: string, fileSize: number, submittedAt: string): Promise<Submission | null> {
-    const now = new Date().toISOString();
-    try {
-      const query = `
-        UPDATE submissions 
-        SET file_name = $1, submitted_at = $2, updated_at = $3
-        WHERE id = $4
-        RETURNING *;
-      `;
-      const res = await pool.query(query, [fileName, submittedAt, now, id]);
-      if (res.rows[0]) {
-        this.fallbackStore.set(id, res.rows[0]);
-        this.saveToDisk();
-        return res.rows[0];
-      }
-    } catch {
-      // fallback
-    }
-
-    const sub = this.fallbackStore.get(id);
-    if (!sub) return null;
-    sub.file_name = fileName;
-    sub.file_size = fileSize;
-    sub.submitted_at = submittedAt;
-    sub.updated_at = now;
-    this.fallbackStore.set(id, sub);
-    this.saveToDisk();
-    return sub;
-  }
-
-  // Version Management (SCMS-021)
-  async createVersion(data: Omit<SubmissionVersion, 'id' | 'created_at'>): Promise<SubmissionVersion> {
-    const id = randomUUID();
-    const now = new Date().toISOString();
-    const newVersion: SubmissionVersion = { id, ...data, created_at: now };
-
-    try {
-      const query = `
-        INSERT INTO submission_versions (id, submission_id, version_number, version_label, file_id, file_name, file_size, submitted_by, submitted_by_name, status_at_version, change_summary, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-        RETURNING *;
-      `;
-      const res = await pool.query(query, [
-        id,
-        data.submission_id,
-        data.version_number,
-        data.version_label,
-        data.file_id || null,
-        data.file_name,
-        data.file_size || 0,
-        data.submitted_by,
-        data.submitted_by_name || null,
-        data.status_at_version,
-        data.change_summary || null,
-        now,
-      ]);
-      const list = this.fallbackVersions.get(data.submission_id) || [];
-      list.push(res.rows[0]);
-      this.fallbackVersions.set(data.submission_id, list);
-      this.saveToDisk();
-      return res.rows[0];
-    } catch {
-      const list = this.fallbackVersions.get(data.submission_id) || [];
-      list.push(newVersion);
-      this.fallbackVersions.set(data.submission_id, list);
-      this.saveToDisk();
-      return newVersion;
-    }
-  }
-
-  async getVersions(submissionId: string): Promise<SubmissionVersion[]> {
-    try {
-      const res = await pool.query('SELECT * FROM submission_versions WHERE submission_id = $1 ORDER BY version_number ASC', [submissionId]);
-      if (res.rows.length > 0) return res.rows;
-      return this.fallbackVersions.get(submissionId) || [];
-    } catch {
-      return this.fallbackVersions.get(submissionId) || [];
-    }
-  }
-
-  async getLatestVersionNumber(submissionId: string): Promise<number> {
-    const versions = await this.getVersions(submissionId);
-    if (versions.length === 0) return 0;
-    return Math.max(...versions.map(v => v.version_number));
-  }
-
-  // Review Decisions (SCMS-010)
-  async createReviewDecision(data: Omit<ReviewDecision, 'id' | 'created_at'>): Promise<ReviewDecision> {
-    const id = randomUUID();
-    const now = new Date().toISOString();
-    const newReview: ReviewDecision = { id, ...data, created_at: now };
-    try {
-      const query = `
-        INSERT INTO review_decisions (id, submission_id, reviewer_name, decision, comment, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING *;
-      `;
-      const res = await pool.query(query, [id, data.submission_id, data.reviewer_name, data.decision, data.comment, now]);
-      this.fallbackReviews.push(res.rows[0]);
-      this.saveToDisk();
-      return res.rows[0];
-    } catch {
-      this.fallbackReviews.push(newReview);
-      this.saveToDisk();
-      return newReview;
-    }
-  }
-
-  async getReviews(submissionId: string): Promise<ReviewDecision[]> {
-    try {
-      const res = await pool.query('SELECT * FROM review_decisions WHERE submission_id = $1 ORDER BY created_at DESC', [submissionId]);
-      if (res.rows.length > 0) return res.rows;
-      return this.fallbackReviews.filter(r => r.submission_id === submissionId);
-    } catch {
-      return this.fallbackReviews.filter(r => r.submission_id === submissionId);
-    }
-  }
-
-  async findByCourseAndSection(courseCode: string, sectionLabel: string): Promise<Submission | null> {
-    try {
-      const res = await pool.query(
-        'SELECT * FROM submissions WHERE course_code = $1 AND section_label = $2 ORDER BY created_at DESC LIMIT 1',
-        [courseCode, sectionLabel]
-      );
-      if (res.rows[0]) return res.rows[0];
-    } catch {
-      // fallback
-    }
-    const allMatching = Array.from(this.fallbackStore.values()).filter(
-      s => s.course_code === courseCode && s.section_label === sectionLabel
-    );
-    if (allMatching.length === 0) return null;
-    return allMatching[allMatching.length - 1];
-  }
-
-  async updateFacultyAssignment(id: string, newFacultyId: string, versionBump: number = 1): Promise<Submission | null> {
-    const now = new Date().toISOString();
-    try {
-      const res = await pool.query(
-        'UPDATE submissions SET faculty_id = $1, fms_assignment_version = COALESCE(fms_assignment_version, 1) + $2, updated_at = $3 WHERE id = $4 RETURNING *;',
-        [newFacultyId, versionBump, now, id]
-      );
-      if (res.rows[0]) {
-        this.fallbackStore.set(id, res.rows[0]);
-        this.saveToDisk();
-        return res.rows[0];
-      }
-    } catch {
-      // fallback
-    }
-    const sub = this.fallbackStore.get(id);
-    if (!sub) return null;
-    sub.faculty_id = newFacultyId;
-    sub.fms_assignment_version = (sub.fms_assignment_version || 1) + versionBump;
-    sub.updated_at = now;
-    this.fallbackStore.set(id, sub);
-    this.saveToDisk();
-    return sub;
-  }
-
-  async updateSubstitute(id: string, substituteId: string | null): Promise<Submission | null> {
-    const now = new Date().toISOString();
-    try {
-      const res = await pool.query(
-        'UPDATE submissions SET substitute_id = $1, updated_at = $2 WHERE id = $3 RETURNING *;',
-        [substituteId, now, id]
-      );
-      if (res.rows[0]) {
-        this.fallbackStore.set(id, res.rows[0]);
-        this.saveToDisk();
-        return res.rows[0];
-      }
-    } catch {
-      // fallback
-    }
-    const sub = this.fallbackStore.get(id);
-    if (!sub) return null;
-    sub.substitute_id = substituteId;
-    sub.updated_at = now;
-    this.fallbackStore.set(id, sub);
-    this.saveToDisk();
-    return sub;
+    await this.init();
+    const res = await this.db.query('SELECT * FROM submissions WHERE id = $1', [id]);
+    if (!res.rows || res.rows.length === 0) return null;
+    return this.mapSubmissionRow(res.rows[0]);
   }
 
   async findByAssignmentId(assignmentId: string): Promise<Submission | null> {
-    for (const sub of this.fallbackStore.values()) {
-      if (sub.assignment_id === assignmentId) {
-        return sub;
-      }
+    await this.init();
+    const res = await this.db.query('SELECT * FROM submissions WHERE assignment_id = $1', [
+      assignmentId,
+    ]);
+    if (!res.rows || res.rows.length === 0) return null;
+    return this.mapSubmissionRow(res.rows[0]);
+  }
+
+  async findByFaculty(facultyId: string): Promise<Submission[]> {
+    await this.init();
+    const res = await this.db.query(
+      'SELECT * FROM submissions WHERE faculty_id = $1 ORDER BY created_at DESC',
+      [facultyId]
+    );
+    return (res.rows || []).map((r) => this.mapSubmissionRow(r));
+  }
+
+  async listAll(filter?: {
+    requirement_id?: string;
+    status?: string;
+    course_code?: string;
+  }): Promise<Submission[]> {
+    await this.init();
+    let q = 'SELECT * FROM submissions WHERE 1=1';
+    const params: any[] = [];
+    let idx = 1;
+    if (filter?.requirement_id) {
+      q += ` AND requirement_id = $${idx++}`;
+      params.push(filter.requirement_id);
     }
-    return null;
+    if (filter?.status) {
+      q += ` AND status = $${idx++}`;
+      params.push(filter.status);
+    }
+    if (filter?.course_code) {
+      q += ` AND course_code = $${idx++}`;
+      params.push(filter.course_code);
+    }
+    q += ' ORDER BY created_at DESC';
+    const res = await this.db.query(q, params);
+    return (res.rows || []).map((r) => this.mapSubmissionRow(r));
+  }
+
+  async updateStatus(
+    id: string,
+    status: CanonicalStatus,
+    extraFields?: Partial<Submission> | string
+  ): Promise<Submission | null> {
+    await this.init();
+    const existing = await this.findById(id);
+    if (!existing) return null;
+
+    const now = new Date().toISOString();
+    const extra: Partial<Submission> =
+      typeof extraFields === 'string'
+        ? { submitted_at: extraFields }
+        : extraFields || {};
+
+    const mergedVersion =
+      extra.assignment_version ??
+      extra.fms_assignment_version ??
+      existing.assignment_version ??
+      existing.fms_assignment_version ??
+      1;
+
+    const mergedSchedule =
+      extra.schedule !== undefined ? extra.schedule : existing.schedule;
+
+    const query = `
+      UPDATE submissions
+      SET status = $1,
+          assignment_version = $2,
+          faculty_id = $3,
+          substitute_id = $4,
+          schedule = $5,
+          file_id = $6,
+          file_name = $7,
+          submitted_at = $8,
+          updated_at = $9
+      WHERE id = $10
+      RETURNING *
+    `;
+
+    const res = await this.db.query(query, [
+      status,
+      mergedVersion,
+      extra.faculty_id ?? existing.faculty_id,
+      extra.substitute_id !== undefined ? extra.substitute_id : existing.substitute_id,
+      mergedSchedule ? JSON.stringify(mergedSchedule) : null,
+      extra.file_id !== undefined ? extra.file_id : existing.file_id,
+      extra.file_name !== undefined ? extra.file_name : existing.file_name,
+      extra.submitted_at !== undefined ? extra.submitted_at : existing.submitted_at,
+      now,
+      id,
+    ]);
+
+    if (!res.rows || res.rows.length === 0) return null;
+    return this.mapSubmissionRow(res.rows[0]);
+  }
+
+  async updateFileMetadata(
+    id: string,
+    fileName: string,
+    _fileSize: number,
+    submittedAt: string
+  ): Promise<Submission | null> {
+    await this.init();
+    const now = new Date().toISOString();
+    const query = `
+      UPDATE submissions
+      SET file_name = $1, submitted_at = $2, updated_at = $3
+      WHERE id = $4
+      RETURNING *
+    `;
+    const res = await this.db.query(query, [fileName, submittedAt, now, id]);
+    if (!res.rows || res.rows.length === 0) return null;
+    return this.mapSubmissionRow(res.rows[0]);
+  }
+
+  async findByCourseAndSection(courseCode: string, sectionLabel: string): Promise<Submission | null> {
+    await this.init();
+    const res = await this.db.query(
+      'SELECT * FROM submissions WHERE course_code = $1 AND section_label = $2 ORDER BY created_at DESC LIMIT 1',
+      [courseCode, sectionLabel]
+    );
+    if (!res.rows || res.rows.length === 0) return null;
+    return this.mapSubmissionRow(res.rows[0]);
+  }
+
+  async updateFacultyAssignment(
+    id: string,
+    newFacultyId: string,
+    versionBump: number = 1
+  ): Promise<Submission | null> {
+    await this.init();
+    const now = new Date().toISOString();
+    const res = await this.db.query(
+      'UPDATE submissions SET faculty_id = $1, assignment_version = COALESCE(assignment_version, 1) + $2, updated_at = $3 WHERE id = $4 RETURNING *',
+      [newFacultyId, versionBump, now, id]
+    );
+    if (!res.rows || res.rows.length === 0) return null;
+    return this.mapSubmissionRow(res.rows[0]);
+  }
+
+  async updateSubstitute(id: string, substituteId: string | null): Promise<Submission | null> {
+    await this.init();
+    const now = new Date().toISOString();
+    const res = await this.db.query(
+      'UPDATE submissions SET substitute_id = $1, updated_at = $2 WHERE id = $3 RETURNING *',
+      [substituteId, now, id]
+    );
+    if (!res.rows || res.rows.length === 0) return null;
+    return this.mapSubmissionRow(res.rows[0]);
   }
 
   async updateAssignmentSchedule(
@@ -396,33 +291,172 @@ export class SubmissionRepository {
     schedule: FmsScheduleDetails,
     assignmentVersion: number
   ): Promise<Submission | null> {
-    const now = new Date().toISOString();
-    const sub = this.fallbackStore.get(id);
-    if (!sub) return null;
-    sub.schedule = schedule;
-    sub.fms_assignment_version = assignmentVersion;
-    sub.updated_at = now;
-    this.fallbackStore.set(id, sub);
-    this.saveToDisk();
-    return sub;
+    const existing = await this.findById(id);
+    if (!existing) return null;
+    return this.updateStatus(id, existing.status, {
+      schedule,
+      assignment_version: assignmentVersion,
+      fms_assignment_version: assignmentVersion,
+    });
   }
 
   async updateApprovedAssignment(
     id: string,
     updates: Partial<Submission>
   ): Promise<Submission | null> {
+    const existing = await this.findById(id);
+    if (!existing) return null;
+    return this.updateStatus(id, updates.status || existing.status, updates);
+  }
+
+  // ---------------------------------------------------------------------------
+  // CRUD for `submission_versions` (SCMS-021)
+  // ---------------------------------------------------------------------------
+
+  async createVersion(data: Omit<SubmissionVersion, 'id' | 'created_at'>): Promise<SubmissionVersion> {
+    await this.init();
+    const id = randomUUID();
     const now = new Date().toISOString();
-    const sub = this.fallbackStore.get(id);
-    if (!sub) return null;
-    const updatedSub: Submission = {
-      ...sub,
-      ...updates,
-      updated_at: now,
-    };
-    this.fallbackStore.set(id, updatedSub);
-    this.saveToDisk();
-    return updatedSub;
+
+    const query = `
+      INSERT INTO submission_versions (
+        id,
+        submission_id,
+        version_number,
+        version_label,
+        file_id,
+        file_name,
+        file_size,
+        submitted_by,
+        submitted_by_name,
+        status_at_version,
+        change_summary,
+        created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING *
+    `;
+
+    const res = await this.db.query(query, [
+      id,
+      data.submission_id,
+      data.version_number,
+      data.version_label,
+      data.file_id ?? null,
+      data.file_name,
+      data.file_size ?? 0,
+      data.submitted_by,
+      data.submitted_by_name ?? null,
+      data.status_at_version,
+      data.change_summary ?? null,
+      now,
+    ]);
+
+    return res.rows[0];
+  }
+
+  async getVersions(submissionId: string): Promise<SubmissionVersion[]> {
+    await this.init();
+    const res = await this.db.query(
+      'SELECT * FROM submission_versions WHERE submission_id = $1 ORDER BY version_number ASC',
+      [submissionId]
+    );
+    return res.rows || [];
+  }
+
+  async getLatestVersionNumber(submissionId: string): Promise<number> {
+    const versions = await this.getVersions(submissionId);
+    if (versions.length === 0) return 0;
+    return Math.max(...versions.map((v) => v.version_number));
+  }
+
+  // ---------------------------------------------------------------------------
+  // CRUD for `review_decisions` (SCMS-010)
+  // ---------------------------------------------------------------------------
+
+  async createReviewDecision(
+    data: Omit<ReviewDecision, 'id' | 'created_at'>
+  ): Promise<ReviewDecision> {
+    await this.init();
+    const id = randomUUID();
+    const now = new Date().toISOString();
+
+    const query = `
+      INSERT INTO review_decisions (
+        id,
+        submission_id,
+        reviewer_id,
+        reviewer_name,
+        decision,
+        comment,
+        created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `;
+
+    const res = await this.db.query(query, [
+      id,
+      data.submission_id,
+      data.reviewer_id || 'acad-head-01',
+      data.reviewer_name,
+      data.decision,
+      data.comment,
+      now,
+    ]);
+
+    return res.rows[0];
+  }
+
+  async getReviews(submissionId: string): Promise<ReviewDecision[]> {
+    await this.init();
+    const res = await this.db.query(
+      'SELECT * FROM review_decisions WHERE submission_id = $1 ORDER BY created_at DESC',
+      [submissionId]
+    );
+    return res.rows || [];
+  }
+
+  // ---------------------------------------------------------------------------
+  // CRUD for `signatories` (SMS-035)
+  // ---------------------------------------------------------------------------
+
+  async getSignatories(): Promise<SignatoryRow | null> {
+    await this.init();
+    const res = await this.db.query('SELECT * FROM signatories LIMIT 1');
+    if (!res.rows || res.rows.length === 0) return null;
+    return res.rows[0];
+  }
+
+  async updateSignatories(data: {
+    reviewed_by_name?: string;
+    recommending_name?: string;
+    approving_name?: string;
+  }): Promise<SignatoryRow | null> {
+    await this.init();
+    const current = await this.getSignatories();
+    const now = new Date().toISOString();
+
+    const res = await this.db.query(
+      `UPDATE signatories
+       SET reviewed_by_name = $1,
+           recommending_name = $2,
+           approving_name = $3,
+           updated_at = $4
+       RETURNING *`,
+      [
+        data.reviewed_by_name ?? current?.reviewed_by_name ?? 'Dr. Maria Santos',
+        data.recommending_name ??
+          current?.recommending_name ??
+          'Assoc. Prof. Demetrio C. Quirino, Jr., PECE',
+        data.approving_name ??
+          current?.approving_name ??
+          'Assoc. Prof. Anna Ruby P. Gapasin, PhD',
+        now,
+      ]
+    );
+
+    if (!res.rows || res.rows.length === 0) return null;
+    return res.rows[0];
   }
 }
 
-export const submissionRepository = new SubmissionRepository();
+export const submissionRepository = new SubmissionRepository(pool);

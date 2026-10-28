@@ -1,13 +1,14 @@
 import { submissionService } from './submissions/submission.service';
 import { submissionRepository } from './submissions/submission.repository';
 import { auditLogService } from '../../audit-log-service/src/audit/audit.service';
+import { pool as auditPool } from '../../audit-log-service/src/config/db';
 
 async function runSprint4Verification() {
   console.log('===============================================================');
   console.log('🧪 SPRINT 4 AUTOMATED VERIFICATION SUITE');
   console.log('   Modules: SCMS-008 (Syllabus Submission File/Form)');
   console.log('            SCMS-009 (Status Lifecycle Management)');
-  console.log('            SCMS-015 (Read-Only Audit Log Viewer)');
+  console.log('            SCMS-014 & SCMS-015 (PostgreSQL Audit Log & SHA-256 Chain)');
   console.log('===============================================================\n');
 
   let passedTests = 0;
@@ -25,6 +26,8 @@ async function runSprint4Verification() {
 
   // Clean state before running test suite
   submissionRepository.clearForTesting();
+  auditLogService.clearForTesting();
+  await auditLogService.init();
 
   // -------------------------------------------------------------------------
   // TEST 1: SCMS-008 AC 1 & AC 3 - Valid File Submission
@@ -167,49 +170,78 @@ async function runSprint4Verification() {
   }
 
   // -------------------------------------------------------------------------
-  // TEST 5: SCMS-015 AC 1 & AC 2 - Audit Log Viewer & Append-Only Immutability
+  // TEST 5: SCMS-014 & SCMS-015 - PostgreSQL Audit Log, SHA-256 Chain & Trigger
   // -------------------------------------------------------------------------
-  console.log('\n--- 5. Testing Audit Log Immutability & Viewer (SCMS-015 AC 1 & AC 2) ---');
-  // Log an action
-  const auditEntry = auditLogService.logAction({
+  console.log('\n--- 5. Testing PostgreSQL Audit Log Immutability, Trigger & Hash Chain (SCMS-014 & SCMS-015) ---');
+  // Log an action using actorEmail
+  const auditEntry = await auditLogService.logAction({
     actorId: 'acad-head-01',
-    actorName: 'Dr. Maria Santos',
+    actorEmail: 'academic.head@pup.edu.ph',
     actorRole: 'ACADEMIC_HEAD',
     actionType: 'REQUIREMENT_PUBLISHED',
     entityName: 'REQUIREMENT',
-    entityId: 'req-01',
+    entityId: '11111111-1111-1111-1111-111111111111',
     details: { note: 'Verified requirement quota' }
   });
-  assert(!!auditEntry.id && !!auditEntry.createdAt, 'Audit log entry created with server timestamp');
+  assert(
+    !!auditEntry.id && !!auditEntry.createdAt && auditEntry.actorEmail === 'academic.head@pup.edu.ph',
+    'Audit log entry persisted in PostgreSQL with actorEmail and server timestamp'
+  );
 
-  // Attempt to update (Must throw)
+  // Attempt service-level UPDATE (Must throw)
   try {
-    auditLogService.updateAuditRecord(auditEntry.id || 'missing-id', { details: { note: 'Tampered' } });
+    await auditLogService.updateAuditRecord(auditEntry.id || 'missing-id', { details: { note: 'Tampered' } });
     assert(false, 'Should reject UPDATE on audit_logs');
   } catch (err: any) {
-    assert(err.message.includes('append-only. UPDATE on record'), 'Audit log strictly rejects UPDATE operations');
+    assert(err.message.includes('append-only'), 'Audit log strictly rejects UPDATE operations');
   }
 
-  // Attempt to delete (Must throw)
+  // Attempt service-level DELETE (Must throw)
   try {
-    auditLogService.deleteAuditRecord(auditEntry.id || 'missing-id');
+    await auditLogService.deleteAuditRecord(auditEntry.id || 'missing-id');
     assert(false, 'Should reject DELETE on audit_logs');
   } catch (err: any) {
-    assert(err.message.includes('append-only. DELETE on record'), 'Audit log strictly rejects DELETE operations');
+    assert(err.message.includes('append-only'), 'Audit log strictly rejects DELETE operations');
   }
 
-  // Filter logs
-  const logs = auditLogService.getLogs({ actorId: 'acad-head-01' });
-  assert(logs.length >= 1, 'Academic Head can filter audit records by actor');
+  // Direct SQL UPDATE & DELETE trigger verification on audit_logs table
+  let directUpdateRejected = false;
+  let directDeleteRejected = false;
+  try {
+    await auditPool.query('UPDATE audit_logs SET actor_email = $1 WHERE id = $2', [
+      'tampered@pup.edu.ph',
+      auditEntry.id
+    ]);
+  } catch (err: any) {
+    directUpdateRejected = err.message.includes('SCMS Security Violation') || err.message.includes('append-only');
+  }
+
+  try {
+    await auditPool.query('DELETE FROM audit_logs WHERE id = $1', [auditEntry.id]);
+  } catch (err: any) {
+    directDeleteRejected = err.message.includes('SCMS Security Violation') || err.message.includes('append-only');
+  }
+
+  assert(
+    directUpdateRejected && directDeleteRejected,
+    'Direct SQL UPDATE and DELETE on audit_logs table throw database trigger exception (trg_protect_audit_update)'
+  );
+
+  // Filter logs by actorEmail & actorId
+  const logs = await auditLogService.getLogs({
+    actorId: 'acad-head-01',
+    actorEmail: 'academic.head@pup.edu.ph'
+  });
+  assert(logs.length >= 1, 'Academic Head can filter audit records by actorId and actorEmail');
 
   // Verify SHA-256 Hash Chaining (SMS-014)
-  const secondEntry = auditLogService.logAction({
+  const secondEntry = await auditLogService.logAction({
     actorId: 'acad-head-01',
-    actorName: 'Dr. Maria Santos',
+    actorEmail: 'academic.head@pup.edu.ph',
     actorRole: 'ACADEMIC_HEAD',
     actionType: 'DEADLINE_CHANGED',
     entityName: 'REQUIREMENT',
-    entityId: 'req-01',
+    entityId: '11111111-1111-1111-1111-111111111111',
     newValue: { deadline: '2026-11-15' },
     details: { note: 'Extended deadline' }
   });
@@ -217,7 +249,9 @@ async function runSprint4Verification() {
     !!auditEntry.previous_hash && !!auditEntry.current_hash && secondEntry.previous_hash === auditEntry.current_hash,
     'Audit log entries form a cryptographic SHA-256 hash chain (previous_hash matches prior current_hash)'
   );
-  assert(auditLogService.verifyChain() === true, 'verifyChain() confirms unbroken tamper-evident hash chain');
+
+  const chainValid = await auditLogService.verifyChain();
+  assert(chainValid === true, 'verifyChain() confirms unbroken tamper-evident SHA-256 hash chain in PostgreSQL');
 
   console.log('\n===============================================================');
   console.log(`📊 SPRINT 4 VERIFICATION COMPLETE: ${passedTests}/${totalTests} TESTS PASSED`);

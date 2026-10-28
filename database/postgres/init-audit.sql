@@ -1,8 +1,8 @@
--- SMS Tamper-Evident Audit Log Database (Append-Only)
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- SMS Tamper-Evident Audit Log Database (Append-Only with SHA-256 Hash Chaining)
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE IF NOT EXISTS audit_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     actor_id VARCHAR(100) NOT NULL,
     actor_email VARCHAR(255) NOT NULL,
     actor_role VARCHAR(50) NOT NULL,
@@ -13,10 +13,16 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     new_value JSONB,
     details JSONB,
     client_ip VARCHAR(50),
+    previous_hash VARCHAR(64) NOT NULL DEFAULT 'GENESIS',
+    current_hash VARCHAR(64) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Reject all UPDATE and DELETE operations on audit_logs (SMS-014 AC2)
+CREATE INDEX IF NOT EXISTS idx_audit_actor_id ON audit_logs(actor_id);
+CREATE INDEX IF NOT EXISTS idx_audit_action_type ON audit_logs(action_type);
+CREATE INDEX IF NOT EXISTS idx_audit_entity_id ON audit_logs(entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_logs(created_at);
+
 CREATE OR REPLACE FUNCTION reject_audit_modification()
 RETURNS TRIGGER AS $$
 BEGIN

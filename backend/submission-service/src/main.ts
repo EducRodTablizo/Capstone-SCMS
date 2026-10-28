@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import { submissionController } from './submissions/submission.controller';
+import { submissionRepository } from './submissions/submission.repository';
+import { pool } from './config/db';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3003', 10);
@@ -10,7 +12,7 @@ app.use(express.json({ limit: '30mb' }));
 app.use(express.urlencoded({ extended: true, limit: '30mb' }));
 
 // Health
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({ service: 'submission-service', status: 'OK', port: PORT, timestamp: new Date().toISOString() });
 });
 
@@ -34,9 +36,20 @@ app.post('/api/v1/integrations/fms/assignments/reassign', (req, res) => submissi
 app.post('/api/v1/integrations/fms/assignments/withdraw', (req, res) => submissionController.withdrawAssignment(req, res));
 app.post('/api/v1/integrations/fms/assignments/substitute', (req, res) => submissionController.assignSubstitute(req, res));
 
-if (process.env.NODE_ENV !== 'test') {
+export async function startServer(): Promise<void> {
+  await pool.query('SELECT 1');
+  await submissionRepository.init();
+  console.log('Connected to PostgreSQL sms_submissions');
+
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[Server 3: Submission Service] running on port ${PORT}`);
+  });
+}
+
+if (process.env.NODE_ENV !== 'test' && require.main === module) {
+  startServer().catch((err) => {
+    console.error('Failed to connect to PostgreSQL sms_submissions:', err);
+    process.exit(1);
   });
 }
 

@@ -33,17 +33,17 @@ ON CONFLICT (role_code) DO NOTHING;
 
 -- 2. USERS TABLE (SCMS Local User Accounts)
 CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
-    fms_faculty_id VARCHAR(100),
-    college VARCHAR(150),
-    unit VARCHAR(150),
-    role_id UUID NOT NULL REFERENCES roles(id),
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    role VARCHAR(50) CHECK (role IN ('ACADEMIC_HEAD', 'FACULTY_STAFF')),
+    fms_faculty_id VARCHAR(255),
+    college VARCHAR(255),
+    unit VARCHAR(255),
     is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
 -- 3. PROGRAMS TABLE (Academic Programs under PUPQC)

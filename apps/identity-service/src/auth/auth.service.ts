@@ -1,9 +1,8 @@
-import jwt from 'jsonwebtoken';
 import { userRepository } from '../users/user.repository';
 import { verifyPassword } from './password.util';
 import { filterFacultyPersonalData } from '../privacy/privacy.middleware';
 import { SafeFacultyProfile } from '../users/user.entity';
-import { JWT_SECRET, AuthenticatedUserPayload } from '../guards/role.guard';
+import { JWT_SECRET, AuthenticatedUserPayload, jwtUtil } from '../guards/role.guard';
 
 export interface LoginResult {
   success: boolean;
@@ -62,7 +61,7 @@ export class AuthService {
       name: `${user.first_name} ${user.last_name}`,
     };
 
-    const token = jwt.sign(payload, JWT_SECRET, {
+    const token = jwtUtil.sign(payload, JWT_SECRET, {
       expiresIn: '8h',
       issuer: 'scms-auth-service',
       audience: 'scms-client',

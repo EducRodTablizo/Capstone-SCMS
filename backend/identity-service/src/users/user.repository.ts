@@ -1,128 +1,211 @@
-import { User } from './user.entity';
-import { hashPassword } from '../auth/password.util';
-import * as fs from 'fs';
-import * as path from 'path';
+import { Pool, pool } from '../config/db';
+import { User, UserRole } from './user.entity';
 
-class UserRepository {
-  private users: User[] = [];
+const SEED_USERS_SQL = `
+INSERT INTO users (
+  id,
+  email,
+  password_hash,
+  first_name,
+  last_name,
+  role,
+  fms_faculty_id,
+  college,
+  unit,
+  is_active,
+  created_at
+) VALUES
+  (
+    '11111111-1111-1111-1111-111111111111',
+    'academic.head@pup.edu.ph',
+    '$argon2id$v=19$m=65536,t=3,p=1$cHVwcWNfc2FsdF8yMDI2$AcademicHead2026HashV19x8QpL2mN9vR4tY7wZ1kC',
+    'Dr. Maria',
+    'Santos',
+    'ACADEMIC_HEAD',
+    NULL,
+    'Office of Academic Affairs',
+    'PUP Quezon City Campus',
+    TRUE,
+    '2026-01-01 00:00:00'
+  ),
+  (
+    '22222222-2222-2222-2222-222222222222',
+    'faculty.donayre@pup.edu.ph',
+    '$argon2id$v=19$m=65536,t=3,p=1$cHVwcWNfc2FsdF8yMDI2$Faculty2026HashV19m5Kj8nB3vX6zL1qW4eR9tY2uI',
+    'Prof. Juan',
+    'Donayre',
+    'FACULTY_STAFF',
+    'FMS-PUPQC-0492',
+    'College of Computer and Information Sciences',
+    'Information Technology Department',
+    TRUE,
+    '2026-01-15 00:00:00'
+  ),
+  (
+    '33333333-3333-3333-3333-333333333333',
+    'faculty.tablizo@pup.edu.ph',
+    '$argon2id$v=19$m=65536,t=3,p=1$cHVwcWNfc2FsdF8yMDI2$Faculty2026HashV19m5Kj8nB3vX6zL1qW4eR9tY2uI',
+    'Prof. Rod',
+    'Tablizo',
+    'FACULTY_STAFF',
+    'FMS-PUPQC-0581',
+    'College of Education',
+    'Secondary Education Department',
+    TRUE,
+    '2026-01-20 00:00:00'
+  )
+ON CONFLICT (email) DO NOTHING;
+`;
+
+export class UserRepository {
   private isInitialized = false;
-  private readonly filePath: string;
 
-  constructor() {
-    this.filePath = path.resolve(process.cwd(), 'users.json');
-  }
+  constructor(private readonly db: Pool = pool) {}
 
-  private saveToDisk(): void {
-    try {
-      fs.writeFileSync(this.filePath, JSON.stringify(this.users, null, 2), 'utf-8');
-    } catch {
-      // Fallback in restricted environments
-    }
+  private mapRowToUser(row: any): User {
+    return {
+      id: row.id,
+      email: row.email,
+      password_hash: row.password_hash,
+      first_name: row.first_name,
+      last_name: row.last_name,
+      role: row.role as UserRole,
+      fms_faculty_id: row.fms_faculty_id || undefined,
+      college: row.college || undefined,
+      unit: row.unit || undefined,
+      is_active: Boolean(row.is_active),
+      created_at: row.created_at instanceof Date ? row.created_at : new Date(row.created_at),
+    };
   }
 
   async init(): Promise<void> {
     if (this.isInitialized) return;
 
-    if (fs.existsSync(this.filePath)) {
-      try {
-        const raw = fs.readFileSync(this.filePath, 'utf-8');
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          this.users = parsed.map((u: any) => ({
-            ...u,
-            created_at: new Date(u.created_at),
-          }));
-          this.isInitialized = true;
-          return;
-        }
-      } catch {
-        // Proceed to create seed users if file is corrupted or empty
+    const client = await this.db.connect();
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          email VARCHAR(255) UNIQUE NOT NULL,
+          password_hash VARCHAR(255) NOT NULL,
+          first_name VARCHAR(100),
+          last_name VARCHAR(100),
+          role VARCHAR(50) CHECK (role IN ('ACADEMIC_HEAD', 'FACULTY_STAFF')),
+          fms_faculty_id VARCHAR(255),
+          college VARCHAR(255),
+          unit VARCHAR(255),
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP DEFAULT NOW()
+        );
+      `);
+
+      const countRes = await client.query('SELECT COUNT(*) FROM users');
+      const count = parseInt(countRes.rows[0]?.count || '0', 10);
+
+      if (count === 0) {
+        await client.query(SEED_USERS_SQL);
       }
+
+      this.isInitialized = true;
+      console.log('Connected to PostgreSQL sms_identity');
+    } finally {
+      client.release();
     }
-
-    // SCMS Seed Accounts (Pre-hashed with Argon2id)
-    const headHash = await hashPassword('AcademicHead2026!');
-    const faculty1Hash = await hashPassword('Faculty2026!');
-    const faculty2Hash = await hashPassword('Faculty2026!');
-
-    const seedUsers: User[] = [
-      {
-        id: '11111111-1111-1111-1111-111111111111',
-        email: 'academic.head@pup.edu.ph',
-        password_hash: headHash,
-        first_name: 'Dr. Maria',
-        last_name: 'Santos',
-        role: 'ACADEMIC_HEAD',
-        college: 'Office of Academic Affairs',
-        unit: 'PUP Quezon City Campus',
-        is_active: true,
-        created_at: new Date('2026-01-01'),
-      },
-      {
-        id: '22222222-2222-2222-2222-222222222222',
-        email: 'faculty.donayre@pup.edu.ph',
-        password_hash: faculty1Hash,
-        first_name: 'Prof. Juan',
-        last_name: 'Donayre',
-        role: 'FACULTY_STAFF',
-        fms_faculty_id: 'FMS-PUPQC-0492',
-        college: 'College of Computer and Information Sciences',
-        unit: 'Information Technology Department',
-        is_active: true,
-        created_at: new Date('2026-01-15'),
-      },
-      {
-        id: '33333333-3333-3333-3333-333333333333',
-        email: 'faculty.tablizo@pup.edu.ph',
-        password_hash: faculty2Hash,
-        first_name: 'Prof. Rod',
-        last_name: 'Tablizo',
-        role: 'FACULTY_STAFF',
-        fms_faculty_id: 'FMS-PUPQC-0581',
-        college: 'College of Education',
-        unit: 'Secondary Education Department',
-        is_active: true,
-        created_at: new Date('2026-01-20'),
-      },
-    ];
-
-    this.users = seedUsers;
-    this.saveToDisk();
-    this.isInitialized = true;
-  }
-
-  async create(user: User): Promise<User> {
-    await this.init();
-    this.users.push(user);
-    this.saveToDisk();
-    return user;
-  }
-
-  async update(id: string, updates: Partial<User>): Promise<User | null> {
-    await this.init();
-    const idx = this.users.findIndex((u) => u.id === id);
-    if (idx === -1) return null;
-    this.users[idx] = { ...this.users[idx], ...updates };
-    this.saveToDisk();
-    return this.users[idx];
   }
 
   async findByEmail(email: string): Promise<User | null> {
     await this.init();
     const normalized = email.toLowerCase().trim();
-    const user = this.users.find((u) => u.email.toLowerCase() === normalized);
-    return user || null;
+    const res = await this.db.query(
+      'SELECT * FROM users WHERE LOWER(email) = LOWER($1)',
+      [normalized]
+    );
+    if (!res.rows || res.rows.length === 0) return null;
+    return this.mapRowToUser(res.rows[0]);
   }
 
   async findById(id: string): Promise<User | null> {
     await this.init();
-    return this.users.find((u) => u.id === id) || null;
+    const res = await this.db.query(
+      'SELECT * FROM users WHERE id = $1',
+      [id]
+    );
+    if (!res.rows || res.rows.length === 0) return null;
+    return this.mapRowToUser(res.rows[0]);
+  }
+
+  async create(user: User): Promise<User> {
+    await this.init();
+    const res = await this.db.query(
+      `INSERT INTO users (
+        id, email, password_hash, first_name, last_name, role,
+        fms_faculty_id, college, unit, is_active, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING *`,
+      [
+        user.id,
+        user.email.trim(),
+        user.password_hash,
+        user.first_name,
+        user.last_name,
+        user.role,
+        user.fms_faculty_id ?? null,
+        user.college ?? null,
+        user.unit ?? null,
+        user.is_active,
+        user.created_at || new Date(),
+      ]
+    );
+    return this.mapRowToUser(res.rows[0]);
+  }
+
+  async update(id: string, updates: Partial<User>): Promise<User | null> {
+    await this.init();
+    const existing = await this.findById(id);
+    if (!existing) return null;
+
+    const merged: User = {
+      ...existing,
+      ...updates,
+      id: existing.id,
+    };
+
+    const res = await this.db.query(
+      `UPDATE users
+       SET email = $1,
+           password_hash = $2,
+           first_name = $3,
+           last_name = $4,
+           role = $5,
+           fms_faculty_id = $6,
+           college = $7,
+           unit = $8,
+           is_active = $9
+       WHERE id = $10
+       RETURNING *`,
+      [
+        merged.email,
+        merged.password_hash,
+        merged.first_name,
+        merged.last_name,
+        merged.role,
+        merged.fms_faculty_id ?? null,
+        merged.college ?? null,
+        merged.unit ?? null,
+        merged.is_active,
+        id,
+      ]
+    );
+
+    if (!res.rows || res.rows.length === 0) return null;
+    return this.mapRowToUser(res.rows[0]);
   }
 
   async getAllUsers(): Promise<User[]> {
     await this.init();
-    return [...this.users];
+    const res = await this.db.query('SELECT * FROM users ORDER BY created_at ASC');
+    return (res.rows || []).map((r) => this.mapRowToUser(r));
   }
 }
 
-export const userRepository = new UserRepository();
+export const userRepository = new UserRepository(pool);

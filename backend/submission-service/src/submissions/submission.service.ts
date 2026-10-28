@@ -15,7 +15,8 @@ export class SubmissionService {
    */
   private async dispatchAuditLog(payload: {
     actorId: string;
-    actorName: string;
+    actorName?: string;
+    actorEmail?: string;
     actorRole: string;
     actionType: string;
     entityId: string;
@@ -23,9 +24,10 @@ export class SubmissionService {
     newValue?: string;
     details?: string;
   }): Promise<void> {
-    auditLogService.logAction({
+    const resolvedEmail = payload.actorEmail || payload.actorName || 'system@pup.edu.ph';
+    await auditLogService.logAction({
       actorId: payload.actorId,
-      actorName: payload.actorName,
+      actorEmail: resolvedEmail,
       actorRole: payload.actorRole,
       actionType: payload.actionType,
       entityName: 'SUBMISSION',
@@ -38,7 +40,7 @@ export class SubmissionService {
 
     const body = JSON.stringify({
       actorId: payload.actorId,
-      actorName: payload.actorName,
+      actorEmail: resolvedEmail,
       actorRole: payload.actorRole,
       actionType: payload.actionType,
       entityName: 'SUBMISSION',
@@ -314,6 +316,7 @@ export class SubmissionService {
 
     const review = await submissionRepository.createReviewDecision({
       submission_id: existing.id,
+      reviewer_id: params.reviewerId,
       reviewer_name: params.reviewerName,
       decision: params.decision,
       comment: params.comment
@@ -368,8 +371,11 @@ export class SubmissionService {
     const newVersionLabel = 'v' + newVersionNum;
 
     // Update submission record
-    const updatedSub = await submissionRepository.updateStatus(existing.id, 'Resubmitted', serverTimestamp);
-    await submissionRepository.updateFileMetadata(existing.id, params.fileName, params.fileSize, serverTimestamp);
+    await submissionRepository.updateStatus(existing.id, 'Resubmitted', {
+      file_name: params.fileName,
+      submitted_at: serverTimestamp
+    });
+    const updatedSub = await submissionRepository.updateFileMetadata(existing.id, params.fileName, params.fileSize, serverTimestamp);
     if (!updatedSub) throw new Error('Resubmission update failed.');
 
     // Save immutable new version (SCMS-021 AC 1)

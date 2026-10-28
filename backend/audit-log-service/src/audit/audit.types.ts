@@ -13,7 +13,7 @@ export type AuditActionType =
 export interface AuditEntry {
   id?: string;
   actorId: string;
-  actorName: string;
+  actorEmail: string;
   actorRole: 'ACADEMIC_HEAD' | 'FACULTY_STAFF' | string;
   actionType: AuditActionType;
   entityName: 'REQUIREMENT' | 'SUBMISSION' | 'REVIEW' | string;
@@ -22,13 +22,14 @@ export interface AuditEntry {
   newValue?: Record<string, any> | null;
   details?: Record<string, any> | null;
   clientIp?: string;
-  previous_hash?: string;
-  current_hash?: string;
+  previous_hash: string;
+  current_hash: string;
   createdAt?: string;
 }
 
 export interface AuditLogFilter {
   actorId?: string;
+  actorEmail?: string;
   actionType?: string;
   entityName?: string;
   entityId?: string;
