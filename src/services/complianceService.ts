@@ -1,10 +1,8 @@
-const COMPLIANCE_API_URL = import.meta.env.VITE_COMPLIANCE_API_URL || 'http://localhost:3005/api/v1/compliance';
-const COMPLIANCE_WS_URL = import.meta.env.VITE_COMPLIANCE_WS_URL || 'ws://localhost:3005/ws';
+import { apiClient } from './apiClient';
 
-function getAuthHeader(): Record<string, string> {
-  const token = localStorage.getItem('scms_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+const COMPLIANCE_WS_URL =
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_COMPLIANCE_WS_URL) ||
+  'ws://localhost:3005/ws';
 
 export interface ComplianceMetricsData {
   term_id: string;
@@ -96,105 +94,58 @@ export interface CcmsPushLogItem {
 
 export const complianceService = {
   async getMetrics(params?: { term_id?: string; program_code?: string; faculty_id?: string }): Promise<ComplianceMetricsData> {
-    const url = new URL(`${COMPLIANCE_API_URL}/metrics`);
-    if (params?.term_id) url.searchParams.append('term_id', params.term_id);
-    if (params?.program_code) url.searchParams.append('program_code', params.program_code);
-    if (params?.faculty_id) url.searchParams.append('faculty_id', params.faculty_id);
-
-    const res = await fetch(url.toString(), {
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const body = await res.json();
+    const body = await apiClient.get('/compliance/metrics', { params });
     return body.data;
   },
 
   async getRecords(params?: { term_id?: string; program_code?: string; faculty_id?: string; status?: string }): Promise<ComplianceRecordItem[]> {
-    const url = new URL(`${COMPLIANCE_API_URL}/records`);
-    if (params?.term_id) url.searchParams.append('term_id', params.term_id);
-    if (params?.program_code) url.searchParams.append('program_code', params.program_code);
-    if (params?.faculty_id) url.searchParams.append('faculty_id', params.faculty_id);
-    if (params?.status) url.searchParams.append('status', params.status);
-
-    const res = await fetch(url.toString(), {
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const body = await res.json();
+    const body = await apiClient.get('/compliance/records', { params });
     return body.data;
   },
 
   async getSyllabusHeader(assignmentId: string): Promise<SyllabusHeaderDetails> {
-    const res = await fetch(`${COMPLIANCE_API_URL}/syllabus-header/${assignmentId}`, {
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const body = await res.json();
+    const body = await apiClient.get(`/compliance/syllabus-header/${assignmentId}`);
     return body.data;
   },
 
   async evaluateOverdue(referenceDate?: string) {
-    const res = await fetch(`${COMPLIANCE_API_URL}/evaluate-overdue`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-      body: JSON.stringify({ referenceDate })
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    return apiClient.post('/compliance/evaluate-overdue', { referenceDate });
   },
 
   /**
    * Export Compliance Matrix to CSV (SMS-037)
    */
   getExportCsvUrl(term_id?: string, program_code?: string): string {
-    const url = new URL(`${COMPLIANCE_API_URL}/export/csv`);
-    if (term_id) url.searchParams.append('term_id', term_id);
-    if (program_code) url.searchParams.append('program_code', program_code);
-    return url.toString();
+    return apiClient.buildUrl('/compliance/export/csv', { term_id, program_code });
   },
 
   /**
    * Export Compliance Matrix to PDF (SMS-037)
    */
   getExportPdfUrl(term_id?: string, program_code?: string, actor_name = 'Dr. Maria Santos'): string {
-    const url = new URL(`${COMPLIANCE_API_URL}/export/pdf`);
-    if (term_id) url.searchParams.append('term_id', term_id);
-    if (program_code) url.searchParams.append('program_code', program_code);
-    if (actor_name) url.searchParams.append('actor_name', actor_name);
-    return url.toString();
+    return apiClient.buildUrl('/compliance/export/pdf', { term_id, program_code, actor_name });
   },
 
   /**
    * Outbound CCMS Integration (SMS-019)
    */
   async getCcmsSummary(termCode?: string): Promise<CcmsSummaryPayload> {
-    const url = new URL(`${COMPLIANCE_API_URL}/ccms/summary`);
-    if (termCode) url.searchParams.append('term_code', termCode);
-    const res = await fetch(url.toString(), {
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
+    const body = await apiClient.get('/compliance/ccms/summary', {
+      params: { term_code: termCode },
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const body = await res.json();
     return body.data;
   },
 
   async pushCcmsSummary(actorName = 'Dr. Maria Santos'): Promise<CcmsPushLogItem> {
-    const res = await fetch(`${COMPLIANCE_API_URL}/ccms/push`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-      body: JSON.stringify({ trigger: 'MANUAL_ON_DEMAND', actorName })
+    const body = await apiClient.post('/compliance/ccms/push', {
+      trigger: 'MANUAL_ON_DEMAND',
+      actorName,
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const body = await res.json();
     return body.data;
   },
 
   async getCcmsPushLogs(): Promise<CcmsPushLogItem[]> {
-    const res = await fetch(`${COMPLIANCE_API_URL}/ccms/logs`, {
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const body = await res.json();
+    const body = await apiClient.get('/compliance/ccms/logs');
     return body.data || [];
   },
 
@@ -249,67 +200,34 @@ export const complianceService = {
    * Sprint 8 Resilience & Integration Methods (SMS-020, SMS-027, SMS-029, SMS-034)
    */
   async getResilienceStatus(): Promise<any> {
-    const res = await fetch('http://localhost:3005/api/v1/integrations/resilience/status', {
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const body = await res.json();
+    const body = await apiClient.get('/integrations/resilience/status');
     return body.data;
   },
 
   async simulateResilienceTier(system: 'FMS' | 'CCMS', state: string | null): Promise<any> {
-    const res = await fetch('http://localhost:3005/api/v1/integrations/resilience/simulate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-      body: JSON.stringify({ system, state })
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    return apiClient.post('/integrations/resilience/simulate', { system, state });
   },
 
   async reconcileFms(): Promise<any> {
-    const res = await fetch('http://localhost:3005/api/v1/integrations/fms/reconcile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    return apiClient.post('/integrations/fms/reconcile');
   },
 
   async getFacultyProfileWithFallback(facultyId: string): Promise<any> {
-    const res = await fetch(`http://localhost:3005/api/v1/integrations/fms/profile/${facultyId}`, {
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const body = await res.json();
+    const body = await apiClient.get(`/integrations/fms/profile/${facultyId}`);
     return body.data;
   },
 
   async getCcmsCalendarWithFallback(): Promise<any> {
-    const res = await fetch('http://localhost:3005/api/v1/integrations/ccms/calendar', {
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const body = await res.json();
+    const body = await apiClient.get('/integrations/ccms/calendar');
     return body.data;
   },
 
   async getCatalogWebhookLogs(): Promise<any[]> {
-    const res = await fetch('http://localhost:3005/api/v1/catalog/webhooks/fms/logs', {
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const body = await res.json();
+    const body = await apiClient.get('/catalog/webhooks/fms/logs');
     return body.data || [];
   },
 
   async dispatchCatalogWebhook(payload: any): Promise<any> {
-    const res = await fetch('http://localhost:3005/api/v1/catalog/webhooks/fms/dispatch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    return apiClient.post('/catalog/webhooks/fms/dispatch', payload);
   }
 };

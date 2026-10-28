@@ -1,3 +1,5 @@
+import { apiClient } from './apiClient';
+
 export interface Course {
   id: string;
   course_code: string;
@@ -16,25 +18,12 @@ export interface Course {
   updated_at: string;
 }
 
-const API_BASE = 'http://localhost:3006/api/v1/courses';
-
-function getAuthHeader(): Record<string, string> {
-  const token = localStorage.getItem('scms_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 export const courseService = {
   async getCourses(status?: string, search?: string): Promise<Course[]> {
     try {
-      const url = new URL(API_BASE);
-      if (status) url.searchParams.append('status', status);
-      if (search) url.searchParams.append('search', search);
-
-      const res = await fetch(url.toString(), {
-        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      const json = await apiClient.get<{ data: Course[] }>('/courses', {
+        params: { status, search },
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
       return json.data || [];
     } catch {
       return [
@@ -60,34 +49,17 @@ export const courseService = {
   },
 
   async createCourse(data: Partial<Course>): Promise<Course> {
-    const res = await fetch(API_BASE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-      body: JSON.stringify(data),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
+    const json = await apiClient.post<{ data: Course }>('/courses', data);
     return json.data;
   },
 
   async updateCourse(id: string, data: Partial<Course>): Promise<Course> {
-    const res = await fetch(`${API_BASE}/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-      body: JSON.stringify(data),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
+    const json = await apiClient.patch<{ data: Course }>(`/courses/${id}`, data);
     return json.data;
   },
 
   async createVersion(id: string): Promise<Course> {
-    const res = await fetch(`${API_BASE}/${id}/version`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
+    const json = await apiClient.post<{ data: Course }>(`/courses/${id}/version`);
     return json.data;
   },
 };

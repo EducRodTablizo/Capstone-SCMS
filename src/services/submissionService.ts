@@ -1,9 +1,4 @@
-const SUBMISSION_API_URL = import.meta.env.VITE_SUBMISSION_API_URL || 'http://localhost:3003/api/v1';
-
-function getAuthHeader(): Record<string, string> {
-  const token = localStorage.getItem('scms_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+import { apiClient } from './apiClient';
 
 export interface SubmissionPayload {
   submissionId?: string;
@@ -76,152 +71,49 @@ export interface SignatoryDetails {
 
 export const submissionService = {
   async submitSyllabus(payload: SubmissionPayload): Promise<any> {
-    const res = await fetch(`${SUBMISSION_API_URL}/submissions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `Failed to submit syllabus (HTTP ${res.status})`);
-    }
-
-    return res.json();
+    return apiClient.post('/submissions', payload);
   },
 
   async getSubmissions(params?: { requirement_id?: string; status?: string; course_code?: string }): Promise<any> {
-    const url = new URL(`${SUBMISSION_API_URL}/submissions`);
-    if (params?.requirement_id) url.searchParams.append('requirement_id', params.requirement_id);
-    if (params?.status) url.searchParams.append('status', params.status);
-    if (params?.course_code) url.searchParams.append('course_code', params.course_code);
-
-    const res = await fetch(url.toString(), {
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      },
-    });
-
-    if (!res.ok) {
-      throw new Error(`Failed to fetch submissions (HTTP ${res.status})`);
-    }
-
-    return res.json();
+    return apiClient.get('/submissions', { params });
   },
 
   async getSubmissionById(id: string): Promise<any> {
-    const res = await fetch(`${SUBMISSION_API_URL}/submissions/${id}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      },
-    });
-
-    if (!res.ok) {
-      throw new Error(`Failed to fetch submission details (HTTP ${res.status})`);
-    }
-
-    return res.json();
+    return apiClient.get(`/submissions/${id}`);
   },
 
   async openForReview(id: string, reviewer?: { reviewerId?: string; reviewerName?: string }): Promise<any> {
-    const res = await fetch(`${SUBMISSION_API_URL}/submissions/${id}/open-review`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      },
-      body: JSON.stringify(reviewer || {}),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `Failed to open submission for review`);
-    }
-
-    return res.json();
+    return apiClient.patch(`/submissions/${id}/open-review`, reviewer || {});
   },
 
   async reviewSubmission(
     id: string,
     payload: { reviewerId?: string; reviewerName?: string; decision: 'Approved' | 'Returned'; comment: string }
   ): Promise<any> {
-    const res = await fetch(`${SUBMISSION_API_URL}/submissions/${id}/review`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `Failed to record review decision`);
-    }
-
-    return res.json();
+    return apiClient.post(`/submissions/${id}/review`, payload);
   },
 
   async resubmitSyllabus(
     id: string,
     payload: { facultyId?: string; facultyName?: string; fileName: string; fileSize?: number; changeSummary?: string }
   ): Promise<any> {
-    const res = await fetch(`${SUBMISSION_API_URL}/submissions/${id}/resubmit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `Failed to resubmit syllabus revision`);
-    }
-
-    return res.json();
+    return apiClient.post(`/submissions/${id}/resubmit`, payload);
   },
 
   async getVersions(id: string): Promise<any> {
-    const res = await fetch(`${SUBMISSION_API_URL}/submissions/${id}/versions`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      },
-    });
-
-    if (!res.ok) {
-      throw new Error(`Failed to fetch versions`);
-    }
-
-    return res.json();
+    return apiClient.get(`/submissions/${id}/versions`);
   },
 
   getFileDownloadUrl(id: string): string {
-    return `${SUBMISSION_API_URL}/submissions/${id}/file`;
+    return apiClient.buildUrl(`/submissions/${id}/file`);
   },
 
   getObtlPdfUrl(id: string): string {
-    return `${SUBMISSION_API_URL}/submissions/${id}/pdf`;
+    return apiClient.buildUrl(`/submissions/${id}/pdf`);
   },
 
   async getPreview(id: string): Promise<any> {
-    const res = await fetch(`${SUBMISSION_API_URL}/submissions/${id}/preview`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      },
-    });
-    if (!res.ok) {
-      throw new Error(`Failed to fetch preview details`);
-    }
-    const data = await res.json();
+    const data = await apiClient.get(`/submissions/${id}/preview`);
     return data.data;
   },
 
@@ -229,34 +121,31 @@ export const submissionService = {
    * Signatory Authorities (SMS-035)
    */
   async getSignatories(): Promise<SignatoryDetails> {
-    const res = await fetch(`${SUBMISSION_API_URL}/signatories`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      },
-    });
-    if (!res.ok) throw new Error('Failed to fetch signatories');
-    const data = await res.json();
+    const data = await apiClient.get('/signatories');
     return data.data;
   },
 
   async updateSignatories(update: Partial<SignatoryDetails>): Promise<SignatoryDetails> {
-    const res = await fetch(`${SUBMISSION_API_URL}/signatories`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      },
-      body: JSON.stringify(update),
-    });
-    if (!res.ok) throw new Error('Failed to update signatories');
-    const data = await res.json();
+    const data = await apiClient.put('/signatories', update);
     return data.data;
   },
 
   /**
-   * FMS Teaching Assignment Integration Simulation (SMS-023)
+   * FMS Teaching Assignment Integration Simulation (SMS-017, SMS-023)
    */
+  async approveAssignment(payload: {
+    assignment_id: string;
+    assignment_version: number;
+    academic_term_id: string;
+    course_id: string;
+    block_section_id: string;
+    faculty_id: string;
+    assignment_status?: string;
+    schedule?: Record<string, any> | null;
+  }): Promise<any> {
+    return apiClient.post('/integrations/fms/assignments/approved', payload);
+  },
+
   async reassignAssignment(payload: {
     courseCode: string;
     sectionLabel: string;
@@ -265,19 +154,7 @@ export const submissionService = {
     assignmentVersion?: number;
     reason?: string;
   }): Promise<any> {
-    const res = await fetch(`${SUBMISSION_API_URL}/integrations/fms/assignments/reassign`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Failed to reassign assignment');
-    }
-    return res.json();
+    return apiClient.post('/integrations/fms/assignments/reassign', payload);
   },
 
   async withdrawAssignment(payload: {
@@ -285,19 +162,7 @@ export const submissionService = {
     sectionLabel: string;
     reason?: string;
   }): Promise<any> {
-    const res = await fetch(`${SUBMISSION_API_URL}/integrations/fms/assignments/withdraw`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Failed to withdraw assignment');
-    }
-    return res.json();
+    return apiClient.post('/integrations/fms/assignments/withdraw', payload);
   },
 
   async assignSubstitute(payload: {
@@ -307,18 +172,6 @@ export const submissionService = {
     substituteName?: string;
     reason?: string;
   }): Promise<any> {
-    const res = await fetch(`${SUBMISSION_API_URL}/integrations/fms/assignments/substitute`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Failed to assign substitute');
-    }
-    return res.json();
+    return apiClient.post('/integrations/fms/assignments/substitute', payload);
   }
 };

@@ -1,4 +1,6 @@
-﻿export interface AcademicTerm {
+import { apiClient } from './apiClient';
+
+export interface AcademicTerm {
   term_code: string;
   academic_year: string;
   semester_number: number;
@@ -29,21 +31,10 @@ export interface DeadlineAdjustmentResult {
   reasons: string[];
 }
 
-const API_BASE = 'http://localhost:3002/api/v1';
-
-function getAuthHeader(): Record<string, string> {
-  const token = localStorage.getItem('scms_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 export const calendarService = {
   async getActiveTerm(): Promise<AcademicTerm | null> {
     try {
-      const res = await fetch(`${API_BASE}/terms/active`, {
-        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-      });
-      if (!res.ok) return null;
-      const json = await res.json();
+      const json = await apiClient.get<{ data: AcademicTerm }>('/terms/active');
       return json.data || null;
     } catch {
       return null;
@@ -52,11 +43,9 @@ export const calendarService = {
 
   async getEvents(termCode: string = '2026-1S'): Promise<CalendarEvent[]> {
     try {
-      const res = await fetch(`${API_BASE}/calendar/events?term_code=${termCode}`, {
-        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      const json = await apiClient.get<{ data: CalendarEvent[] }>('/calendar/events', {
+        params: { term_code: termCode },
       });
-      if (!res.ok) return [];
-      const json = await res.json();
       return json.data || [];
     } catch {
       return [];
@@ -65,36 +54,40 @@ export const calendarService = {
 
   async calculateDeadline(deadline: string, termCode: string = '2026-1S'): Promise<DeadlineAdjustmentResult | null> {
     try {
-      const res = await fetch(`${API_BASE}/calendar/calculate-deadline`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-        body: JSON.stringify({ deadline, term_code: termCode }),
+      const json = await apiClient.post<{ data: DeadlineAdjustmentResult }>('/calendar/calculate-deadline', {
+        deadline,
+        term_code: termCode,
       });
-      if (!res.ok) return null;
-      const json = await res.json();
       return json.data || null;
     } catch {
       return null;
     }
   },
 
+  async getRequirements(params?: { program_code?: string; term_code?: string }): Promise<any[]> {
+    const json = await apiClient.get<{ data: any[] }>('/requirements', { params });
+    return json.data || [];
+  },
+
+  async createRequirement(payload: {
+    program_code: string;
+    term_code: string;
+    requirement_type: string;
+    name: string;
+    description: string;
+    deadline_at: string | null;
+  }): Promise<any> {
+    const json = await apiClient.post<{ data: any }>('/requirements', payload);
+    return json.data;
+  },
+
   async publishRequirement(id: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/requirements/${id}/publish`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
+    const json = await apiClient.patch<{ data: any }>(`/requirements/${id}/publish`);
     return json.data;
   },
 
   async closeRequirement(id: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/requirements/${id}/close`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
+    const json = await apiClient.patch<{ data: any }>(`/requirements/${id}/close`);
     return json.data;
   },
 };

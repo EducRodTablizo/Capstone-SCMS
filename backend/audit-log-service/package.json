@@ -1,0 +1,11 @@
+{
+  "name": "@scms/audit-log-service",
+  "version": "1.0.0",
+  "description": "Server 4B: Review, Approval & Audit Trail Service",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "ts-node src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js"
+  }
+}

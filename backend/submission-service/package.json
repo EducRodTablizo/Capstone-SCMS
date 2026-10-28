@@ -1,0 +1,11 @@
+{
+  "name": "@scms/submission-service",
+  "version": "1.0.0",
+  "description": "Server 3: Syllabus Upload & Review Decisions",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "ts-node src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js"
+  }
+}

@@ -1,6 +1,5 @@
 import { UserProfile } from '../auth/AuthContext';
-
-const API_BASE = 'http://localhost:3001/api/v1/auth';
+import { apiClient, ApiError } from './apiClient';
 
 export interface LoginResponse {
   statusCode: number;
@@ -13,18 +12,19 @@ export interface LoginResponse {
 export const authService = {
   async login(email: string, password: string): Promise<LoginResponse> {
     try {
-      const response = await fetch(`${API_BASE}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // SCMS-001 AC3: HttpOnly session cookie
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-      return data;
-    } catch (err) {
+      return await apiClient.post<LoginResponse>(
+        '/auth/login',
+        { email, password },
+        { skipAuthRedirect: true }
+      );
+    } catch (err: any) {
+      if (err instanceof ApiError) {
+        return {
+          statusCode: err.statusCode,
+          message: err.message,
+          error: err.data?.error || 'AuthError',
+        };
+      }
       return {
         statusCode: 500,
         message: 'Unable to connect to SCMS Authentication Service. Please check your network.',
@@ -35,10 +35,7 @@ export const authService = {
 
   async logout(): Promise<void> {
     try {
-      await fetch(`${API_BASE}/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await apiClient.post('/auth/logout');
     } catch (err) {
       console.error('Logout error:', err);
     }
@@ -46,15 +43,11 @@ export const authService = {
 
   async getMe(): Promise<UserProfile | null> {
     try {
-      const response = await fetch(`${API_BASE}/me`, {
-        method: 'GET',
-        credentials: 'include',
+      const data = await apiClient.get<{ user?: UserProfile }>('/auth/me', {
+        skipAuthRedirect: true,
       });
-
-      if (!response.ok) return null;
-      const data = await response.json();
-      return data.user || null;
-    } catch (err) {
+      return data?.user || null;
+    } catch {
       return null;
     }
   },

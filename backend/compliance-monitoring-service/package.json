@@ -1,0 +1,15 @@
+{
+  "name": "@scms/compliance-monitoring-service",
+  "version": "1.0.0",
+  "description": "Server 5: Live Compliance Monitoring & CCMS Feed",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "ts-node src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@types/ws": "^8.18.2",
+    "ws": "^8.22.0"
+  }
+}

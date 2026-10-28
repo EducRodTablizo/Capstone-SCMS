@@ -1,3 +1,5 @@
+import { apiClient } from './apiClient';
+
 export interface BlockSection {
   id: string;
   program_id: string;
@@ -11,25 +13,12 @@ export interface BlockSection {
   updated_at: string;
 }
 
-const API_BASE = 'http://localhost:3006/api/v1/block-sections';
-
-function getAuthHeader(): Record<string, string> {
-  const token = localStorage.getItem('scms_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 export const blockSectionService = {
   async getSections(programId?: string, status?: string): Promise<BlockSection[]> {
     try {
-      const url = new URL(API_BASE);
-      if (programId) url.searchParams.append('program_id', programId);
-      if (status) url.searchParams.append('status', status);
-
-      const res = await fetch(url.toString(), {
-        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      const json = await apiClient.get<{ data: BlockSection[] }>('/block-sections', {
+        params: { program_id: programId, status },
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
       return json.data || [];
     } catch {
       return [
@@ -49,24 +38,15 @@ export const blockSectionService = {
   },
 
   async createSection(data: Partial<BlockSection>): Promise<BlockSection> {
-    const res = await fetch(API_BASE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-      body: JSON.stringify(data),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
+    const json = await apiClient.post<{ data: BlockSection }>('/block-sections', data);
     return json.data;
   },
 
   async updateStatus(id: string, status: 'Active' | 'Dissolved' | 'Merged', mergedIntoSectionId?: string): Promise<BlockSection> {
-    const res = await fetch(`${API_BASE}/${id}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-      body: JSON.stringify({ status, merged_into_section_id: mergedIntoSectionId }),
+    const json = await apiClient.patch<{ data: BlockSection }>(`/block-sections/${id}/status`, {
+      status,
+      merged_into_section_id: mergedIntoSectionId,
     });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
     return json.data;
   },
 };

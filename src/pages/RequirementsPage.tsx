@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Plus, Edit2, CheckCircle2, Lock, AlertCircle, Clock, BookOpen, ShieldAlert, Sparkles, XCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../auth/AuthContext';
@@ -63,17 +63,11 @@ export const RequirementsPage: React.FC = () => {
   const fetchRequirements = async () => {
     setLoading(true);
     try {
-      const params: any = {};
-      if (selectedProgram !== 'ALL') params.program_code = selectedProgram;
-      if (selectedTerm) params.term_code = selectedTerm;
-      const url = new URL('http://localhost:3002/api/v1/requirements');
-      if (selectedProgram !== 'ALL') url.searchParams.append('program_code', selectedProgram);
-      if (selectedTerm) url.searchParams.append('term_code', selectedTerm);
-      const res = await fetch(url.toString(), {
-        headers: { 'Content-Type': 'application/json', ...(localStorage.getItem('scms_token') ? { Authorization: `Bearer ${localStorage.getItem('scms_token')}` } : {}) }
+      const data = await calendarService.getRequirements({
+        program_code: selectedProgram !== 'ALL' ? selectedProgram : undefined,
+        term_code: selectedTerm || undefined,
       });
-      const json = await res.json();
-      setRequirements(json.data || []);
+      setRequirements(data || []);
     } catch {
       setRequirements([]);
     } finally {
@@ -85,24 +79,20 @@ export const RequirementsPage: React.FC = () => {
     e.preventDefault();
     setErrorMsg('');
     try {
-      await fetch('http://localhost:3002/api/v1/requirements', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(localStorage.getItem('scms_token') ? { Authorization: `Bearer ${localStorage.getItem('scms_token')}` } : {}) },
-        body: JSON.stringify({
-          program_code: progCode,
-          term_code: termCode,
-          requirement_type: reqType,
-          name,
-          description,
-          deadline_at: deadline ? new Date(deadline).toISOString() : null,
-        }),
+      await calendarService.createRequirement({
+        program_code: progCode,
+        term_code: termCode,
+        requirement_type: reqType,
+        name,
+        description,
+        deadline_at: deadline ? new Date(deadline).toISOString() : null,
       });
       setShowAddModal(false);
       setName('');
       setDescription('');
       await fetchRequirements();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || err.message || 'Failed to create requirement definition.');
+      setErrorMsg(err.data?.message || err.message || 'Failed to create requirement definition.');
     }
   };
 
