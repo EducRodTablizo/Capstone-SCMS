@@ -1,60 +1,56 @@
 import express from 'express';
 import cors from 'cors';
-import { auditLogController } from './audit/audit.controller';
-import { auditLogService } from './audit/audit.service';
+import { submissionController } from './submissions/submission.controller';
+import { submissionRepository } from './submissions/submission.repository';
 import { pool } from './config/db';
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '3004', 10);
+const PORT = parseInt(process.env.PORT || '3003', 10);
 
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: '30mb' }));
+app.use(express.urlencoded({ extended: true, limit: '30mb' }));
 
 // Health Check
 app.get('/health', (_req, res) => {
-  res.json({ service: 'audit-log-service', status: 'OK', port: PORT, timestamp: new Date().toISOString() });
+  res.json({ service: 'submission-service', status: 'OK', port: PORT, timestamp: new Date().toISOString() });
 });
 
-// Audit Log Endpoints
-app.post('/api/v1/audit-logs', (req, res) => auditLogController.log(req, res));
-app.get('/api/v1/audit-logs', (req, res) => auditLogController.list(req, res));
-app.get('/api/v1/audit-logs/verify', (req, res) => {
-  try {
-    const isValid = auditLogService.verifyChain();
-    res.status(200).json({ valid: isValid, message: isValid ? 'Chain is valid' : 'Chain is broken' });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Sprint 4 & Sprint 5 Endpoints
+app.post('/api/v1/submissions', (req, res) => submissionController.submit(req, res));
+app.get('/api/v1/submissions', (req, res) => submissionController.list(req, res));
+app.get('/api/v1/submissions/:id', (req, res) => submissionController.getById(req, res));
+app.patch('/api/v1/submissions/:id/open-review', (req, res) => submissionController.openReview(req, res));
+app.post('/api/v1/submissions/:id/review', (req, res) => submissionController.review(req, res));
+app.post('/api/v1/submissions/:id/resubmit', (req, res) => submissionController.resubmit(req, res));
+app.get('/api/v1/submissions/:id/versions', (req, res) => submissionController.getVersions(req, res));
+app.get('/api/v1/submissions/:id/file', (req, res) => submissionController.downloadFile(req, res));
+app.get('/api/v1/submissions/:id/preview', (req, res) => submissionController.getPreview(req, res));
 
-// Express 5 Compatible Routes for Immutability Guards (SMS-014 AC 2)
-// Note: Using ':id' instead of '*' to support Express 5 path-to-regexp
-app.put('/api/v1/audit-logs/:id', (req, res) => auditLogController.rejectModification(req, res));
-app.patch('/api/v1/audit-logs/:id', (req, res) => auditLogController.rejectModification(req, res));
-app.delete('/api/v1/audit-logs/:id', (req, res) => auditLogController.rejectModification(req, res));
-
-// Fallback for GET /:id (Read-only)
-app.get('/api/v1/audit-logs/:id', (req, res) => auditLogController.getById(req, res));
+// Sprint 5 & Sprint 7 FMS Integration Endpoints
+app.get('/api/v1/submissions/:id/pdf', (req, res) => submissionController.downloadPdf(req, res));
+app.get('/api/v1/signatories', (req, res) => submissionController.getSignatories(req, res));
+app.put('/api/v1/signatories', (req, res) => submissionController.updateSignatories(req, res));
+app.post('/api/v1/integrations/fms/assignments/approved', (req, res) => submissionController.approveAssignment(req, res));
+app.post('/api/v1/integrations/fms/assignments/reassign', (req, res) => submissionController.reassignAssignment(req, res));
+app.post('/api/v1/integrations/fms/assignments/withdraw', (req, res) => submissionController.withdrawAssignment(req, res));
+app.post('/api/v1/integrations/fms/assignments/substitute', (req, res) => submissionController.assignSubstitute(req, res));
 
 export async function startServer(): Promise<void> {
   try {
-    // Verify PostgreSQL connection
     await pool.query('SELECT 1');
-    console.log('Connected to PostgreSQL sms_audit');
-
-    // Initialize the audit service (loads hash chain or starts fresh)
-    await auditLogService.init();
+    await submissionRepository.init();
+    console.log('Connected to PostgreSQL sms_submissions');
 
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`[Server 4: Audit Log Service] running on port ${PORT}`);
+      console.log(`[Server 3: Submission Service] running on port ${PORT}`);
     });
   } catch (err) {
-    console.error('Failed to start Audit Log Service:', err);
+    console.error('Failed to connect to PostgreSQL sms_submissions:', err);
     process.exit(1);
   }
 }
 
-// Only start server if this file is run directly
 if (process.env.NODE_ENV !== 'test' && require.main === module) {
   startServer();
 }
