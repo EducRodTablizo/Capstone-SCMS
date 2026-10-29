@@ -17,6 +17,7 @@ export interface FmsScheduleDetails {
 
 export interface Submission {
   id: string;
+  fms_message_id?: string | null;
   assignment_id?: string | null;
   assignment_version?: number;
   fms_assignment_version?: number;

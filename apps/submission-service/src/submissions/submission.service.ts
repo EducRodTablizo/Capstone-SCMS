@@ -66,7 +66,6 @@ export class SubmissionService {
     req.end();
   }
 
-  
   /**
    * Dispatches live status event to Compliance Monitoring Service (:3005) for WebSocket broadcasting (SMS-013)
    */
@@ -205,10 +204,6 @@ export class SubmissionService {
   }
 
   /**
-   * Reviewer opens submission -> moves to 'Under Review' (SCMS-010 AC 1)
-   */
-  
-  /**
    * Status Lifecycle Transition (SCMS-009)
    */
   public async transitionStatus(params: {
@@ -257,7 +252,6 @@ export class SubmissionService {
     }
 
     if (existing.status !== 'Submitted' && existing.status !== 'Resubmitted') {
-      // If already under review, return as-is
       if (existing.status === 'Under Review') return existing;
       throw new Error(`State Machine Violation: Only 'Submitted' or 'Resubmitted' items can be opened for review. Current status is '${existing.status}'.`);
     }
@@ -638,6 +632,8 @@ export class SubmissionService {
    * FMS Teaching Assignment Approved Intake (SMS-017 AC 1 - AC 5)
    */
   public async ingestApprovedAssignment(payload: {
+    messageId?: string;
+    fms_message_id?: string;
     assignment_id: string;
     assignment_version: number;
     academic_term_id: string;
@@ -647,7 +643,11 @@ export class SubmissionService {
     assignment_status?: string;
     status?: string;
     schedule?: FmsScheduleDetails | null;
-  }): Promise<{ statusCode: number; action: 'CREATED' | 'SCHEDULE_UPDATED' | 'UPDATED'; data: Submission }> {
+  }): Promise<{
+    statusCode: number;
+    action: 'CREATED' | 'SCHEDULE_UPDATED' | 'UPDATED' | 'DUPLICATE_ACKNOWLEDGED';
+    data: Submission;
+  }> {
     // AC 5: Course Validation - ensure course_id is not empty and not retired
     if (!payload.course_id || typeof payload.course_id !== 'string' || payload.course_id.trim() === '') {
       const err: any = new Error('Unprocessable Entity (SMS-017 AC 5): course_id is required and must reference an active course.');
@@ -667,14 +667,22 @@ export class SubmissionService {
     }
 
     const incomingVersion = typeof payload.assignment_version === 'number' ? payload.assignment_version : 1;
+    const resolvedMessageId = payload.messageId || payload.fms_message_id || null;
     const existing = await submissionRepository.findByAssignmentId(payload.assignment_id);
 
     // AC 3: Idempotency & Stale Version Check
     if (existing) {
       const storedVersion = existing.fms_assignment_version ?? 1;
-      if (incomingVersion <= storedVersion) {
+      if (incomingVersion === storedVersion) {
+        return {
+          statusCode: 200,
+          action: 'DUPLICATE_ACKNOWLEDGED',
+          data: existing,
+        };
+      }
+      if (incomingVersion < storedVersion) {
         const err: any = new Error(
-          `Conflict: Stale Version (SMS-017 AC 3). Incoming assignment_version (${incomingVersion}) is less than or equal to stored version (${storedVersion}).`
+          `Conflict: Stale Version (SMS-017 AC 3). Incoming assignment_version (${incomingVersion}) is less than stored version (${storedVersion}).`
         );
         err.statusCode = 409;
         throw err;
@@ -686,7 +694,8 @@ export class SubmissionService {
         const updated = await submissionRepository.updateAssignmentSchedule(
           existing.id,
           payload.schedule,
-          incomingVersion
+          incomingVersion,
+          resolvedMessageId ?? existing.fms_message_id
         );
         if (!updated) {
           throw new Error('Failed to update assignment schedule.');
@@ -708,8 +717,10 @@ export class SubmissionService {
 
       // Higher version without schedule update
       const updated = await submissionRepository.updateApprovedAssignment(existing.id, {
+        assignment_version: incomingVersion,
         fms_assignment_version: incomingVersion,
         faculty_id: payload.faculty_id || existing.faculty_id,
+        ...(resolvedMessageId ? { fms_message_id: resolvedMessageId } : {}),
       });
       if (!updated) {
         throw new Error('Failed to update assignment.');
@@ -734,12 +745,14 @@ export class SubmissionService {
     const sectionLabel = this.resolveSectionLabel(payload.block_section_id || 'sec-default');
 
     const created = await submissionRepository.create({
+      fms_message_id: resolvedMessageId,
       assignment_id: payload.assignment_id,
       academic_term_id: payload.academic_term_id || 'term-2026-1s',
       course_id: payload.course_id,
       block_section_id: payload.block_section_id || 'sec-bsit-4-1',
       requirement_id: `req-${payload.academic_term_id || 'term-2026-1s'}`,
       faculty_id: payload.faculty_id,
+      assignment_version: incomingVersion,
       fms_assignment_version: incomingVersion,
       course_code: courseCode,
       section_label: sectionLabel,

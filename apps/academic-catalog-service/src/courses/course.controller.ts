@@ -31,7 +31,6 @@ function notifyFmsWebhook(eventType: string, course: any) {
   req.end();
 }
 
-
 // GET /api/v1/courses (Both Academic Head & Faculty Staff can view)
 courseRouter.get('/', authenticate, async (req: Request, res: Response) => {
   try {
@@ -74,6 +73,22 @@ courseRouter.get('/:id', authenticate, async (req: Request, res: Response) => {
       });
       return;
     }
+
+    if (course.status === 'Retired') {
+      res.status(410).json({
+        statusCode: 410,
+        status: 'RETIRED',
+        replacedBy: course.replacement_course_id || null,
+        message: `Course '${course.course_code}' has been retired.`,
+        error: 'Gone',
+        data: {
+          ...course,
+          replacedBy: course.replacement_course_id || null,
+        },
+      });
+      return;
+    }
+
     res.status(200).json({ statusCode: 200, data: course });
   } catch (err: any) {
     res.status(500).json({ statusCode: 500, message: 'Failed to retrieve course.', error: err.message });
@@ -83,13 +98,21 @@ courseRouter.get('/:id', authenticate, async (req: Request, res: Response) => {
 // POST /api/v1/courses (SMS-022 AC6: Only Academic Head can add course)
 courseRouter.post('/', authenticate, requireRole(['ACADEMIC_HEAD']), async (req: Request, res: Response) => {
   try {
-    const { course_code, title } = req.body;
+    const { course_code, title, description } = req.body;
     if (!course_code || !course_code.trim()) {
       res.status(422).json({ statusCode: 422, message: 'Course code is required (e.g., INTE 30103).', error: 'Unprocessable Entity' });
       return;
     }
     if (!title || !title.trim()) {
       res.status(422).json({ statusCode: 422, message: 'Course title is required.', error: 'Unprocessable Entity' });
+      return;
+    }
+    if (!description || typeof description !== 'string' || !description.trim()) {
+      res.status(422).json({
+        statusCode: 422,
+        message: 'Course description is required for FMS expertise matching.',
+        error: 'Unprocessable Entity',
+      });
       return;
     }
 
@@ -121,6 +144,25 @@ courseRouter.patch('/:id', authenticate, requireRole(['ACADEMIC_HEAD']), async (
     const existing = await courseRepository.findById(req.params.id);
     if (!existing) {
       res.status(404).json({ statusCode: 404, message: `Course with ID '${req.params.id}' not found.`, error: 'Not Found' });
+      return;
+    }
+
+    if ('description' in req.body) {
+      const desc = req.body.description;
+      if (!desc || typeof desc !== 'string' || !desc.trim()) {
+        res.status(422).json({
+          statusCode: 422,
+          message: 'Course description is required for FMS expertise matching.',
+          error: 'Unprocessable Entity',
+        });
+        return;
+      }
+    } else if (!existing.description || !existing.description.trim()) {
+      res.status(422).json({
+        statusCode: 422,
+        message: 'Course description is required for FMS expertise matching.',
+        error: 'Unprocessable Entity',
+      });
       return;
     }
 

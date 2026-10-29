@@ -3,6 +3,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE IF NOT EXISTS submissions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    fms_message_id VARCHAR(255),
     assignment_id VARCHAR(255) UNIQUE,
     assignment_version INT DEFAULT 1,
     requirement_id UUID NOT NULL,
@@ -21,6 +22,8 @@ CREATE TABLE IF NOT EXISTS submissions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS fms_message_id VARCHAR(255);
 
 CREATE TABLE IF NOT EXISTS submission_versions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

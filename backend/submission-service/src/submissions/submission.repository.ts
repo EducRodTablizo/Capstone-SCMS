@@ -19,6 +19,7 @@ export class SubmissionRepository {
     const client = await this.db.connect();
     try {
       await client.query('SELECT 1');
+      await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS fms_message_id VARCHAR(255)');
       this.isInitialized = true;
       console.log('Connected to PostgreSQL sms_submissions');
     } finally {
@@ -30,6 +31,7 @@ export class SubmissionRepository {
     const version = Number(row.assignment_version ?? row.fms_assignment_version ?? 1);
     return {
       id: row.id,
+      fms_message_id: row.fms_message_id ?? null,
       assignment_id: row.assignment_id ?? null,
       assignment_version: version,
       fms_assignment_version: version,
@@ -74,6 +76,7 @@ export class SubmissionRepository {
     const query = `
       INSERT INTO submissions (
         id,
+        fms_message_id,
         assignment_id,
         assignment_version,
         requirement_id,
@@ -91,12 +94,13 @@ export class SubmissionRepository {
         submitted_at,
         created_at,
         updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING *
     `;
 
     const res = await this.db.query(query, [
       id,
+      data.fms_message_id ?? null,
       data.assignment_id ?? null,
       assignmentVersion,
       data.requirement_id,
@@ -199,6 +203,9 @@ export class SubmissionRepository {
     const mergedSchedule =
       extra.schedule !== undefined ? extra.schedule : existing.schedule;
 
+    const mergedMessageId =
+      extra.fms_message_id !== undefined ? extra.fms_message_id : existing.fms_message_id;
+
     const query = `
       UPDATE submissions
       SET status = $1,
@@ -209,8 +216,9 @@ export class SubmissionRepository {
           file_id = $6,
           file_name = $7,
           submitted_at = $8,
-          updated_at = $9
-      WHERE id = $10
+          fms_message_id = $9,
+          updated_at = $10
+      WHERE id = $11
       RETURNING *
     `;
 
@@ -223,6 +231,7 @@ export class SubmissionRepository {
       extra.file_id !== undefined ? extra.file_id : existing.file_id,
       extra.file_name !== undefined ? extra.file_name : existing.file_name,
       extra.submitted_at !== undefined ? extra.submitted_at : existing.submitted_at,
+      mergedMessageId ?? null,
       now,
       id,
     ]);
@@ -289,7 +298,8 @@ export class SubmissionRepository {
   async updateAssignmentSchedule(
     id: string,
     schedule: FmsScheduleDetails,
-    assignmentVersion: number
+    assignmentVersion: number,
+    fmsMessageId?: string | null
   ): Promise<Submission | null> {
     const existing = await this.findById(id);
     if (!existing) return null;
@@ -297,6 +307,7 @@ export class SubmissionRepository {
       schedule,
       assignment_version: assignmentVersion,
       fms_assignment_version: assignmentVersion,
+      ...(fmsMessageId !== undefined ? { fms_message_id: fmsMessageId } : {}),
     });
   }
 

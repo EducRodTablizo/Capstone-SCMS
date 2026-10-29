@@ -92,7 +92,7 @@ class EmbeddedSubmissionsPostgresEngine {
     const normalized = sqlText.replace(/\s+/g, ' ').trim();
 
     // 1. DDL / Extensions / Connection test
-    if (/^(CREATE\s+(EXTENSION|TABLE|INDEX)|SELECT\s+1\b)/i.test(normalized)) {
+    if (/^(CREATE\s+(EXTENSION|TABLE|INDEX)|ALTER\s+TABLE|SELECT\s+1\b)/i.test(normalized)) {
       return { rows: [{ '?column?': 1 }], rowCount: 1 };
     }
 
@@ -140,11 +140,12 @@ class EmbeddedSubmissionsPostgresEngine {
     // 4. SUBMISSIONS INSERT
     if (/^INSERT\s+INTO\s+submissions/i.test(normalized)) {
       // Expected columns:
-      // (id, assignment_id, assignment_version, requirement_id, academic_term_id,
+      // (id, fms_message_id, assignment_id, assignment_version, requirement_id, academic_term_id,
       //  course_id, block_section_id, faculty_id, substitute_id, course_code,
       //  section_label, status, schedule, file_id, file_name, submitted_at, created_at, updated_at)
       const [
         id = randomUUID(),
+        fms_message_id = null,
         assignment_id = null,
         assignment_version = 1,
         requirement_id,
@@ -177,6 +178,7 @@ class EmbeddedSubmissionsPostgresEngine {
 
       const row = {
         id: id || randomUUID(),
+        fms_message_id: fms_message_id ?? null,
         assignment_id: assignment_id ?? null,
         assignment_version: Number(assignment_version ?? 1),
         fms_assignment_version: Number(assignment_version ?? 1),
@@ -264,6 +266,7 @@ class EmbeddedSubmissionsPostgresEngine {
           file_id,
           file_name,
           submitted_at,
+          fms_message_id,
           updated_at,
         ] = params;
         if (!VALID_STATUSES.has(status)) {
@@ -278,6 +281,7 @@ class EmbeddedSubmissionsPostgresEngine {
         updated.file_id = file_id !== undefined ? file_id : updated.file_id;
         updated.file_name = file_name !== undefined ? file_name : updated.file_name;
         updated.submitted_at = submitted_at !== undefined ? submitted_at : updated.submitted_at;
+        updated.fms_message_id = fms_message_id !== undefined ? fms_message_id : updated.fms_message_id;
         updated.updated_at = updated_at || new Date().toISOString();
       } else if (/SET\s+faculty_id\s*=\s*\$1/i.test(normalized)) {
         const [newFacultyId, versionBump, updatedAt] = params;
