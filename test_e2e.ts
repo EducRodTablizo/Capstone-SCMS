@@ -21,7 +21,20 @@ async function run() {
     console.log('[PASS] Requirements fetched. Status:', reqs.status);
 
     const subs = await axios.get(GATEWAY_URL + '/submissions', headers);
-    console.log('[PASS] Submissions fetched. Status:', subs.status);
+    console.log('[PASS] Submissions fetched. Status:', subs.status, '| Count:', subs.data.count);
+
+    const firstSubId = subs.data.data?.[0]?.id || 'a1111111-1111-4111-8111-111111111101';
+    const subDetail = await axios.get(GATEWAY_URL + '/submissions/' + firstSubId, headers);
+    console.log(
+      '[PASS] Specific submission fetched. Status:',
+      subDetail.status,
+      '| ID:',
+      subDetail.data.data.id,
+      '| Course:',
+      subDetail.data.data.course_code,
+      '| Status:',
+      subDetail.data.data.status
+    );
 
     const audit = await axios.get(GATEWAY_URL + '/audit-logs', headers);
     console.log('[PASS] Audit logs fetched. Status:', audit.status);

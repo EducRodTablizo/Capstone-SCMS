@@ -3,7 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { AppLayout } from './components/layout/AppLayout';
 import { LoginPage } from './pages/LoginPage';
-import { DashboardPage } from './pages/DashboardPage';
+import { LiveCompliancePage } from './pages/LiveCompliancePage';
+import { ReviewQueuePage } from './pages/ReviewQueuePage';
 import { RequirementsPage } from './pages/RequirementsPage';
 import { ProgramsPage } from './pages/ProgramsPage';
 import { CoursesPage } from './pages/CoursesPage';
@@ -36,8 +37,8 @@ const AppRoutes: React.FC = () => {
       >
         {/* Common Authenticated Routes */}
         <Route path="/" element={<Navigate to="/programs" replace />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/live-compliance" element={<DashboardPage />} />
+        <Route path="/dashboard" element={<LiveCompliancePage />} />
+        <Route path="/live-compliance" element={<LiveCompliancePage />} />
 
         {/* Academic Catalog Core (Sprint 1 & Sprint 2) */}
         <Route path="/programs" element={<ProgramsPage />} />
@@ -57,7 +58,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/ccms-feed" element={<CcmsFeedPage />} />
 
         {/* Submission & Review Routes */}
-        <Route path="/reviews" element={<DashboardPage />} />
+        <Route path="/reviews" element={<ReviewQueuePage />} />
         <Route path="/submit" element={<SyllabusUploadPage />} />
         <Route path="/submissions/new" element={<SyllabusUploadPage />} />
         <Route path="/submissions/:id/review" element={<SubmissionDetailPage />} />

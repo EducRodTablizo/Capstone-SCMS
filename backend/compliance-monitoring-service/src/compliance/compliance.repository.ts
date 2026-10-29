@@ -1,4 +1,3 @@
-import { pool } from '../config/db';
 import { ComplianceRecord, CanonicalStatus } from './compliance.entity';
 import { randomUUID } from 'crypto';
 
@@ -13,7 +12,7 @@ export class ComplianceRepository {
     const seedItems: Omit<ComplianceRecord, 'id' | 'created_at' | 'updated_at'>[] = [
       {
         assignment_id: 'asg-001',
-        requirement_id: 'req-2026-1t',
+        requirement_id: '22222222-2222-2222-2222-222222222222',
         term_id: '2026-1T',
         program_code: 'BSIT',
         course_code: 'INTE 401',
@@ -24,16 +23,16 @@ export class ComplianceRepository {
         academic_rank: 'Associate Professor II',
         consultation_hours: 'Mon/Wed 1:00 PM - 3:00 PM',
         status: 'Approved',
-        submission_id: 'sub-001',
+        submission_id: 'a1111111-1111-4111-8111-111111111101',
         file_name: 'INTE_401_Syllabus.pdf',
-        version_label: 'v2',
+        version_label: 'v1',
         submitted_at: '2026-10-18T10:00:00.000Z',
         reviewed_at: '2026-10-19T14:30:00.000Z',
         due_date: '2026-11-15T23:59:59.000Z'
       },
       {
         assignment_id: 'asg-002',
-        requirement_id: 'req-2026-1t',
+        requirement_id: '22222222-2222-2222-2222-222222222222',
         term_id: '2026-1T',
         program_code: 'BSIT',
         course_code: 'INTE 302',
@@ -44,7 +43,7 @@ export class ComplianceRepository {
         academic_rank: 'Associate Professor II',
         consultation_hours: 'Mon/Wed 1:00 PM - 3:00 PM',
         status: 'Under Review',
-        submission_id: 'sub-002',
+        submission_id: 'a1111111-1111-4111-8111-111111111102',
         file_name: 'INTE_302_Syllabus.pdf',
         version_label: 'v1',
         submitted_at: '2026-10-21T08:00:00.000Z',
@@ -52,7 +51,7 @@ export class ComplianceRepository {
       },
       {
         assignment_id: 'asg-003',
-        requirement_id: 'req-2026-1t',
+        requirement_id: '22222222-2222-2222-2222-222222222222',
         term_id: '2026-1T',
         program_code: 'BSIT',
         course_code: 'COMP 201',
@@ -62,7 +61,7 @@ export class ComplianceRepository {
         faculty_name: 'Prof. Ana Santos',
         academic_rank: 'Assistant Professor I',
         status: 'Returned',
-        submission_id: 'sub-003',
+        submission_id: 'a1111111-1111-4111-8111-111111111103',
         file_name: 'COMP_201_Syllabus.pdf',
         version_label: 'v1',
         submitted_at: '2026-10-20T11:00:00.000Z',
@@ -70,7 +69,7 @@ export class ComplianceRepository {
       },
       {
         assignment_id: 'asg-004',
-        requirement_id: 'req-2026-1t',
+        requirement_id: '22222222-2222-2222-2222-222222222222',
         term_id: '2026-1T',
         program_code: 'BSIT',
         course_code: 'INTE 203',
@@ -80,15 +79,15 @@ export class ComplianceRepository {
         faculty_name: 'Prof. Carlos Reyes',
         academic_rank: 'Instructor I',
         status: 'Resubmitted',
-        submission_id: 'sub-004',
+        submission_id: 'a1111111-1111-4111-8111-111111111104',
         file_name: 'INTE_203_Revised.pdf',
-        version_label: 'v2',
+        version_label: 'v1',
         submitted_at: '2026-10-22T09:30:00.000Z',
         due_date: '2026-11-15T23:59:59.000Z'
       },
       {
         assignment_id: 'asg-005',
-        requirement_id: 'req-2026-1t',
+        requirement_id: '22222222-2222-2222-2222-222222222222',
         term_id: '2026-1T',
         program_code: 'BSIT',
         course_code: 'COMP 101',
@@ -97,12 +96,16 @@ export class ComplianceRepository {
         faculty_id: 'fac-prof-reyes',
         faculty_name: 'Prof. Carlos Reyes',
         academic_rank: 'Instructor I',
-        status: 'Not Submitted',
+        status: 'Submitted',
+        submission_id: 'a1111111-1111-4111-8111-111111111105',
+        file_name: 'COMP_101_Syllabus.pdf',
+        version_label: 'v1',
+        submitted_at: '2026-10-24T14:15:00.000Z',
         due_date: '2026-11-15T23:59:59.000Z'
       },
       {
         assignment_id: 'asg-006',
-        requirement_id: 'req-2026-1t',
+        requirement_id: '22222222-2222-2222-2222-222222222222',
         term_id: '2026-1T',
         program_code: 'BSBA-HRM',
         course_code: 'HRMG 201',
@@ -112,7 +115,7 @@ export class ComplianceRepository {
         faculty_name: 'Prof. Elena Gomez',
         academic_rank: 'Associate Professor I',
         status: 'Approved',
-        submission_id: 'sub-006',
+        submission_id: 'a1111111-1111-4111-8111-111111111106',
         file_name: 'HRMG_201_Syllabus.docx',
         version_label: 'v1',
         submitted_at: '2026-10-17T15:00:00.000Z',
@@ -120,7 +123,7 @@ export class ComplianceRepository {
       },
       {
         assignment_id: 'asg-007',
-        requirement_id: 'req-2026-1t',
+        requirement_id: '22222222-2222-2222-2222-222222222222',
         term_id: '2026-1T',
         program_code: 'BSBA-HRM',
         course_code: 'HRMG 301',
@@ -130,11 +133,12 @@ export class ComplianceRepository {
         faculty_name: 'Prof. Elena Gomez',
         academic_rank: 'Associate Professor I',
         status: 'Overdue',
-        due_date: '2026-10-10T23:59:59.000Z' // Past deadline
+        submission_id: 'a1111111-1111-4111-8111-111111111107',
+        due_date: '2026-10-10T23:59:59.000Z'
       },
       {
         assignment_id: 'asg-009',
-        requirement_id: 'req-2026-1t',
+        requirement_id: '22222222-2222-2222-2222-222222222222',
         term_id: '2026-1T',
         program_code: 'BSIT',
         course_code: 'COMP 102',
@@ -144,26 +148,14 @@ export class ComplianceRepository {
         faculty_name: 'Prof. Carlos Reyes',
         academic_rank: 'Instructor I',
         status: 'Not Submitted',
+        submission_id: 'a1111111-1111-4111-8111-111111111108',
         due_date: '2026-10-15T23:59:59.000Z'
-      },
-      {
-        assignment_id: 'asg-008',
-        requirement_id: 'req-2026-1t',
-        term_id: '2026-1T',
-        program_code: 'BSENTREP',
-        course_code: 'ENTR 101',
-        course_title: 'The Entrepreneurial Mind',
-        section_label: 'BSENT 1-1',
-        faculty_id: 'fac-unassigned',
-        faculty_name: 'Unassigned Teaching Load',
-        status: 'Unassigned',
-        due_date: '2026-11-15T23:59:59.000Z'
       }
     ];
 
     const now = new Date().toISOString();
     for (const item of seedItems) {
-      const id = randomUUID();
+      const id = item.submission_id || randomUUID();
       this.fallbackStore.set(id, {
         id,
         ...item,
