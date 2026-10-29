@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Lock, Search, Filter, Calendar, CheckCircle2, Clock } from 'lucide-react';
+import { Shield, Lock, Search, Filter } from 'lucide-react';
 import { auditLogService, AuditLogItem } from '../services/auditLogService';
+
+const formatAuditValue = (value: unknown): string => {
+  if (value === null || value === undefined || value === '') {
+    return '-';
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+  return String(value);
+};
 
 export const AuditLogPage: React.FC = () => {
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
@@ -18,49 +28,35 @@ export const AuditLogPage: React.FC = () => {
       const res = await auditLogService.getLogs({
         actionType: actionFilter || undefined
       });
-      if (res.data) {
+      if (res && Array.isArray(res.data)) {
         setLogs(res.data);
+      } else if (Array.isArray(res)) {
+        setLogs(res);
+      } else {
+        setLogs([]);
       }
     } catch {
-      // Mock fallback data if service offline
-      setLogs([
-        {
-          id: 'log-001',
-          actorId: 'usr-001',
-          actorName: 'Dr. Maria Santos',
-          actorRole: 'ACADEMIC_HEAD',
-          actionType: 'REQUIREMENT_PUBLISHED',
-          entityName: 'REQUIREMENT',
-          entityId: 'req-2026-1s',
-          details: 'Published 2026-1S OBTL syllabus requirement quota for BSIT',
-          clientIp: '127.0.0.1',
-          createdAt: new Date(Date.now() - 3600000).toISOString()
-        },
-        {
-          id: 'log-002',
-          actorId: 'usr-002',
-          actorName: 'Prof. Juan Dela Cruz',
-          actorRole: 'FACULTY_STAFF',
-          actionType: 'SYLLABUS_SUBMITTED',
-          entityName: 'SUBMISSION',
-          entityId: 'sub-001',
-          details: 'Uploaded INTE_401_Syllabus.pdf for BSIT 4-1',
-          clientIp: '127.0.0.1',
-          createdAt: new Date().toISOString()
-        }
-      ]);
+      setLogs([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredLogs = logs.filter(log => {
+  const filteredLogs = logs.filter((log) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
+    const actor = String(log.actorEmail || log.actorName || log.actorId || '').toLowerCase();
+    const action = String(log.actionType || log.action || '').toLowerCase();
+    const entity = String(log.entityName || '').toLowerCase();
+    const detailsStr = formatAuditValue(log.details).toLowerCase();
+    const newValueStr = formatAuditValue(log.newValue).toLowerCase();
+
     return (
-      log.actorName.toLowerCase().includes(q) ||
-      log.actionType.toLowerCase().includes(q) ||
-      (log.details && log.details.toLowerCase().includes(q))
+      actor.includes(q) ||
+      action.includes(q) ||
+      entity.includes(q) ||
+      detailsStr.includes(q) ||
+      newValueStr.includes(q)
     );
   });
 
@@ -77,7 +73,7 @@ export const AuditLogPage: React.FC = () => {
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Authoritative, tamper-evident audit trail for PUPQC campus academic operations (ISO 27001 & RA 10173 compliant).
+            Authoritative, tamper-evident audit trail for PUPQC campus academic operations (ISO 27001 &amp; RA 10173 compliant).
           </p>
         </div>
 
@@ -93,7 +89,7 @@ export const AuditLogPage: React.FC = () => {
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
-            placeholder="Search by actor or details..."
+            placeholder="Search by actor, action, or details..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full text-xs pl-9 pr-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#580000]"
@@ -110,9 +106,11 @@ export const AuditLogPage: React.FC = () => {
             <option value="">All Action Types</option>
             <option value="SYLLABUS_SUBMITTED">SYLLABUS_SUBMITTED</option>
             <option value="SYLLABUS_RESUBMITTED">SYLLABUS_RESUBMITTED</option>
+            <option value="SYLLABUS_UNDER_REVIEW">SYLLABUS_UNDER_REVIEW</option>
             <option value="SYLLABUS_APPROVED">SYLLABUS_APPROVED</option>
             <option value="SYLLABUS_RETURNED">SYLLABUS_RETURNED</option>
             <option value="REQUIREMENT_PUBLISHED">REQUIREMENT_PUBLISHED</option>
+            <option value="CREATE_TEST">CREATE_TEST</option>
           </select>
         </div>
       </div>
@@ -124,46 +122,83 @@ export const AuditLogPage: React.FC = () => {
             <thead className="bg-slate-100 text-slate-700 uppercase font-semibold">
               <tr>
                 <th className="px-4 py-3">Timestamp (UTC)</th>
-                <th className="px-4 py-3">Actor & Role</th>
+                <th className="px-4 py-3">Actor &amp; Role</th>
                 <th className="px-4 py-3">Action Type</th>
                 <th className="px-4 py-3">Target Entity</th>
-                <th className="px-4 py-3">Audit Details</th>
+                <th className="px-4 py-3">New Value / Details</th>
+                <th className="px-4 py-3">SHA-256 Chain Hash</th>
                 <th className="px-4 py-3">Client IP</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {filteredLogs.length === 0 ? (
+              {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                    Loading immutable audit ledger...
+                  </td>
+                </tr>
+              ) : filteredLogs.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
                     No matching audit records found.
                   </td>
                 </tr>
               ) : (
-                filteredLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
-                      {new Date(log.createdAt).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="font-semibold text-slate-800">{log.actorName}</p>
-                      <span className="text-[10px] text-slate-400 uppercase">{log.actorRole}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
-                        {log.actionType}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-[11px] text-slate-700">
-                      {log.entityName}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {log.details || 'N/A'}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-[11px] text-slate-400">
-                      {log.clientIp}
-                    </td>
-                  </tr>
-                ))
+                filteredLogs.map((log, index) => {
+                  const actorDisplay = String(
+                    log.actorEmail || log.actorName || log.actorId || 'unknown@pup.edu.ph'
+                  );
+                  const roleDisplay = String(log.actorRole || 'FACULTY_STAFF');
+                  const actionDisplay = String(log.actionType || log.action || 'UNKNOWN_ACTION');
+                  const entityDisplay = `${String(log.entityName || '-')}${
+                    log.entityId ? ` (${String(log.entityId)})` : ''
+                  }`;
+                  const newValueDisplay = log.newValue
+                    ? JSON.stringify(log.newValue)
+                    : log.details
+                    ? typeof log.details === 'object'
+                      ? JSON.stringify(log.details)
+                      : String(log.details)
+                    : log.oldValue || log.previousValue
+                    ? JSON.stringify(log.oldValue || log.previousValue)
+                    : '-';
+                  const hashDisplay = log.current_hash ? String(log.current_hash) : '-';
+
+                  return (
+                    <tr key={log.id || `audit-${index}`} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                        {log.createdAt ? new Date(log.createdAt).toLocaleString() : '-'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-slate-800">{actorDisplay}</p>
+                        <span className="text-[10px] text-slate-400 uppercase">{roleDisplay}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
+                          {actionDisplay}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-[11px] text-slate-700">
+                        {entityDisplay}
+                      </td>
+                      <td
+                        className="px-4 py-3 font-mono text-[11px] text-slate-700 max-w-xs truncate"
+                        title={newValueDisplay}
+                      >
+                        {newValueDisplay}
+                      </td>
+                      <td
+                        className="px-4 py-3 font-mono text-[11px] text-emerald-700 max-w-[140px] truncate"
+                        title={hashDisplay}
+                      >
+                        {hashDisplay !== '-' ? `${hashDisplay.slice(0, 12)}...` : '-'}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-[11px] text-slate-400">
+                        {String(log.clientIp || '127.0.0.1')}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

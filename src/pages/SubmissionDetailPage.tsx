@@ -336,6 +336,9 @@ export const SubmissionDetailPage: React.FC = () => {
   const isReturned = submission.status === 'Returned';
   const isUnderReview = submission.status === 'Under Review';
   const isApproved = submission.status === 'Approved';
+  const canMoveToUnderReview =
+    submission.status === 'Submitted' || submission.status === 'Resubmitted';
+  const isNotSubmitted = submission.status === 'Not Submitted';
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12">
@@ -423,7 +426,7 @@ export const SubmissionDetailPage: React.FC = () => {
             </>
           )}
 
-          {!isUnderReview && !isApproved && (
+          {canMoveToUnderReview && (
             <Button
               onClick={async () => {
                 if (!id) return;
@@ -444,6 +447,19 @@ export const SubmissionDetailPage: React.FC = () => {
               <FileCheck className="w-3.5 h-3.5 mr-1" />
               <span>Move to Under Review</span>
             </Button>
+          )}
+
+          {isNotSubmitted && (
+            <span className="inline-block" title="Waiting for faculty submission.">
+              <Button
+                disabled
+                title="Waiting for faculty submission."
+                className="bg-slate-200 text-slate-500 text-xs font-semibold px-4 py-2 flex items-center space-x-1.5 cursor-not-allowed opacity-75"
+              >
+                <FileCheck className="w-3.5 h-3.5 mr-1" />
+                <span>Move to Under Review</span>
+              </Button>
+            </span>
           )}
 
           {isApproved && (
