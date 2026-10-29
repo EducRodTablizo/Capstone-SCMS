@@ -15,7 +15,9 @@ import { Button } from '../components/ui/button';
 import { useAuth } from '../auth/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../services/apiClient';
-import { complianceService } from '../services/complianceService';
+import { complianceService, ComplianceMetricsData } from '../services/complianceService';
+import { Program } from '../services/programService';
+import { AcademicTerm } from '../services/calendarService';
 
 export interface LiveSubmissionRecord {
   id: string;
@@ -54,6 +56,9 @@ export const LiveCompliancePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   const [submissions, setSubmissions] = useState<LiveSubmissionRecord[]>([]);
+  const [metrics, setMetrics] = useState<ComplianceMetricsData | null>(null);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [terms, setTerms] = useState<AcademicTerm[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [lastSyncTime, setLastSyncTime] = useState<string>(new Date().toLocaleTimeString());
   const [exportNotice, setExportNotice] = useState<string | null>(null);
@@ -73,40 +78,60 @@ export const LiveCompliancePage: React.FC = () => {
     return valid.includes(formatted) ? (formatted as ComplianceStatus) : 'submitted';
   };
 
-  const loadSubmissions = useCallback(async () => {
+  const loadComplianceData = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get<{
-        success: boolean;
-        count: number;
-        data: LiveSubmissionRecord[];
-      }>('/submissions');
-      const list = Array.isArray(response?.data)
-        ? response.data
-        : Array.isArray(response)
-          ? (response as unknown as LiveSubmissionRecord[])
-          : [];
-      setSubmissions(list);
+      const [subRes, progRes, termRes, metricsRes] = await Promise.allSettled([
+        apiClient.get<{ success: boolean; count: number; data: LiveSubmissionRecord[] }>(
+          '/submissions'
+        ),
+        apiClient.get<{ data: Program[] }>('/programs'),
+        apiClient.get<{ data: AcademicTerm[] }>('/terms'),
+        apiClient.get<{ data: ComplianceMetricsData }>('/compliance/metrics'),
+      ]);
+
+      if (subRes.status === 'fulfilled') {
+        const response = subRes.value;
+        const list = Array.isArray(response?.data)
+          ? response.data
+          : Array.isArray(response)
+            ? (response as unknown as LiveSubmissionRecord[])
+            : [];
+        setSubmissions(list);
+      }
+
+      if (progRes.status === 'fulfilled' && Array.isArray(progRes.value?.data)) {
+        setPrograms(progRes.value.data);
+      }
+
+      if (termRes.status === 'fulfilled' && Array.isArray(termRes.value?.data)) {
+        setTerms(termRes.value.data);
+      }
+
+      if (metricsRes.status === 'fulfilled' && metricsRes.value?.data) {
+        setMetrics(metricsRes.value.data);
+      }
+
       setLastSyncTime(new Date().toLocaleTimeString());
     } catch (err: any) {
-      console.error('Failed to load live submissions:', err.message);
+      console.error('Failed to load live compliance data:', err.message);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadSubmissions();
-  }, [loadSubmissions]);
+    loadComplianceData();
+  }, [loadComplianceData]);
 
   useEffect(() => {
     const unsubscribe = complianceService.subscribeToComplianceUpdates((event) => {
       if (event.type === 'STATUS_UPDATED' || event.type === 'METRICS_REFRESHED') {
-        loadSubmissions();
+        loadComplianceData();
       }
     });
     return () => unsubscribe();
-  }, [loadSubmissions]);
+  }, [loadComplianceData]);
 
   const handleExportCsv = () => {
     const url = complianceService.getExportCsvUrl(
@@ -124,7 +149,7 @@ export const LiveCompliancePage: React.FC = () => {
     const url = complianceService.getExportPdfUrl(
       selectedTerm === 'ALL' ? undefined : selectedTerm,
       selectedProgram === 'ALL' ? undefined : selectedProgram,
-      user?.name || 'Dr. Maria Santos'
+      user?.name
     );
     window.open(url, '_blank');
     setExportNotice(
@@ -170,7 +195,9 @@ export const LiveCompliancePage: React.FC = () => {
   const activeSubmittedCount =
     counts.submitted + counts.under_review + counts.returned + counts.resubmitted + counts.approved;
   const complianceRate =
-    totalCount > 0 ? parseFloat(((counts.approved / totalCount) * 100).toFixed(1)) : 0;
+    totalCount > 0
+      ? parseFloat(((counts.approved / totalCount) * 100).toFixed(1))
+      : metrics?.compliance_rate ?? 0;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -201,7 +228,7 @@ export const LiveCompliancePage: React.FC = () => {
             <span>Live Sync Active (PostgreSQL sms_submissions)</span>
           </div>
           <button
-            onClick={() => loadSubmissions()}
+            onClick={() => loadComplianceData()}
             className="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition-colors"
             title="Manual Refresh"
           >
@@ -330,8 +357,11 @@ export const LiveCompliancePage: React.FC = () => {
               className="text-xs font-semibold border border-slate-300 rounded-lg px-2.5 py-1.5 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#580000]"
             >
               <option value="ALL">All Academic Terms</option>
-              <option value="2026-1S">A.Y. 2026-2027 1st Semester (2026-1S)</option>
-              <option value="2026-2S">A.Y. 2026-2027 2nd Semester (2026-2S)</option>
+              {terms.map((t) => (
+                <option key={t.term_code} value={t.term_code}>
+                  {t.academic_year} {t.semester || t.semester_label || ''} ({t.term_code})
+                </option>
+              ))}
             </select>
           </div>
 
@@ -343,9 +373,11 @@ export const LiveCompliancePage: React.FC = () => {
               className="text-xs font-semibold border border-slate-300 rounded-lg px-2.5 py-1.5 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#580000]"
             >
               <option value="ALL">All Academic Programs</option>
-              <option value="BSIT">BS Information Technology (BSIT)</option>
-              <option value="BSBA">BSBA Human Resource Mgt (BSBA)</option>
-              <option value="BSENT">BS Entrepreneurship (BSENTREP)</option>
+              {programs.map((p) => (
+                <option key={p.id} value={p.code}>
+                  {p.code} - {p.title}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -507,4 +539,3 @@ export const LiveCompliancePage: React.FC = () => {
 };
 
 export default LiveCompliancePage;
-

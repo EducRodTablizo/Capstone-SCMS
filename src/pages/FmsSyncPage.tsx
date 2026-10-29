@@ -1,12 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Shield, RefreshCw, UserCheck, ArrowRightLeft, CheckCircle, 
-  AlertTriangle, Database, Clock, Send, Radio, Server, RotateCcw 
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Shield,
+  RefreshCw,
+  UserCheck,
+  ArrowRightLeft,
+  CheckCircle,
+  AlertTriangle,
+  Send,
+  Radio,
+  RotateCcw,
 } from 'lucide-react';
+import { apiClient } from '../services/apiClient';
 import { submissionService } from '../services/submissionService';
 import { complianceService } from '../services/complianceService';
+import { Course } from '../services/courseService';
+import { BlockSection } from '../services/blockSectionService';
 
-interface MockFacultyProfile {
+interface FmsFacultyProfile {
   id: string;
   name: string;
   email: string;
@@ -17,37 +27,40 @@ interface MockFacultyProfile {
   advisory_notice?: string;
 }
 
-const PRESET_FACULTY = [
-  { id: 'fac-1092', name: 'Asst. Prof. Juan Dela Cruz' },
-  { id: 'fac-prof-donayre', name: 'Prof. Juan Donayre' },
-  { id: 'fac-prof-santos', name: 'Dr. Maria Santos' }
-];
-
 export const FmsSyncPage: React.FC = () => {
-  const [selectedFacultyId, setSelectedFacultyId] = useState(PRESET_FACULTY[0].id);
-  const [profile, setProfile] = useState<MockFacultyProfile | null>(null);
-  const [lookupLoading, setLookupLoading] = useState(false);
+  const [facultyList, setFacultyList] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedFacultyId, setSelectedFacultyId] = useState<string>('');
+  const [profile, setProfile] = useState<FmsFacultyProfile | null>(null);
+  const [lookupLoading, setLookupLoading] = useState<boolean>(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
   const [activeTier, setActiveTier] = useState<string>('WARM_CACHE');
   const [reconcileNotice, setReconcileNotice] = useState<string | null>(null);
 
+  // Dynamic Catalog Lists
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [sections, setSections] = useState<BlockSection[]>([]);
+
   // Inbound simulation form state
   const [simAction, setSimAction] = useState<'REASSIGN' | 'SUBSTITUTE' | 'WITHDRAW'>('REASSIGN');
-  const [courseCode, setCourseCode] = useState('INTE 401');
-  const [sectionLabel, setSectionLabel] = useState('BSIT 4-1');
-  const [newFacultyId, setNewFacultyId] = useState('fac-prof-donayre');
-  const [newFacultyName, setNewFacultyName] = useState('Prof. Juan Donayre');
-  const [reason, setReason] = useState('Department faculty load rebalancing');
-  const [simLoading, setSimLoading] = useState(false);
+  const [courseCode, setCourseCode] = useState<string>('');
+  const [sectionLabel, setSectionLabel] = useState<string>('');
+  const [newFacultyId, setNewFacultyId] = useState<string>('');
+  const [newFacultyName, setNewFacultyName] = useState<string>('');
+  const [reason, setReason] = useState<string>('');
+  const [simLoading, setSimLoading] = useState<boolean>(false);
   const [simResult, setSimResult] = useState<any>(null);
 
   // Outbound Catalog Webhook state (SMS-027)
   const [webhookLogs, setWebhookLogs] = useState<any[]>([]);
-  const [dispatchLoading, setDispatchLoading] = useState(false);
+  const [dispatchLoading, setDispatchLoading] = useState<boolean>(false);
 
-  const fetchProfile = async (id: string) => {
+  const fetchProfile = useCallback(async (id: string) => {
+    if (!id) return;
     setLookupLoading(true);
+    setLookupError(null);
     try {
-      const data = await complianceService.getFacultyProfileWithFallback(id);
+      const res = await apiClient.get<{ data: any }>(`/integrations/fms/profile/${id}`);
+      const data = res.data || res;
       setProfile({
         id: data.faculty_id,
         name: data.display_name,
@@ -56,54 +69,127 @@ export const FmsSyncPage: React.FC = () => {
         department: data.department,
         consultation_hours: data.consultation_hours,
         source: data.cache_state,
-        advisory_notice: data.advisory_notice
+        advisory_notice: data.advisory_notice,
       });
       setActiveTier(data.cache_state);
-    } catch {
-      setProfile({
-        id,
-        name: 'Asst. Prof. Juan Dela Cruz',
-        email: `${id}@pup.edu.ph`,
-        rank: 'Assistant Professor I',
-        department: 'Department of Information Technology',
-        consultation_hours: 'Mon/Wed 1:00 PM - 3:00 PM (AVR)',
-        source: 'WARM_CACHE'
-      });
+    } catch (err: any) {
+      setProfile(null);
+      setLookupError(err.message || 'Failed to fetch faculty profile from FMS integration endpoint.');
     } finally {
       setLookupLoading(false);
     }
-  };
+  }, []);
 
-  const loadWebhookLogs = async () => {
+  const loadWebhookLogs = useCallback(async () => {
     try {
-      const logs = await complianceService.getCatalogWebhookLogs();
-      setWebhookLogs(logs);
+      const res = await apiClient.get<{ data: any[] }>('/catalog/webhooks/fms/logs');
+      setWebhookLogs(res.data || []);
     } catch {
-      // fallback
+      setWebhookLogs([]);
     }
-  };
+  }, []);
+
+  const loadInitialFmsData = useCallback(async () => {
+    try {
+      const [subsRes, fixturesRes, coursesRes, sectionsRes] = await Promise.allSettled([
+        apiClient.get<{ data: any[] }>('/submissions'),
+        apiClient.get<{ fixtures: any }>('/integrations/fixtures/catalog'),
+        apiClient.get<{ data: Course[] }>('/courses'),
+        apiClient.get<{ data: BlockSection[] }>('/block-sections'),
+      ]);
+
+      const discoveredIds = new Set<string>();
+      if (fixturesRes.status === 'fulfilled' && fixturesRes.value?.fixtures?.faculty?.id) {
+        discoveredIds.add(fixturesRes.value.fixtures.faculty.id);
+      }
+      if (subsRes.status === 'fulfilled' && Array.isArray(subsRes.value?.data)) {
+        for (const sub of subsRes.value.data) {
+          if (sub.faculty_id && sub.faculty_id !== 'UNASSIGNED') {
+            discoveredIds.add(sub.faculty_id);
+          }
+        }
+      }
+
+      const idsArray = Array.from(discoveredIds);
+      const loadedProfiles: Array<{ id: string; name: string }> = [];
+      for (const fId of idsArray) {
+        try {
+          const profRes = await apiClient.get<{ data: any }>(`/integrations/fms/profile/${fId}`);
+          const pData = profRes.data || profRes;
+          loadedProfiles.push({
+            id: fId,
+            name: pData?.display_name || fId,
+          });
+        } catch {
+          loadedProfiles.push({ id: fId, name: fId });
+        }
+      }
+
+      setFacultyList(loadedProfiles);
+      if (loadedProfiles.length > 0) {
+        setSelectedFacultyId((prev) => prev || loadedProfiles[0].id);
+        const secondFaculty = loadedProfiles[1] || loadedProfiles[0];
+        setNewFacultyId((prev) => prev || secondFaculty.id);
+        setNewFacultyName((prev) => prev || secondFaculty.name);
+      }
+
+      if (coursesRes.status === 'fulfilled' && Array.isArray(coursesRes.value?.data)) {
+        const cList = coursesRes.value.data;
+        setCourses(cList);
+        if (cList.length > 0) {
+          setCourseCode((prev) => prev || cList[0].course_code);
+        }
+      }
+
+      if (sectionsRes.status === 'fulfilled' && Array.isArray(sectionsRes.value?.data)) {
+        const sList = sectionsRes.value.data;
+        setSections(sList);
+        if (sList.length > 0) {
+          setSectionLabel((prev) => prev || sList[0].display_label);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load initial FMS integration data:', err);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchProfile(selectedFacultyId);
+    loadInitialFmsData();
     loadWebhookLogs();
-  }, [selectedFacultyId]);
+  }, [loadInitialFmsData, loadWebhookLogs]);
+
+  useEffect(() => {
+    if (selectedFacultyId) {
+      fetchProfile(selectedFacultyId);
+    }
+  }, [selectedFacultyId, fetchProfile]);
 
   const handleSimulateTier = async (tier: string | null) => {
     try {
       await complianceService.simulateResilienceTier('FMS', tier);
-      await fetchProfile(selectedFacultyId);
-      setReconcileNotice(tier ? `FMS Cache Tier simulated as: ${tier} (SMS-020)` : 'FMS Cache Tier reset to live WARM_CACHE.');
+      if (selectedFacultyId) {
+        await fetchProfile(selectedFacultyId);
+      }
+      setReconcileNotice(
+        tier
+          ? `FMS Cache Tier simulated as: ${tier} (SMS-020)`
+          : 'FMS Cache Tier reset to live WARM_CACHE.'
+      );
       setTimeout(() => setReconcileNotice(null), 5000);
-    } catch {
-      // fallback
+    } catch (err: any) {
+      setReconcileNotice(err.message || 'Failed to switch FMS cache tier.');
     }
   };
 
   const handleReconcile = async () => {
     try {
       const res = await complianceService.reconcileFms();
-      await fetchProfile(selectedFacultyId);
-      setReconcileNotice(`Manual operator reconciliation successful: ${res.message} (Joint Rehearsal Rule 9)`);
+      if (selectedFacultyId) {
+        await fetchProfile(selectedFacultyId);
+      }
+      setReconcileNotice(
+        `Manual operator reconciliation successful: ${res.message} (Joint Rehearsal Rule 9)`
+      );
       setTimeout(() => setReconcileNotice(null), 6000);
     } catch (err: any) {
       setReconcileNotice(err.message);
@@ -113,17 +199,20 @@ export const FmsSyncPage: React.FC = () => {
   const handleDispatchCatalogWebhook = async (simulateFailure = false) => {
     setDispatchLoading(true);
     try {
+      const targetCourse = courses.find((c) => c.course_code === courseCode) || courses[0];
+      if (!targetCourse) return;
+
       await complianceService.dispatchCatalogWebhook({
         eventType: 'COURSE_UPDATED',
-        courseId: 'crs-inte401',
-        courseCode: 'INTE 401',
-        courseTitle: 'Information Assurance and Security 2',
-        creditUnits: 3,
-        lectureHours: 2,
-        labHours: 3,
-        requiresLaboratory: true,
-        status: 'ACTIVE',
-        simulateFailure
+        courseId: targetCourse.id,
+        courseCode: targetCourse.course_code,
+        courseTitle: targetCourse.title,
+        creditUnits: Number(targetCourse.credit_units),
+        lectureHours: Number(targetCourse.lecture_hours),
+        labHours: Number(targetCourse.lab_hours),
+        requiresLaboratory: Boolean(targetCourse.requires_lab),
+        status: targetCourse.status.toUpperCase(),
+        simulateFailure,
       });
       await loadWebhookLogs();
     } finally {
@@ -143,14 +232,15 @@ export const FmsSyncPage: React.FC = () => {
           sectionLabel,
           newFacultyId,
           newFacultyName,
-          reason
+          reason,
         });
         setSimResult({
           status: 'SUCCESS',
-          message: res.reassignmentType === 'APPROVED_ADOPTED'
-            ? 'Approved Syllabus Adopted: Target section has an approved syllabus. The new instructor has successfully adopted it (SMS-023 AC 2).'
-            : 'Unapproved Responsibility Shifted: Syllabus draft responsibility moved immediately to new instructor with immutable version bump (SMS-023 AC 1).',
-          details: res
+          message:
+            res.reassignmentType === 'APPROVED_ADOPTED'
+              ? 'Approved Syllabus Adopted: Target section has an approved syllabus. The new instructor has successfully adopted it (SMS-023 AC 2).'
+              : 'Unapproved Responsibility Shifted: Syllabus draft responsibility moved immediately to new instructor with immutable version bump (SMS-023 AC 1).',
+          details: res,
         });
       } else if (simAction === 'SUBSTITUTE') {
         const res = await submissionService.assignSubstitute({
@@ -158,29 +248,31 @@ export const FmsSyncPage: React.FC = () => {
           sectionLabel,
           substituteId: newFacultyId,
           substituteName: newFacultyName,
-          reason
+          reason,
         });
         setSimResult({
           status: 'SUCCESS',
-          message: 'Substitute Co-Instructor Assigned: Substitute granted co-instructor read-only access while primary instructor remains accountable (SMS-023 AC 4).',
-          details: res
+          message:
+            'Substitute Co-Instructor Assigned: Substitute granted co-instructor read-only access while primary instructor remains accountable (SMS-023 AC 4).',
+          details: res,
         });
       } else {
         const res = await submissionService.withdrawAssignment({
           courseCode,
           sectionLabel,
-          reason
+          reason,
         });
         setSimResult({
           status: 'SUCCESS',
-          message: 'Assignment Withdrawn: Status transitioned to UNASSIGNED without penalty or overdue calculation (SMS-023 AC 3).',
-          details: res
+          message:
+            'Assignment Withdrawn: Status transitioned to UNASSIGNED without penalty or overdue calculation (SMS-023 AC 3).',
+          details: res,
         });
       }
     } catch (err: any) {
       setSimResult({
         status: 'ERROR',
-        message: err.message || 'Webhook simulation failed.'
+        message: err.message || 'Webhook simulation failed.',
       });
     } finally {
       setSimLoading(false);
@@ -195,20 +287,28 @@ export const FmsSyncPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <Shield className="w-7 h-7 text-[#800000]" />
             <h1 className="text-2xl font-serif font-bold text-gray-900">
-              FMS Integration & 4-Tier Resilience Gateway
+              FMS Integration &amp; 4-Tier Resilience Gateway
             </h1>
           </div>
           <p className="text-sm text-gray-600 mt-1">
-            Faculty Management System (Group 2) • 4-Tier Offline Fallback, Reassignment Engine & Catalog Webhook Queue (SMS-016, SMS-020, SMS-023, SMS-027)
+            Faculty Management System (Group 2) • 4-Tier Offline Fallback, Reassignment Engine &amp; Catalog Webhook Queue (SMS-016, SMS-020, SMS-023, SMS-027)
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-            activeTier === 'WARM_CACHE' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
-            activeTier === 'EXPIRED_STALE' ? 'bg-amber-50 text-amber-900 border border-amber-300' :
-            'bg-purple-50 text-purple-900 border border-purple-200'
-          }`}>
-            <span className={`w-2 h-2 rounded-full ${activeTier === 'WARM_CACHE' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+          <span
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+              activeTier === 'WARM_CACHE'
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                : activeTier === 'EXPIRED_STALE'
+                  ? 'bg-amber-50 text-amber-900 border border-amber-300'
+                  : 'bg-purple-50 text-purple-900 border border-purple-200'
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                activeTier === 'WARM_CACHE' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+              }`}
+            />
             <span>FMS State: {activeTier.replace(/_/g, ' ')}</span>
           </span>
           <button
@@ -230,7 +330,12 @@ export const FmsSyncPage: React.FC = () => {
             <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{reconcileNotice}</span>
           </div>
-          <button onClick={() => setReconcileNotice(null)} className="font-bold text-xs text-emerald-800">Dismiss</button>
+          <button
+            onClick={() => setReconcileNotice(null)}
+            className="font-bold text-xs text-emerald-800"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
@@ -312,7 +417,7 @@ export const FmsSyncPage: React.FC = () => {
 
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">
-              Select or Enter FMS Faculty ID:
+              Select FMS Faculty Profile (Fetched from Backend API):
             </label>
             <div className="flex gap-2">
               <select
@@ -320,14 +425,16 @@ export const FmsSyncPage: React.FC = () => {
                 onChange={(e) => setSelectedFacultyId(e.target.value)}
                 className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800000]"
               >
-                {PRESET_FACULTY.map(f => (
-                  <option key={f.id} value={f.id}>{f.name} ({f.id})</option>
+                {facultyList.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name} ({f.id})
+                  </option>
                 ))}
               </select>
               <button
                 type="button"
                 onClick={() => fetchProfile(selectedFacultyId)}
-                disabled={lookupLoading}
+                disabled={lookupLoading || !selectedFacultyId}
                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#800000] text-white text-xs font-semibold rounded-md hover:bg-[#600000] transition-colors"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${lookupLoading ? 'animate-spin' : ''}`} />
@@ -336,13 +443,21 @@ export const FmsSyncPage: React.FC = () => {
             </div>
           </div>
 
+          {lookupError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800">
+              {lookupError}
+            </div>
+          )}
+
           {/* Advisory Notice Banner for Stale/Fixture Tier */}
           {profile?.advisory_notice && (
-            <div className={`p-3 rounded-lg border text-xs font-bold flex items-center gap-2 ${
-              profile.source === 'EXPIRED_STALE'
-                ? 'bg-amber-50 border-amber-300 text-amber-900'
-                : 'bg-purple-50 border-purple-300 text-purple-900'
-            }`}>
+            <div
+              className={`p-3 rounded-lg border text-xs font-bold flex items-center gap-2 ${
+                profile.source === 'EXPIRED_STALE'
+                  ? 'bg-amber-50 border-amber-300 text-amber-900'
+                  : 'bg-purple-50 border-purple-300 text-purple-900'
+              }`}
+            >
               <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>{profile.advisory_notice}</span>
             </div>
@@ -356,10 +471,15 @@ export const FmsSyncPage: React.FC = () => {
                   <h3 className="font-bold text-gray-900 text-sm">{profile.name}</h3>
                   <p className="text-xs text-gray-500 font-mono">{profile.id}</p>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                  profile.source === 'WARM_CACHE' ? 'bg-emerald-100 text-emerald-800' :
-                  profile.source === 'EXPIRED_STALE' ? 'bg-amber-100 text-amber-800' : 'bg-purple-100 text-purple-800'
-                }`}>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                    profile.source === 'WARM_CACHE'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : profile.source === 'EXPIRED_STALE'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-purple-100 text-purple-800'
+                  }`}
+                >
                   {profile.source.replace(/_/g, ' ')}
                 </span>
               </div>
@@ -398,13 +518,17 @@ export const FmsSyncPage: React.FC = () => {
 
           <form onSubmit={handleSimulateWebhook} className="space-y-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">FMS Event Type:</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                FMS Event Type:
+              </label>
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => setSimAction('REASSIGN')}
                   className={`py-1.5 px-2 text-xs font-semibold rounded border text-center transition-colors ${
-                    simAction === 'REASSIGN' ? 'bg-[#800000] text-white border-[#800000]' : 'bg-gray-50 text-gray-700 border-gray-200'
+                    simAction === 'REASSIGN'
+                      ? 'bg-[#800000] text-white border-[#800000]'
+                      : 'bg-gray-50 text-gray-700 border-gray-200'
                   }`}
                 >
                   Reassign
@@ -413,7 +537,9 @@ export const FmsSyncPage: React.FC = () => {
                   type="button"
                   onClick={() => setSimAction('SUBSTITUTE')}
                   className={`py-1.5 px-2 text-xs font-semibold rounded border text-center transition-colors ${
-                    simAction === 'SUBSTITUTE' ? 'bg-[#800000] text-white border-[#800000]' : 'bg-gray-50 text-gray-700 border-gray-200'
+                    simAction === 'SUBSTITUTE'
+                      ? 'bg-[#800000] text-white border-[#800000]'
+                      : 'bg-gray-50 text-gray-700 border-gray-200'
                   }`}
                 >
                   Substitute
@@ -422,7 +548,9 @@ export const FmsSyncPage: React.FC = () => {
                   type="button"
                   onClick={() => setSimAction('WITHDRAW')}
                   className={`py-1.5 px-2 text-xs font-semibold rounded border text-center transition-colors ${
-                    simAction === 'WITHDRAW' ? 'bg-[#800000] text-white border-[#800000]' : 'bg-gray-50 text-gray-700 border-gray-200'
+                    simAction === 'WITHDRAW'
+                      ? 'bg-[#800000] text-white border-[#800000]'
+                      : 'bg-gray-50 text-gray-700 border-gray-200'
                   }`}
                 >
                   Withdraw
@@ -433,23 +561,35 @@ export const FmsSyncPage: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Course Code</label>
-                <input
-                  type="text"
+                <select
                   value={courseCode}
                   onChange={(e) => setCourseCode(e.target.value)}
                   className="w-full rounded border border-gray-300 px-3 py-1.5 text-xs font-mono"
                   required
-                />
+                >
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.course_code}>
+                      {c.course_code} - {c.title}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Block Section</label>
-                <input
-                  type="text"
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Block Section
+                </label>
+                <select
                   value={sectionLabel}
                   onChange={(e) => setSectionLabel(e.target.value)}
                   className="w-full rounded border border-gray-300 px-3 py-1.5 text-xs font-mono"
                   required
-                />
+                >
+                  {sections.map((s) => (
+                    <option key={s.id} value={s.display_label}>
+                      {s.display_label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -459,13 +599,23 @@ export const FmsSyncPage: React.FC = () => {
                   <label className="block text-xs font-semibold text-gray-700 mb-1">
                     {simAction === 'SUBSTITUTE' ? 'Substitute ID' : 'New Faculty ID'}
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={newFacultyId}
-                    onChange={(e) => setNewFacultyId(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setNewFacultyId(val);
+                      const found = facultyList.find((f) => f.id === val);
+                      if (found) setNewFacultyName(found.name);
+                    }}
                     className="w-full rounded border border-gray-300 px-3 py-1.5 text-xs font-mono"
                     required
-                  />
+                  >
+                    {facultyList.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.id} ({f.name})
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">
@@ -488,6 +638,7 @@ export const FmsSyncPage: React.FC = () => {
                 type="text"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
+                placeholder="Enter official reason for assignment update..."
                 className="w-full rounded border border-gray-300 px-3 py-1.5 text-xs"
               />
             </div>
@@ -502,9 +653,13 @@ export const FmsSyncPage: React.FC = () => {
           </form>
 
           {simResult && (
-            <div className={`p-3 rounded border text-xs space-y-1.5 ${
-              simResult.status === 'SUCCESS' ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-rose-50 border-rose-200 text-rose-900'
-            }`}>
+            <div
+              className={`p-3 rounded border text-xs space-y-1.5 ${
+                simResult.status === 'SUCCESS'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  : 'bg-rose-50 border-rose-200 text-rose-900'
+              }`}
+            >
               <div className="flex items-center gap-1.5 font-bold">
                 <CheckCircle className="w-4 h-4 text-emerald-600" />
                 <span>FMS Event Verified</span>
@@ -521,7 +676,7 @@ export const FmsSyncPage: React.FC = () => {
           <div>
             <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
               <Send className="w-4 h-4 text-[#800000]" />
-              Outbound Catalog Change Webhook Dispatcher & Retry Queue (SMS-027)
+              Outbound Catalog Change Webhook Dispatcher &amp; Retry Queue (SMS-027)
             </h3>
             <p className="text-xs text-gray-500">
               When courses change in SCMS, outbound webhooks notify FMS with automatic 1m, 5m, 15m retry intervals.
@@ -571,19 +726,29 @@ export const FmsSyncPage: React.FC = () => {
                   <tr key={log.id} className="hover:bg-gray-50">
                     <td className="px-3 py-2 font-mono text-[11px] text-gray-500">{log.event_id}</td>
                     <td className="px-3 py-2 font-bold text-gray-800">{log.event_type}</td>
-                    <td className="px-3 py-2 font-semibold text-gray-700">{log.payload?.course_code}</td>
+                    <td className="px-3 py-2 font-semibold text-gray-700">
+                      {log.payload?.course_code}
+                    </td>
                     <td className="px-3 py-2">
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        log.status === 'DELIVERED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'
-                      }`}>
+                      <span
+                        className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          log.status === 'DELIVERED'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-amber-100 text-amber-900'
+                        }`}
+                      >
                         {log.status}
                       </span>
                     </td>
-                    <td className="px-3 py-2 font-mono">{log.attempt_count}/{log.max_attempts}</td>
+                    <td className="px-3 py-2 font-mono">
+                      {log.attempt_count}/{log.max_attempts}
+                    </td>
                     <td className="px-3 py-2 font-mono text-gray-500">
                       {log.next_retry_at ? new Date(log.next_retry_at).toLocaleTimeString() : 'N/A'}
                     </td>
-                    <td className="px-3 py-2 text-gray-500">{new Date(log.created_at).toLocaleTimeString()}</td>
+                    <td className="px-3 py-2 text-gray-500">
+                      {new Date(log.created_at).toLocaleTimeString()}
+                    </td>
                   </tr>
                 ))}
               </tbody>

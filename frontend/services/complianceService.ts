@@ -93,12 +93,21 @@ export interface CcmsPushLogItem {
 }
 
 export const complianceService = {
-  async getMetrics(params?: { term_id?: string; program_code?: string; faculty_id?: string }): Promise<ComplianceMetricsData> {
+  async getMetrics(params?: {
+    term_id?: string;
+    program_code?: string;
+    faculty_id?: string;
+  }): Promise<ComplianceMetricsData> {
     const body = await apiClient.get('/compliance/metrics', { params });
     return body.data;
   },
 
-  async getRecords(params?: { term_id?: string; program_code?: string; faculty_id?: string; status?: string }): Promise<ComplianceRecordItem[]> {
+  async getRecords(params?: {
+    term_id?: string;
+    program_code?: string;
+    faculty_id?: string;
+    status?: string;
+  }): Promise<ComplianceRecordItem[]> {
     const body = await apiClient.get('/compliance/records', { params });
     return body.data;
   },
@@ -112,23 +121,14 @@ export const complianceService = {
     return apiClient.post('/compliance/evaluate-overdue', { referenceDate });
   },
 
-  /**
-   * Export Compliance Matrix to CSV (SMS-037)
-   */
   getExportCsvUrl(term_id?: string, program_code?: string): string {
     return apiClient.buildUrl('/compliance/export/csv', { term_id, program_code });
   },
 
-  /**
-   * Export Compliance Matrix to PDF (SMS-037)
-   */
-  getExportPdfUrl(term_id?: string, program_code?: string, actor_name = 'Dr. Maria Santos'): string {
+  getExportPdfUrl(term_id?: string, program_code?: string, actor_name?: string): string {
     return apiClient.buildUrl('/compliance/export/pdf', { term_id, program_code, actor_name });
   },
 
-  /**
-   * Outbound CCMS Integration (SMS-019)
-   */
   async getCcmsSummary(termCode?: string): Promise<CcmsSummaryPayload> {
     const body = await apiClient.get('/compliance/ccms/summary', {
       params: { term_code: termCode },
@@ -136,7 +136,7 @@ export const complianceService = {
     return body.data;
   },
 
-  async pushCcmsSummary(actorName = 'Dr. Maria Santos'): Promise<CcmsPushLogItem> {
+  async pushCcmsSummary(actorName?: string): Promise<CcmsPushLogItem> {
     const body = await apiClient.post('/compliance/ccms/push', {
       trigger: 'MANUAL_ON_DEMAND',
       actorName,
@@ -149,9 +149,6 @@ export const complianceService = {
     return body.data || [];
   },
 
-  /**
-   * Real-Time WebSocket Connection (SMS-013)
-   */
   subscribeToComplianceUpdates(onEvent: (event: any) => void): () => void {
     let ws: WebSocket | null = null;
     let isClosed = false;
@@ -174,9 +171,7 @@ export const complianceService = {
           }
         };
 
-        ws.onerror = () => {
-          // Fallback or retry
-        };
+        ws.onerror = () => {};
 
         ws.onclose = () => {
           if (!isClosed) {
@@ -196,9 +191,6 @@ export const complianceService = {
     };
   },
 
-  /**
-   * Sprint 8 Resilience & Integration Methods (SMS-020, SMS-027, SMS-029, SMS-034)
-   */
   async getResilienceStatus(): Promise<any> {
     const body = await apiClient.get('/integrations/resilience/status');
     return body.data;
@@ -229,5 +221,10 @@ export const complianceService = {
 
   async dispatchCatalogWebhook(payload: any): Promise<any> {
     return apiClient.post('/catalog/webhooks/fms/dispatch', payload);
-  }
+  },
+
+  async getJointSeedFixtures(): Promise<any> {
+    const body = await apiClient.get('/integrations/fixtures/catalog');
+    return body.fixtures || body.data || body;
+  },
 };

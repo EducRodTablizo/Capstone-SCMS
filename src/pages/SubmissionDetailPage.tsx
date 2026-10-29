@@ -1,19 +1,33 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  ArrowLeft, CheckCircle2, RotateCcw, FileText, Download, 
-  History, AlertCircle, MessageSquare, ShieldAlert, 
-  Calendar, User, Layers, FileCheck, ExternalLink, Sparkles,
-  BookOpen, Eye, X, Printer
+import {
+  ArrowLeft,
+  CheckCircle2,
+  RotateCcw,
+  FileText,
+  Download,
+  History,
+  AlertCircle,
+  MessageSquare,
+  ShieldAlert,
+  Calendar,
+  User,
+  Layers,
+  FileCheck,
+  Sparkles,
+  BookOpen,
+  Eye,
+  X,
+  Printer,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { StatusBadge, ComplianceStatus } from '../components/ui/StatusBadge';
 import { useAuth } from '../auth/AuthContext';
-import { 
-  submissionService, 
-  SubmissionItem, 
-  ReviewDecisionItem, 
-  SubmissionVersionItem 
+import {
+  submissionService,
+  SubmissionItem,
+  ReviewDecisionItem,
+  SubmissionVersionItem,
 } from '../services/submissionService';
 
 export const SubmissionDetailPage: React.FC = () => {
@@ -40,7 +54,8 @@ export const SubmissionDetailPage: React.FC = () => {
   const [changeSummary, setChangeSummary] = useState<string>('');
   const [resubmitError, setResubmitError] = useState<string | null>(null);
   const [isResubmitExpanded, setIsResubmitExpanded] = useState<boolean>(false);
-  // Signatory State (SMS-035)
+
+  // Signatory State (SMS-035) - Loaded strictly from /api/v1/signatories
   const [signatories, setSignatories] = useState<{
     prepared_by_title: string;
     reviewed_by_name: string;
@@ -50,24 +65,27 @@ export const SubmissionDetailPage: React.FC = () => {
     approved_by_name: string;
     approved_by_title: string;
   }>({
-    prepared_by_title: 'Course Instructor / Faculty Member',
-    reviewed_by_name: 'Dr. Maria Santos',
-    reviewed_by_title: 'Academic Head, PUP Quezon City',
-    recommending_name: 'Assoc. Prof. Demetrio C. Quirino, Jr.',
-    recommending_title: 'Campus Director, PUP Quezon City Campus',
-    approved_by_name: 'Assoc. Prof. Anna Ruby P. Gapasin',
-    approved_by_title: 'Vice President for Campuses'
+    prepared_by_title: '',
+    reviewed_by_name: '',
+    reviewed_by_title: '',
+    recommending_name: '',
+    recommending_title: '',
+    approved_by_name: '',
+    approved_by_title: '',
   });
   const [isSignatoryModalOpen, setIsSignatoryModalOpen] = useState(false);
   const [signatoryForm, setSignatoryForm] = useState({ ...signatories });
 
   useEffect(() => {
-    submissionService.getSignatories().then(data => {
-      if (data) {
-        setSignatories(data);
-        setSignatoryForm(data);
-      }
-    }).catch(() => {});
+    submissionService
+      .getSignatories()
+      .then((data) => {
+        if (data) {
+          setSignatories(data);
+          setSignatoryForm(data);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleSaveSignatories = async (e: React.FormEvent) => {
@@ -89,8 +107,7 @@ export const SubmissionDetailPage: React.FC = () => {
     window.open(url, '_blank');
   };
 
-
-  // Document Inspection Preview State (Replaces alert popup with real viewer)
+  // Document Inspection Preview State
   const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
   const [previewData, setPreviewData] = useState<any | null>(null);
   const [previewLoading, setPreviewLoading] = useState<boolean>(false);
@@ -100,8 +117,14 @@ export const SubmissionDetailPage: React.FC = () => {
   const toBadgeStatus = (statusStr: string): ComplianceStatus => {
     const formatted = statusStr.toLowerCase().replace(/\s+/g, '_');
     const valid = [
-      'not_submitted', 'submitted', 'under_review', 'returned', 
-      'resubmitted', 'approved', 'overdue', 'unassigned'
+      'not_submitted',
+      'submitted',
+      'under_review',
+      'returned',
+      'resubmitted',
+      'approved',
+      'overdue',
+      'unassigned',
     ];
     return valid.includes(formatted) ? (formatted as ComplianceStatus) : 'submitted';
   };
@@ -124,7 +147,7 @@ export const SubmissionDetailPage: React.FC = () => {
             try {
               const updatedRes = await submissionService.openForReview(id, {
                 reviewerId: user?.id || 'reviewer_01',
-                reviewerName: user?.name || 'Department Chair'
+                reviewerName: user?.name || 'Department Chair',
               });
               if (updatedRes.data) {
                 setSubmission(updatedRes.data);
@@ -152,13 +175,16 @@ export const SubmissionDetailPage: React.FC = () => {
     const downloadUrl = submissionService.getFileDownloadUrl(id);
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.setAttribute('download', submission.file_name || `${submission.course_code}_Syllabus.docx`);
+    link.setAttribute(
+      'download',
+      submission.file_name || `${submission.course_code}_Syllabus.docx`
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Real Document Inspection Previewer (No dummy alert)
+  // Real Document Inspection Previewer driven by backend /submissions/:id/preview
   const handleInspectFile = async (verLabel?: string, fileName?: string) => {
     if (!id) return;
     setPreviewLoading(true);
@@ -167,50 +193,11 @@ export const SubmissionDetailPage: React.FC = () => {
       setPreviewData({
         ...data,
         version_label: verLabel || data.version_label,
-        file_name: fileName || data.file_name
+        file_name: fileName || data.file_name,
       });
       setIsPreviewOpen(true);
-    } catch {
-      // Fallback structured preview
-      setPreviewData({
-        submission_id: id,
-        course_code: submission?.course_code || 'INTE 401',
-        section_label: submission?.section_label || 'BSIT 4-1',
-        file_name: fileName || submission?.file_name || 'BSIT Syllabus Template.docx',
-        version_label: verLabel || 'v1',
-        status: submission?.status || 'Under Review',
-        submitted_at: submission?.submitted_at || new Date().toISOString(),
-        faculty_name: user?.name || 'Prof. Juan Donayre',
-        title: `${submission?.course_code || 'INTE 401'} - Official Outcomes-Based Course Syllabus`,
-        description: `This official course syllabus specifies the institutional competencies, weekly modular schedule, assessment methods, and required textbooks for ${submission?.course_code} (${submission?.section_label}) under the PUPQC Outcomes-Based Teaching and Learning (OBTL) standard.`,
-        clos: [
-          'CLO 1: Explain the theoretical concepts, models, and industry standards applicable to the subject matter.',
-          'CLO 2: Design and implement practical laboratory exercises aligned with real-world technical problems.',
-          'CLO 3: Evaluate security, ethics, and legal compliance principles governing software and business systems.',
-          'CLO 4: Deliver collaborative capstone presentations conforming to university academic rigor.'
-        ],
-        modules: [
-          { week: 'Week 1-2', topic: 'Institutional Orientation & Course Overview', hours: 6 },
-          { week: 'Week 3-5', topic: 'Core Theoretical Foundations & Architectural Design', hours: 9 },
-          { week: 'Week 6-8', topic: 'Laboratory Exercises & Applied Problem Sets', hours: 9 },
-          { week: 'Week 9', topic: 'Midterm Departmental Examination', hours: 3 },
-          { week: 'Week 10-14', topic: 'Advanced Practical Implementation & Lab Milestones', hours: 15 },
-          { week: 'Week 15-17', topic: 'Capstone Integration & Quality Compliance Review', hours: 9 },
-          { week: 'Week 18', topic: 'Final Comprehensive Examination & Course Defense', hours: 3 }
-        ],
-        grading_system: {
-          class_standing: '70% (Quizzes 30%, Laboratory Sets 20%, Projects/Outputs 20%)',
-          major_exams: '30% (Midterm Exam 15%, Final Exam 15%)',
-          passing_mark: '75.0% (PUP Numerical Grade 3.0)'
-        },
-        signatories: [
-          { role: 'Course Instructor', name: user?.name || 'Prof. Juan Donayre', status: 'Submitted' },
-          { role: 'Department Chairperson', name: 'Dr. Maria Santos', status: submission?.status === 'Approved' ? 'Approved' : 'Pending' },
-          { role: 'Academic Head', name: 'Dr. Maria Santos', status: submission?.status === 'Approved' ? 'Approved' : 'Pending' },
-          { role: 'Campus Director', name: 'Dr. Edgardo Delmo', status: submission?.status === 'Approved' ? 'Approved' : 'Pending' }
-        ]
-      });
-      setIsPreviewOpen(true);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to load syllabus document preview from backend.');
     } finally {
       setPreviewLoading(false);
     }
@@ -219,7 +206,11 @@ export const SubmissionDetailPage: React.FC = () => {
   // Handle Review Decision Submission (SCMS-010 AC 2 & AC 3)
   const handleOpenReviewModal = (decision: 'Approved' | 'Returned') => {
     setReviewDecision(decision);
-    setReviewComment(decision === 'Approved' ? 'Complied with university syllabus guidelines and course learning outcomes.' : '');
+    setReviewComment(
+      decision === 'Approved'
+        ? 'Complied with university syllabus guidelines and course learning outcomes.'
+        : ''
+    );
     setCommentError(null);
     setIsReviewModalOpen(true);
   };
@@ -229,7 +220,9 @@ export const SubmissionDetailPage: React.FC = () => {
 
     // SCMS-010 AC 3: Returned strictly requires explanatory comment
     if (reviewDecision === 'Returned' && (!reviewComment || reviewComment.trim().length === 0)) {
-      setCommentError('Please provide a mandatory explanatory comment detailing required revisions.');
+      setCommentError(
+        'Please provide a mandatory explanatory comment detailing required revisions.'
+      );
       return;
     }
 
@@ -240,7 +233,7 @@ export const SubmissionDetailPage: React.FC = () => {
         reviewerId: user?.id || 'acad_head_01',
         reviewerName: user?.name || 'Academic Evaluator',
         decision: reviewDecision,
-        comment: reviewComment.trim()
+        comment: reviewComment.trim(),
       });
 
       setSuccessMessage(
@@ -270,7 +263,9 @@ export const SubmissionDetailPage: React.FC = () => {
         return;
       }
       if (selected.size > MAX_FILE_SIZE) {
-        setResubmitError(`File size exceeds 25MB limit (${(selected.size / (1024 * 1024)).toFixed(1)}MB).`);
+        setResubmitError(
+          `File size exceeds 25MB limit (${(selected.size / (1024 * 1024)).toFixed(1)}MB).`
+        );
         setResubmitFile(null);
         return;
       }
@@ -289,14 +284,16 @@ export const SubmissionDetailPage: React.FC = () => {
     setResubmitError(null);
     try {
       await submissionService.resubmitSyllabus(id, {
-        facultyId: user?.id || submission?.faculty_id || 'fac_01',
-        facultyName: user?.name || 'Assigned Faculty',
+        facultyId: user?.id || submission?.faculty_id,
+        facultyName: user?.name,
         fileName: resubmitFile.name,
         fileSize: resubmitFile.size,
-        changeSummary: changeSummary.trim() || 'Revised syllabus addressing feedback'
+        changeSummary: changeSummary.trim() || 'Revised syllabus addressing feedback',
       });
 
-      setSuccessMessage('Revised version successfully submitted. Status updated to Resubmitted.');
+      setSuccessMessage(
+        'Revised version successfully submitted. Status updated to Resubmitted.'
+      );
       setResubmitFile(null);
       setChangeSummary('');
       setIsResubmitExpanded(false);
@@ -312,7 +309,9 @@ export const SubmissionDetailPage: React.FC = () => {
     return (
       <div className="max-w-6xl mx-auto py-12 text-center space-y-3">
         <div className="w-8 h-8 border-4 border-[#580000] border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-sm font-medium text-slate-600">Loading syllabus submission details...</p>
+        <p className="text-sm font-medium text-slate-600">
+          Loading syllabus submission details...
+        </p>
       </div>
     );
   }
@@ -332,7 +331,7 @@ export const SubmissionDetailPage: React.FC = () => {
     );
   }
 
-  const latestReturnReview = reviews.find(r => r.decision === 'Returned');
+  const latestReturnReview = reviews.find((r) => r.decision === 'Returned');
   const isReturned = submission.status === 'Returned';
   const isUnderReview = submission.status === 'Under Review';
   const isApproved = submission.status === 'Approved';
@@ -366,7 +365,7 @@ export const SubmissionDetailPage: React.FC = () => {
             <h4 className="font-bold text-sm">Action Successfully Completed</h4>
             <p className="text-xs mt-0.5">{successMessage}</p>
           </div>
-          <button 
+          <button
             onClick={() => setSuccessMessage(null)}
             className="text-xs text-emerald-700 hover:text-emerald-900 font-semibold"
           >
@@ -382,23 +381,32 @@ export const SubmissionDetailPage: React.FC = () => {
             <span className="px-2.5 py-0.5 text-xs font-bold bg-[#580000]/10 text-[#580000] rounded">
               {submission.course_code}
             </span>
-            <span className="text-xs text-slate-500 font-medium">Section {submission.section_label}</span>
+            <span className="text-xs text-slate-500 font-medium">
+              Section {submission.section_label}
+            </span>
           </div>
           <h1 className="text-2xl font-serif font-bold text-slate-900">
-            Syllabus Evaluation & Version Control
+            Syllabus Evaluation &amp; Version Control
           </h1>
           <p className="text-xs text-slate-500 flex items-center space-x-4 pt-1">
             <span className="flex items-center space-x-1">
               <User className="w-3.5 h-3.5 text-slate-400" />
-              <span>Faculty ID: <strong>{submission.faculty_id}</strong></span>
+              <span>
+                Faculty ID: <strong>{submission.faculty_id}</strong>
+              </span>
             </span>
             <span className="flex items-center space-x-1">
               <Calendar className="w-3.5 h-3.5 text-slate-400" />
-              <span>Last Submitted: {submission.submitted_at ? new Date(submission.submitted_at).toLocaleString() : 'N/A'}</span>
+              <span>
+                Last Submitted:{' '}
+                {submission.submitted_at ? new Date(submission.submitted_at).toLocaleString() : 'N/A'}
+              </span>
             </span>
             <span className="flex items-center space-x-1">
               <Layers className="w-3.5 h-3.5 text-slate-400" />
-              <span>Versions Logged: <strong>{versions.length}</strong></span>
+              <span>
+                Versions Logged: <strong>{versions.length}</strong>
+              </span>
             </span>
           </p>
         </div>
@@ -434,7 +442,7 @@ export const SubmissionDetailPage: React.FC = () => {
                   setActionLoading(true);
                   await submissionService.openForReview(id, {
                     reviewerId: user?.id || 'evaluator_01',
-                    reviewerName: user?.name || 'Department Chair'
+                    reviewerName: user?.name || 'Department Chair',
                   });
                   await loadData();
                 } finally {
@@ -507,7 +515,10 @@ export const SubmissionDetailPage: React.FC = () => {
                 <span>Upload Revised Syllabus (v{versions.length + 1})</span>
               </Button>
             ) : (
-              <form onSubmit={handleConfirmResubmission} className="bg-white p-5 rounded-lg border border-amber-300 space-y-4">
+              <form
+                onSubmit={handleConfirmResubmission}
+                className="bg-white p-5 rounded-lg border border-amber-300 space-y-4"
+              >
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-sm text-slate-900">
                     Upload Revision (Creates Version v{versions.length + 1})
@@ -539,7 +550,8 @@ export const SubmissionDetailPage: React.FC = () => {
                   />
                   {resubmitFile && (
                     <p className="text-xs text-emerald-700 font-semibold mt-1">
-                      Selected: {resubmitFile.name} ({(resubmitFile.size / (1024 * 1024)).toFixed(2)} MB)
+                      Selected: {resubmitFile.name} ({(resubmitFile.size / (1024 * 1024)).toFixed(2)}{' '}
+                      MB)
                     </p>
                   )}
                 </div>
@@ -594,7 +606,7 @@ export const SubmissionDetailPage: React.FC = () => {
             <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono font-bold text-slate-800 break-all">
-                  {submission.file_name || 'BSIT Syllabus Template.docx'}
+                  {submission.file_name || 'Not uploaded'}
                 </span>
                 <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-800 rounded">
                   v{versions.length > 0 ? versions[versions.length - 1].version_number : 1}
@@ -603,12 +615,13 @@ export const SubmissionDetailPage: React.FC = () => {
               <p className="text-[11px] text-slate-500">
                 Mode: <strong>{submission.submission_mode || 'FILE_UPLOAD'}</strong>
               </p>
-              
+
               <div className="pt-2 space-y-2">
                 <div className="flex flex-col sm:flex-row items-center gap-2">
                   <button
                     type="button"
                     onClick={() => handleInspectFile()}
+                    disabled={previewLoading}
                     className="w-full inline-flex items-center justify-center space-x-1.5 py-2 px-3 bg-[#580000] hover:bg-[#430000] text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
                   >
                     <Eye className="w-4 h-4" />
@@ -637,7 +650,7 @@ export const SubmissionDetailPage: React.FC = () => {
             </div>
           </div>
 
-                    {/* Signatory Authority Block Card (SMS-035) */}
+          {/* Signatory Authority Block Card (SMS-035) */}
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <h3 className="font-serif font-bold text-sm text-slate-900 flex items-center space-x-2">
@@ -658,24 +671,46 @@ export const SubmissionDetailPage: React.FC = () => {
 
             <div className="space-y-2 text-xs">
               <div className="p-2 bg-slate-50 rounded border border-slate-200">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">1. Prepared by (Faculty)</span>
-                <span className="font-bold text-slate-900">Prof. Juan Dela Cruz</span>
-                <span className="text-[11px] text-slate-500 block">{signatories.prepared_by_title}</span>
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                  1. Prepared by (Faculty)
+                </span>
+                <span className="font-bold text-slate-900">{submission.faculty_id}</span>
+                <span className="text-[11px] text-slate-500 block">
+                  {signatories.prepared_by_title || 'Course Instructor'}
+                </span>
               </div>
               <div className="p-2 bg-slate-50 rounded border border-slate-200">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">2. Reviewed & Checked by</span>
-                <span className="font-bold text-slate-900">{signatories.reviewed_by_name}</span>
-                <span className="text-[11px] text-slate-500 block">{signatories.reviewed_by_title}</span>
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                  2. Reviewed &amp; Checked by
+                </span>
+                <span className="font-bold text-slate-900">
+                  {signatories.reviewed_by_name || '—'}
+                </span>
+                <span className="text-[11px] text-slate-500 block">
+                  {signatories.reviewed_by_title || '—'}
+                </span>
               </div>
               <div className="p-2 bg-slate-50 rounded border border-slate-200">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">3. Recommending Approval</span>
-                <span className="font-bold text-slate-900">{signatories.recommending_name}</span>
-                <span className="text-[11px] text-slate-500 block">{signatories.recommending_title}</span>
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                  3. Recommending Approval
+                </span>
+                <span className="font-bold text-slate-900">
+                  {signatories.recommending_name || '—'}
+                </span>
+                <span className="text-[11px] text-slate-500 block">
+                  {signatories.recommending_title || '—'}
+                </span>
               </div>
               <div className="p-2 bg-slate-50 rounded border border-slate-200">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">4. Approved by</span>
-                <span className="font-bold text-slate-900">{signatories.approved_by_name}</span>
-                <span className="text-[11px] text-slate-500 block">{signatories.approved_by_title}</span>
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                  4. Approved by
+                </span>
+                <span className="font-bold text-slate-900">
+                  {signatories.approved_by_name || '—'}
+                </span>
+                <span className="text-[11px] text-slate-500 block">
+                  {signatories.approved_by_title || '—'}
+                </span>
               </div>
             </div>
           </div>
@@ -684,19 +719,21 @@ export const SubmissionDetailPage: React.FC = () => {
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
             <h3 className="font-serif font-bold text-sm text-slate-900 flex items-center space-x-2">
               <MessageSquare className="w-4 h-4 text-[#580000]" />
-              <span>Evaluation Comments & History</span>
+              <span>Evaluation Comments &amp; History</span>
             </h3>
 
             {reviews.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No formal review decisions recorded yet.</p>
+              <p className="text-xs text-slate-400 italic">
+                No formal review decisions recorded yet.
+              </p>
             ) : (
               <div className="space-y-3">
                 {reviews.map((rev) => (
-                  <div 
-                    key={rev.id} 
+                  <div
+                    key={rev.id}
                     className={`p-3.5 rounded-lg border text-xs space-y-1.5 ${
-                      rev.decision === 'Approved' 
-                        ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950' 
+                      rev.decision === 'Approved'
+                        ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
                         : 'bg-rose-50/60 border-rose-200 text-rose-950'
                     }`}
                   >
@@ -713,8 +750,12 @@ export const SubmissionDetailPage: React.FC = () => {
                         {new Date(rev.created_at).toLocaleDateString()}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-600">Reviewer: <strong>{rev.reviewer_name}</strong></p>
-                    <p className="text-xs pt-1 border-t border-slate-200/60 whitespace-pre-wrap">{rev.comment}</p>
+                    <p className="text-[11px] text-slate-600">
+                      Reviewer: <strong>{rev.reviewer_name}</strong>
+                    </p>
+                    <p className="text-xs pt-1 border-t border-slate-200/60 whitespace-pre-wrap">
+                      {rev.comment}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -765,8 +806,8 @@ export const SubmissionDetailPage: React.FC = () => {
                     versions.map((ver, idx) => {
                       const isLatest = idx === versions.length - 1;
                       return (
-                        <tr 
-                          key={ver.id} 
+                        <tr
+                          key={ver.id}
                           className={`hover:bg-slate-50 transition-colors ${
                             isLatest ? 'bg-blue-50/30' : ''
                           }`}
@@ -800,7 +841,10 @@ export const SubmissionDetailPage: React.FC = () => {
                           <td className="px-4 py-3">
                             <StatusBadge status={toBadgeStatus(ver.status_at_version)} />
                           </td>
-                          <td className="px-4 py-3 text-slate-600 max-w-[200px] truncate" title={ver.change_summary || ''}>
+                          <td
+                            className="px-4 py-3 text-slate-600 max-w-[200px] truncate"
+                            title={ver.change_summary || ''}
+                          >
                             {ver.change_summary || 'Initial upload'}
                           </td>
                           <td className="px-4 py-3 text-right">
@@ -826,7 +870,9 @@ export const SubmissionDetailPage: React.FC = () => {
               <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600 flex items-start space-x-3">
                 <Layers className="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h4 className="font-bold text-slate-800">Revision Integrity Verified (SCMS-021)</h4>
+                  <h4 className="font-bold text-slate-800">
+                    Revision Integrity Verified (SCMS-021)
+                  </h4>
                   <p className="mt-0.5">
                     Earlier revisions remain permanently preserved and immutable. The faculty resubmitted syllabus is stored as <strong>v{versions.length}</strong> without overwriting previous versions.
                   </p>
@@ -874,7 +920,9 @@ export const SubmissionDetailPage: React.FC = () => {
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
                 {reviewDecision === 'Returned' ? (
-                  <span className="text-red-700 font-bold">Mandatory Feedback / Required Changes *</span>
+                  <span className="text-red-700 font-bold">
+                    Mandatory Feedback / Required Changes *
+                  </span>
                 ) : (
                   <span>Review Comments / Commendations (Optional)</span>
                 )}
@@ -925,7 +973,7 @@ export const SubmissionDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* Real Interactive Syllabus Inspection & Preview Modal (Replaces alert popup) */}
+      {/* Real Interactive Syllabus Inspection & Preview Modal */}
       {isPreviewOpen && previewData && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95">
@@ -938,7 +986,8 @@ export const SubmissionDetailPage: React.FC = () => {
                     Syllabus Document Viewer: {previewData.course_code}
                   </h3>
                   <p className="text-[11px] text-amber-200">
-                    {previewData.file_name} • Version {previewData.version_label} • Status: {previewData.status}
+                    {previewData.file_name} • Version {previewData.version_label} • Status:{' '}
+                    {previewData.status}
                   </p>
                 </div>
               </div>
@@ -965,7 +1014,9 @@ export const SubmissionDetailPage: React.FC = () => {
             <div className="p-6 overflow-y-auto space-y-6 text-slate-800 bg-slate-50/50">
               {/* Official PUPQC Letterhead */}
               <div className="text-center pb-4 border-b border-slate-200">
-                <p className="text-[11px] uppercase tracking-widest text-slate-500 font-semibold">Republic of the Philippines</p>
+                <p className="text-[11px] uppercase tracking-widest text-slate-500 font-semibold">
+                  Republic of the Philippines
+                </p>
                 <h2 className="text-lg font-serif font-bold text-slate-900 tracking-wide">
                   POLYTECHNIC UNIVERSITY OF THE PHILIPPINES
                 </h2>
@@ -978,20 +1029,32 @@ export const SubmissionDetailPage: React.FC = () => {
               {/* Course & Faculty Info Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-4 rounded-xl border border-slate-200 text-xs">
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Course Code</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                    Course Code
+                  </span>
                   <span className="font-bold text-slate-800">{previewData.course_code}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Section</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                    Section
+                  </span>
                   <span className="font-semibold text-slate-800">{previewData.section_label}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Faculty Member</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                    Faculty Member
+                  </span>
                   <span className="font-bold text-slate-800">{previewData.faculty_name}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Submission Date</span>
-                  <span className="text-slate-600">{new Date(previewData.submitted_at).toLocaleDateString()}</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                    Submission Date
+                  </span>
+                  <span className="text-slate-600">
+                    {previewData.submitted_at
+                      ? new Date(previewData.submitted_at).toLocaleDateString()
+                      : 'N/A'}
+                  </span>
                 </div>
               </div>
 
@@ -1000,9 +1063,7 @@ export const SubmissionDetailPage: React.FC = () => {
                 <h4 className="font-serif font-bold text-sm text-[#580000] uppercase tracking-wider">
                   I. Course Description
                 </h4>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  {previewData.description}
-                </p>
+                <p className="text-xs text-slate-600 leading-relaxed">{previewData.description}</p>
               </div>
 
               {/* Section II: Course Learning Outcomes */}
@@ -1012,7 +1073,9 @@ export const SubmissionDetailPage: React.FC = () => {
                 </h4>
                 <ul className="space-y-1.5 text-xs text-slate-700 pl-4 list-disc">
                   {previewData.clos?.map((clo: string, idx: number) => (
-                    <li key={idx} className="leading-relaxed">{clo}</li>
+                    <li key={idx} className="leading-relaxed">
+                      {clo}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -1036,7 +1099,9 @@ export const SubmissionDetailPage: React.FC = () => {
                         <tr key={idx} className="hover:bg-slate-50">
                           <td className="px-3 py-2 font-bold text-slate-800">{m.week}</td>
                           <td className="px-3 py-2 text-slate-700">{m.topic}</td>
-                          <td className="px-3 py-2 text-right text-slate-500 font-mono">{m.hours} hrs</td>
+                          <td className="px-3 py-2 text-right text-slate-500 font-mono">
+                            {m.hours} hrs
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -1047,16 +1112,20 @@ export const SubmissionDetailPage: React.FC = () => {
               {/* Section IV: Grading System */}
               <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-2 text-xs">
                 <h4 className="font-serif font-bold text-sm text-[#580000] uppercase tracking-wider">
-                  IV. Assessment & Grading Criteria
+                  IV. Assessment &amp; Grading Criteria
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-slate-700">
                   <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <span className="font-bold block text-slate-900">Class Standing: 70%</span>
-                    <span className="text-[11px] text-slate-500">Quizzes, Laboratory Exercises, Assignments & Projects</span>
+                    <span className="text-[11px] text-slate-500">
+                      Quizzes, Laboratory Exercises, Assignments &amp; Projects
+                    </span>
                   </div>
                   <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <span className="font-bold block text-slate-900">Departmental Exams: 30%</span>
-                    <span className="text-[11px] text-slate-500">Midterm Examination (15%) + Final Examination (15%)</span>
+                    <span className="text-[11px] text-slate-500">
+                      Midterm Examination (15%) + Final Examination (15%)
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1068,12 +1137,21 @@ export const SubmissionDetailPage: React.FC = () => {
                 </h4>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">
                   {previewData.signatories?.map((sig: any, idx: number) => (
-                    <div key={idx} className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">{sig.role}</span>
+                    <div
+                      key={idx}
+                      className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1"
+                    >
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                        {sig.role}
+                      </span>
                       <p className="font-bold text-slate-800 pt-1">{sig.name}</p>
-                      <span className={`inline-block px-2 py-0.5 text-[9px] font-bold rounded-full ${
-                        sig.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
-                      }`}>
+                      <span
+                        className={`inline-block px-2 py-0.5 text-[9px] font-bold rounded-full ${
+                          sig.status === 'Approved'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}
+                      >
                         {sig.status}
                       </span>
                     </div>

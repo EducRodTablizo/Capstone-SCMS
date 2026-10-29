@@ -1,9 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, Edit2, CheckCircle2, Lock, AlertCircle, Clock, BookOpen, ShieldAlert, Sparkles, XCircle } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Calendar,
+  Plus,
+  Clock,
+  BookOpen,
+  Sparkles,
+} from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../auth/AuthContext';
-import { programService, Program } from '../services/programService';
-import { calendarService, DeadlineAdjustmentResult } from '../services/calendarService';
+import { apiClient } from '../services/apiClient';
+import { Program } from '../services/programService';
+import {
+  calendarService,
+  AcademicTerm,
+  DeadlineAdjustmentResult,
+} from '../services/calendarService';
 
 export interface UIRequirement {
   id: string;
@@ -22,58 +33,77 @@ export const RequirementsPage: React.FC = () => {
 
   const [requirements, setRequirements] = useState<UIRequirement[]>([]);
   const [activePrograms, setActivePrograms] = useState<Program[]>([]);
+  const [terms, setTerms] = useState<AcademicTerm[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedProgram, setSelectedProgram] = useState<string>('ALL');
-  const [selectedTerm, setSelectedTerm] = useState<string>('2026-1S');
+  const [selectedTerm, setSelectedTerm] = useState<string>('ALL');
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
 
   // Form states
-  const [progCode, setProgCode] = useState<string>('BSIT');
-  const [termCode, setTermCode] = useState<string>('2026-1S');
-  const [reqType, setReqType] = useState<string>('OBTL_SYLLABUS');
+  const [progCode, setProgCode] = useState<string>('');
+  const [termCode, setTermCode] = useState<string>('');
+  const [reqType] = useState<string>('OBTL_SYLLABUS');
   const [name, setName] = useState<string>('');
   const [description, setDescription] = useState<string>('');
-  const [deadline, setDeadline] = useState<string>('2026-10-31T23:59:59');
+  const [deadline, setDeadline] = useState<string>('');
   const [adjustmentPreview, setAdjustmentPreview] = useState<DeadlineAdjustmentResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>('');
 
-  useEffect(() => {
-    fetchRequirements();
-    fetchActivePrograms();
-  }, [selectedProgram, selectedTerm]);
-
-  useEffect(() => {
-    if (deadline && showAddModal) {
-      calendarService.calculateDeadline(deadline, termCode).then(setAdjustmentPreview);
-    } else {
-      setAdjustmentPreview(null);
-    }
-  }, [deadline, termCode, showAddModal]);
-
-  const fetchActivePrograms = async () => {
+  const fetchLookupDropdowns = useCallback(async () => {
     try {
-      const progs = await programService.getPrograms('Active');
-      setActivePrograms(progs.data || []);
-      if (progs.data && progs.data.length > 0) setProgCode(progs.data[0].code);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+      const [progsRes, termsRes] = await Promise.all([
+        apiClient.get<{ data: Program[] }>('/programs', { params: { status: 'Active' } }),
+        apiClient.get<{ data: AcademicTerm[] }>('/terms'),
+      ]);
 
-  const fetchRequirements = async () => {
+      const progsList = progsRes?.data || [];
+      setActivePrograms(progsList);
+      if (progsList.length > 0 && !progCode) {
+        setProgCode(progsList[0].code);
+      }
+
+      const termsList = termsRes?.data || [];
+      setTerms(termsList);
+      if (termsList.length > 0 && !termCode) {
+        setTermCode(termsList[0].term_code);
+      }
+    } catch (err) {
+      console.error('Failed to load dropdown options:', err);
+    }
+  }, [progCode, termCode]);
+
+  const fetchRequirements = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await calendarService.getRequirements({
-        program_code: selectedProgram !== 'ALL' ? selectedProgram : undefined,
-        term_code: selectedTerm || undefined,
+      const res = await apiClient.get<{ data: UIRequirement[] }>('/requirements', {
+        params: {
+          program_code: selectedProgram !== 'ALL' ? selectedProgram : undefined,
+          term_code: selectedTerm !== 'ALL' ? selectedTerm : undefined,
+        },
       });
-      setRequirements(data || []);
+      setRequirements(res?.data || []);
     } catch {
       setRequirements([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedProgram, selectedTerm]);
+
+  useEffect(() => {
+    fetchLookupDropdowns();
+  }, [fetchLookupDropdowns]);
+
+  useEffect(() => {
+    fetchRequirements();
+  }, [fetchRequirements]);
+
+  useEffect(() => {
+    if (deadline && showAddModal && termCode) {
+      calendarService.calculateDeadline(deadline, termCode).then(setAdjustmentPreview);
+    } else {
+      setAdjustmentPreview(null);
+    }
+  }, [deadline, termCode, showAddModal]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,9 +151,15 @@ export const RequirementsPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-serif font-bold text-[#580000]">Program Requirements & Deadlines (SMS-004 & SMS-005)</h1>
-            <span className="text-xs bg-[#580000]/10 text-[#580000] px-2 py-0.5 rounded font-semibold">Active Programs Only</span>
-            <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold">SMS-033 Calendar Aware</span>
+            <h1 className="text-2xl font-serif font-bold text-[#580000]">
+              Program Requirements &amp; Deadlines (SMS-004 &amp; SMS-005)
+            </h1>
+            <span className="text-xs bg-[#580000]/10 text-[#580000] px-2 py-0.5 rounded font-semibold">
+              Active Programs Only
+            </span>
+            <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold">
+              SMS-033 Calendar Aware
+            </span>
           </div>
           <p className="text-sm text-gray-600 mt-1">
             Define term submission requirements strictly for active programs in the academic catalog. Cut-off times strictly enforce 23:59:59 with automatic holiday and suspension pushouts.
@@ -152,7 +188,9 @@ export const RequirementsPage: React.FC = () => {
           >
             <option value="ALL">All Active Programs</option>
             {activePrograms.map((p) => (
-              <option key={p.id} value={p.code}>{p.code} - {p.title}</option>
+              <option key={p.id} value={p.code}>
+                {p.code} - {p.title}
+              </option>
             ))}
           </select>
         </div>
@@ -164,8 +202,12 @@ export const RequirementsPage: React.FC = () => {
             onChange={(e) => setSelectedTerm(e.target.value)}
             className="border border-gray-300 rounded-md text-sm px-3 py-2 bg-white text-gray-700 focus:ring-1 focus:ring-[#580000]"
           >
-            <option value="2026-1S">A.Y. 2026-2027 1st Semester</option>
-            <option value="2026-2S">A.Y. 2026-2027 2nd Semester</option>
+            <option value="ALL">All Academic Terms</option>
+            {terms.map((t) => (
+              <option key={t.term_code} value={t.term_code}>
+                A.Y. {t.academic_year} {t.semester || t.semester_label || ''} ({t.term_code})
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -178,7 +220,10 @@ export const RequirementsPage: React.FC = () => {
           <div className="col-span-2 text-center py-12 text-gray-500">No requirements defined for this filter.</div>
         ) : (
           requirements.map((req) => (
-            <div key={req.id} className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm space-y-3 flex flex-col justify-between">
+            <div
+              key={req.id}
+              className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm space-y-3 flex flex-col justify-between"
+            >
               <div>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -192,8 +237,8 @@ export const RequirementsPage: React.FC = () => {
                       req.status === 'PUBLISHED'
                         ? 'bg-emerald-100 text-emerald-800'
                         : req.status === 'DRAFT'
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-gray-100 text-gray-600'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-gray-100 text-gray-600'
                     }`}
                   >
                     {req.status}
@@ -201,14 +246,19 @@ export const RequirementsPage: React.FC = () => {
                 </div>
 
                 <h3 className="font-semibold text-gray-900 mt-2 text-base">{req.name}</h3>
-                <p className="text-xs text-gray-600 mt-1 line-clamp-2">{req.description || 'No description provided'}</p>
+                <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                  {req.description || 'No description provided'}
+                </p>
               </div>
 
               <div className="border-t pt-3 flex items-center justify-between text-xs text-gray-500">
                 <div className="flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-gray-400" />
                   <span>
-                    Deadline: {req.deadline_at ? new Date(req.deadline_at).toLocaleDateString() + ' (23:59:59)' : 'Not Set'}
+                    Deadline:{' '}
+                    {req.deadline_at
+                      ? new Date(req.deadline_at).toLocaleDateString() + ' (23:59:59)'
+                      : 'Not Set'}
                   </span>
                 </div>
 
@@ -247,7 +297,9 @@ export const RequirementsPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="font-serif font-bold text-lg text-[#580000]">New Requirement Definition</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
+                ✕
+              </button>
             </div>
 
             {errorMsg && (
@@ -259,7 +311,9 @@ export const RequirementsPage: React.FC = () => {
             <form onSubmit={handleCreate} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase">Active Program *</label>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase">
+                    Active Program *
+                  </label>
                   <select
                     value={progCode}
                     onChange={(e) => setProgCode(e.target.value)}
@@ -267,24 +321,33 @@ export const RequirementsPage: React.FC = () => {
                     className="w-full border rounded p-2 text-sm mt-1 focus:ring-1 focus:ring-[#580000]"
                   >
                     {activePrograms.map((p) => (
-                      <option key={p.id} value={p.code}>{p.code} - {p.title}</option>
+                      <option key={p.id} value={p.code}>
+                        {p.code} - {p.title}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 uppercase">Term *</label>
-                  <input
-                    type="text"
-                    required
+                  <select
                     value={termCode}
                     onChange={(e) => setTermCode(e.target.value)}
-                    className="w-full border rounded p-2 text-sm mt-1"
-                  />
+                    required
+                    className="w-full border rounded p-2 text-sm mt-1 focus:ring-1 focus:ring-[#580000]"
+                  >
+                    {terms.map((t) => (
+                      <option key={t.term_code} value={t.term_code}>
+                        {t.term_code} ({t.academic_year})
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase">Requirement Name *</label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase">
+                  Requirement Name *
+                </label>
                 <input
                   type="text"
                   required
@@ -296,7 +359,9 @@ export const RequirementsPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase">Requirement Description</label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase">
+                  Requirement Description
+                </label>
                 <textarea
                   rows={2}
                   value={description}
@@ -307,7 +372,9 @@ export const RequirementsPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase">Submission Deadline</label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase">
+                  Submission Deadline
+                </label>
                 <input
                   type="datetime-local"
                   value={deadline}
@@ -323,9 +390,7 @@ export const RequirementsPage: React.FC = () => {
                     <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
                     <span>Intelligent Calendar Adjustment (SMS-033):</span>
                   </div>
-                  <p>
-                    Target date falls on a weekend, holiday, or campus suspension. Pushed out to:
-                  </p>
+                  <p>Target date falls on a weekend, holiday, or campus suspension. Pushed out to:</p>
                   <p className="font-mono font-bold text-amber-950 text-sm">
                     {adjustmentPreview.adjusted_deadline.replace('+08:00', ' PHT')}
                   </p>
@@ -336,8 +401,12 @@ export const RequirementsPage: React.FC = () => {
               )}
 
               <div className="flex justify-end gap-2 border-t pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>Cancel</Button>
-                <Button type="submit" className="bg-[#580000] hover:bg-[#7a0c0c] text-white">Save in DRAFT</Button>
+                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-[#580000] hover:bg-[#7a0c0c] text-white">
+                  Save in DRAFT
+                </Button>
               </div>
             </form>
           </div>

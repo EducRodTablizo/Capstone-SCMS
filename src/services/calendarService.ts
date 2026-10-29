@@ -1,16 +1,18 @@
 import { apiClient } from './apiClient';
 
 export interface AcademicTerm {
+  id?: string;
   term_code: string;
   academic_year: string;
-  semester_number: number;
-  semester_label: string;
-  display_label: string;
+  semester_number?: number;
+  semester_label?: string;
+  semester?: string;
+  display_label?: string;
   start_date: string;
   end_date: string;
   submission_window_start?: string;
   submission_window_end?: string;
-  status: 'Upcoming' | 'Active' | 'Closed' | 'Archived';
+  status: 'Upcoming' | 'Active' | 'Closed' | 'Archived' | 'UPCOMING' | 'ACTIVE' | 'CLOSED' | 'ARCHIVED';
 }
 
 export interface CalendarEvent {
@@ -32,36 +34,29 @@ export interface DeadlineAdjustmentResult {
 }
 
 export const calendarService = {
+  async getTerms(): Promise<AcademicTerm[]> {
+    const json = await apiClient.get<{ data: AcademicTerm[] }>('/terms');
+    return json.data || [];
+  },
+
   async getActiveTerm(): Promise<AcademicTerm | null> {
-    try {
-      const json = await apiClient.get<{ data: AcademicTerm }>('/terms/active');
-      return json.data || null;
-    } catch {
-      return null;
-    }
+    const json = await apiClient.get<{ data: AcademicTerm }>('/terms/active');
+    return json.data || null;
   },
 
-  async getEvents(termCode: string = '2026-1S'): Promise<CalendarEvent[]> {
-    try {
-      const json = await apiClient.get<{ data: CalendarEvent[] }>('/calendar/events', {
-        params: { term_code: termCode },
-      });
-      return json.data || [];
-    } catch {
-      return [];
-    }
+  async getEvents(termCode?: string): Promise<CalendarEvent[]> {
+    const json = await apiClient.get<{ data: CalendarEvent[] }>('/calendar/events', {
+      params: { term_code: termCode },
+    });
+    return json.data || [];
   },
 
-  async calculateDeadline(deadline: string, termCode: string = '2026-1S'): Promise<DeadlineAdjustmentResult | null> {
-    try {
-      const json = await apiClient.post<{ data: DeadlineAdjustmentResult }>('/calendar/calculate-deadline', {
-        deadline,
-        term_code: termCode,
-      });
-      return json.data || null;
-    } catch {
-      return null;
-    }
+  async calculateDeadline(deadline: string, termCode?: string): Promise<DeadlineAdjustmentResult | null> {
+    const json = await apiClient.post<{ data: DeadlineAdjustmentResult }>('/calendar/calculate-deadline', {
+      deadline,
+      term_code: termCode,
+    });
+    return json.data || null;
   },
 
   async getRequirements(params?: { program_code?: string; term_code?: string }): Promise<any[]> {

@@ -1,5 +1,13 @@
-﻿import React, { useState, useEffect } from 'react';
-import { BookOpen, Plus, Search, Filter, Layers, Clock, Cpu, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Plus,
+  Search,
+  Filter,
+  Layers,
+  Cpu,
+  AlertTriangle,
+} from 'lucide-react';
+import { apiClient } from '../services/apiClient';
 import { courseService, Course } from '../services/courseService';
 import { useAuth } from '../auth/AuthContext';
 import { Button } from '../components/ui/button';
@@ -26,27 +34,36 @@ export const CoursesPage: React.FC = () => {
   const [software, setSoftware] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
 
-  useEffect(() => {
-    fetchCourses();
-  }, [statusFilter]);
-
-  const fetchCourses = async () => {
+  const fetchCourses = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await courseService.getCourses(statusFilter || undefined, search || undefined);
-      setCourses(data);
+      const res = await apiClient.get<{ data: Course[] }>('/courses', {
+        params: {
+          status: statusFilter || undefined,
+          search: search || undefined,
+        },
+      });
+      setCourses(res?.data || []);
     } catch (err: any) {
-      console.error(err);
+      console.error('Failed to fetch courses:', err);
+      setCourses([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, search]);
+
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     try {
-      const softwareList = software.split(',').map(s => s.trim()).filter(Boolean);
+      const softwareList = software
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
       await courseService.createCourse({
         course_code: code,
         title,
@@ -68,7 +85,12 @@ export const CoursesPage: React.FC = () => {
   };
 
   const handleRetire = async (id: string) => {
-    if (!confirm('Are you sure you want to retire this course? Retired courses cannot receive new assignments.')) return;
+    if (
+      !confirm(
+        'Are you sure you want to retire this course? Retired courses cannot receive new assignments.'
+      )
+    )
+      return;
     try {
       await courseService.updateCourse(id, { status: 'Retired' });
       await fetchCourses();
@@ -104,8 +126,12 @@ export const CoursesPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-serif font-bold text-[#580000]">Course Master Catalogue (SMS-022)</h1>
-            <span className="text-xs bg-[#580000]/10 text-[#580000] px-2 py-0.5 rounded font-semibold">SSOT</span>
+            <h1 className="text-2xl font-serif font-bold text-[#580000]">
+              Course Master Catalogue (SMS-022)
+            </h1>
+            <span className="text-xs bg-[#580000]/10 text-[#580000] px-2 py-0.5 rounded font-semibold">
+              SSOT
+            </span>
           </div>
           <p className="text-sm text-gray-600 mt-1">
             Authoritative source for academic course specifications, contact hours calculation, lab requirements, and immutable versioning.
@@ -159,9 +185,9 @@ export const CoursesPage: React.FC = () => {
             <tr>
               <th className="px-4 py-3">Course Code</th>
               <th className="px-4 py-3">Course Title</th>
-              <th className="px-4 py-3">Units & Hours</th>
-              <th className="px-4 py-3">Lab & Tools</th>
-              <th className="px-4 py-3">Version & Status</th>
+              <th className="px-4 py-3">Units &amp; Hours</th>
+              <th className="px-4 py-3">Lab &amp; Tools</th>
+              <th className="px-4 py-3">Version &amp; Status</th>
               {isAcademicHead && <th className="px-4 py-3 text-right">Actions</th>}
             </tr>
           </thead>
@@ -186,13 +212,18 @@ export const CoursesPage: React.FC = () => {
                   </td>
                   <td className="px-4 py-3.5">
                     <p className="font-semibold text-gray-900">{course.title}</p>
-                    <p className="text-xs text-gray-500 line-clamp-1">{course.description || 'No description provided'}</p>
+                    <p className="text-xs text-gray-500 line-clamp-1">
+                      {course.description || 'No description provided'}
+                    </p>
                   </td>
                   <td className="px-4 py-3.5">
                     <div className="flex flex-col gap-0.5 text-xs">
-                      <span className="font-semibold text-gray-800">{course.credit_units} Credit Units</span>
+                      <span className="font-semibold text-gray-800">
+                        {course.credit_units} Credit Units
+                      </span>
                       <span className="text-gray-500">
-                        {course.lecture_hours}h Lec + {course.lab_hours}h Lab = <strong className="text-[#580000]">{course.contact_hours}h Contact</strong>
+                        {course.lecture_hours}h Lec + {course.lab_hours}h Lab ={' '}
+                        <strong className="text-[#580000]">{course.contact_hours}h Contact</strong>
                       </span>
                     </div>
                   </td>
@@ -222,10 +253,10 @@ export const CoursesPage: React.FC = () => {
                           course.status === 'Active'
                             ? 'bg-emerald-100 text-emerald-800'
                             : course.status === 'Revised'
-                            ? 'bg-blue-100 text-blue-800'
-                            : course.status === 'Draft'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-gray-100 text-gray-600'
+                              ? 'bg-blue-100 text-blue-800'
+                              : course.status === 'Draft'
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-gray-100 text-gray-600'
                         }`}
                       >
                         {course.status}
@@ -269,8 +300,15 @@ export const CoursesPage: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-serif font-bold text-lg text-[#580000]">New Course Master Specification</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">âœ•</button>
+              <h3 className="font-serif font-bold text-lg text-[#580000]">
+                New Course Master Specification
+              </h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
             </div>
 
             {errorMsg && (
@@ -283,7 +321,9 @@ export const CoursesPage: React.FC = () => {
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase">Course Code *</label>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase">
+                    Course Code *
+                  </label>
                   <input
                     type="text"
                     required
@@ -294,7 +334,9 @@ export const CoursesPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase">Credit Units *</label>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase">
+                    Credit Units *
+                  </label>
                   <input
                     type="number"
                     step="0.5"
@@ -307,7 +349,9 @@ export const CoursesPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase">Course Title *</label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase">
+                  Course Title *
+                </label>
                 <input
                   type="text"
                   required
@@ -340,7 +384,9 @@ export const CoursesPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#580000]">Contact Hours</label>
+                  <label className="block text-xs font-semibold text-[#580000]">
+                    Contact Hours
+                  </label>
                   <div className="w-full border border-[#580000]/30 rounded p-2 text-sm mt-1 font-bold text-[#580000] bg-red-50/50">
                     {Number(lectureHours) + Number(labHours)} hrs
                   </div>
@@ -356,13 +402,17 @@ export const CoursesPage: React.FC = () => {
                     onChange={(e) => setRequiresLab(e.target.checked)}
                     className="rounded text-[#580000] focus:ring-[#580000]"
                   />
-                  <label htmlFor="labCheck" className="text-sm font-semibold text-gray-700">Requires Specialized Laboratory (SMS-022 AC2)</label>
+                  <label htmlFor="labCheck" className="text-sm font-semibold text-gray-700">
+                    Requires Specialized Laboratory (SMS-022 AC2)
+                  </label>
                 </div>
 
                 {requiresLab && (
                   <div className="space-y-3 pl-6 border-l-2 border-[#580000]/30 mt-2">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600">Laboratory Facility Type</label>
+                      <label className="block text-xs font-medium text-gray-600">
+                        Laboratory Facility Type
+                      </label>
                       <input
                         type="text"
                         value={labType}
@@ -372,7 +422,9 @@ export const CoursesPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600">Special Software Requirements (comma-separated)</label>
+                      <label className="block text-xs font-medium text-gray-600">
+                        Special Software Requirements (comma-separated)
+                      </label>
                       <input
                         type="text"
                         value={software}
@@ -386,9 +438,12 @@ export const CoursesPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase">Course Description</label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase">
+                  Course Description *
+                </label>
                 <textarea
                   rows={2}
+                  required
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Official course catalogue description and overview..."
@@ -397,8 +452,12 @@ export const CoursesPage: React.FC = () => {
               </div>
 
               <div className="flex justify-end gap-2 border-t pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>Cancel</Button>
-                <Button type="submit" className="bg-[#580000] hover:bg-[#7a0c0c] text-white">Save to Catalogue</Button>
+                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-[#580000] hover:bg-[#7a0c0c] text-white">
+                  Save to Catalogue
+                </Button>
               </div>
             </form>
           </div>
@@ -409,4 +468,3 @@ export const CoursesPage: React.FC = () => {
 };
 
 export default CoursesPage;
-

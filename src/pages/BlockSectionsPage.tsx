@@ -1,7 +1,8 @@
-﻿import React, { useState, useEffect } from 'react';
-import { Users, Plus, Filter, ShieldCheck, AlertCircle, GitMerge, XCircle, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Filter } from 'lucide-react';
+import { apiClient } from '../services/apiClient';
 import { blockSectionService, BlockSection } from '../services/blockSectionService';
-import { programService, Program } from '../services/programService';
+import { Program } from '../services/programService';
 import { useAuth } from '../auth/AuthContext';
 import { Button } from '../components/ui/button';
 
@@ -17,32 +18,44 @@ export const BlockSectionsPage: React.FC = () => {
 
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [progId, setProgId] = useState<string>('');
-  const [cohortYear, setCohortYear] = useState<number>(2024);
+  const [cohortYear, setCohortYear] = useState<number>(new Date().getFullYear());
   const [yearLevel, setYearLevel] = useState<number>(1);
   const [sectionNumber, setSectionNumber] = useState<number>(1);
   const [label, setLabel] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
 
-  useEffect(() => {
-    fetchData();
-  }, [selectedProgram, statusFilter]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [secs, progs] = await Promise.all([
-        blockSectionService.getSections(selectedProgram || undefined, statusFilter || undefined),
-        programService.getPrograms('Active'),
+      const [secsRes, progsRes] = await Promise.all([
+        apiClient.get<{ data: BlockSection[] }>('/block-sections', {
+          params: {
+            program_id: selectedProgram || undefined,
+            status: statusFilter || undefined,
+          },
+        }),
+        apiClient.get<{ data: Program[] }>('/programs', {
+          params: { status: 'Active' },
+        }),
       ]);
-      setSections(secs);
-      setPrograms(progs.data || []);
-      if (progs.data && progs.data.length > 0 && !progId) setProgId(progs.data[0].id);
+
+      setSections(secsRes?.data || []);
+      const progList = progsRes?.data || [];
+      setPrograms(progList);
+      if (progList.length > 0 && !progId) {
+        setProgId(progList[0].id);
+      }
     } catch (err: any) {
-      console.error(err);
+      console.error('Failed to fetch block sections:', err);
+      setSections([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedProgram, statusFilter, progId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,12 +73,19 @@ export const BlockSectionsPage: React.FC = () => {
       setLabel('');
       await fetchData();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || err.message || 'Failed to register block section cohort.');
+      setErrorMsg(
+        err.response?.data?.message || err.message || 'Failed to register block section cohort.'
+      );
     }
   };
 
   const handleDissolve = async (id: string, currentLabel: string) => {
-    if (!confirm(`Dissolve section '${currentLabel}'? Its assigned teaching load will be moved to Unassigned without faculty penalty (SMS-031 AC3).`)) return;
+    if (
+      !confirm(
+        `Dissolve section '${currentLabel}'? Its assigned teaching load will be moved to Unassigned without faculty penalty (SMS-031 AC3).`
+      )
+    )
+      return;
     try {
       await blockSectionService.updateStatus(id, 'Dissolved');
       await fetchData();
@@ -80,8 +100,12 @@ export const BlockSectionsPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-serif font-bold text-[#580000]">Cohort Block Sections (SMS-031)</h1>
-            <span className="text-xs bg-[#580000]/10 text-[#580000] px-2 py-0.5 rounded font-semibold">SSOT</span>
+            <h1 className="text-2xl font-serif font-bold text-[#580000]">
+              Cohort Block Sections (SMS-031)
+            </h1>
+            <span className="text-xs bg-[#580000]/10 text-[#580000] px-2 py-0.5 rounded font-semibold">
+              SSOT
+            </span>
           </div>
           <p className="text-sm text-gray-600 mt-1">
             Maintains stable block section identities across terms. Dissolving sections cleanly moves loads to Unassigned without faculty penalty.
@@ -110,7 +134,9 @@ export const BlockSectionsPage: React.FC = () => {
           >
             <option value="">All Academic Programs</option>
             {programs.map((p) => (
-              <option key={p.id} value={p.id}>{p.code} - {p.title}</option>
+              <option key={p.id} value={p.id}>
+                {p.code} - {p.title}
+              </option>
             ))}
           </select>
         </div>
@@ -136,7 +162,7 @@ export const BlockSectionsPage: React.FC = () => {
             <tr>
               <th className="px-4 py-3">Section Label</th>
               <th className="px-4 py-3">Cohort Admission</th>
-              <th className="px-4 py-3">Year & Section</th>
+              <th className="px-4 py-3">Year &amp; Section</th>
               <th className="px-4 py-3">Lifecycle Status</th>
               {isAcademicHead && <th className="px-4 py-3 text-right">Actions</th>}
             </tr>
@@ -144,11 +170,15 @@ export const BlockSectionsPage: React.FC = () => {
           <tbody className="divide-y divide-gray-200">
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">Loading Cohort Block Sections...</td>
+                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                  Loading Cohort Block Sections...
+                </td>
               </tr>
             ) : sections.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">No block sections registered for this filter.</td>
+                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                  No block sections registered for this filter.
+                </td>
               </tr>
             ) : (
               sections.map((sec) => (
@@ -157,7 +187,9 @@ export const BlockSectionsPage: React.FC = () => {
                     {sec.display_label}
                   </td>
                   <td className="px-4 py-3.5">
-                    <span className="font-semibold text-gray-800">Batch {sec.cohort_admission_year}</span>
+                    <span className="font-semibold text-gray-800">
+                      Batch {sec.cohort_admission_year}
+                    </span>
                     <p className="text-xs text-gray-500">Admission Year</p>
                   </td>
                   <td className="px-4 py-3.5">
@@ -169,8 +201,8 @@ export const BlockSectionsPage: React.FC = () => {
                         sec.status === 'Active'
                           ? 'bg-emerald-100 text-emerald-800'
                           : sec.status === 'Dissolved'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-purple-100 text-purple-800'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-purple-100 text-purple-800'
                       }`}
                     >
                       {sec.status}
@@ -202,8 +234,15 @@ export const BlockSectionsPage: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-serif font-bold text-lg text-[#580000]">Register Cohort Block Section</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">âœ•</button>
+              <h3 className="font-serif font-bold text-lg text-[#580000]">
+                Register Cohort Block Section
+              </h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
             </div>
 
             {errorMsg && (
@@ -214,7 +253,9 @@ export const BlockSectionsPage: React.FC = () => {
 
             <form onSubmit={handleCreate} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase">Program *</label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase">
+                  Program *
+                </label>
                 <select
                   value={progId}
                   onChange={(e) => setProgId(e.target.value)}
@@ -222,14 +263,18 @@ export const BlockSectionsPage: React.FC = () => {
                   className="w-full border rounded p-2 text-sm mt-1 focus:ring-1 focus:ring-[#580000]"
                 >
                   {programs.map((p) => (
-                    <option key={p.id} value={p.id}>{p.code} - {p.title}</option>
+                    <option key={p.id} value={p.id}>
+                      {p.code} - {p.title}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase">Admission Year *</label>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase">
+                    Admission Year *
+                  </label>
                   <input
                     type="number"
                     required
@@ -239,20 +284,28 @@ export const BlockSectionsPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase">Year Level *</label>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase">
+                    Year Level *
+                  </label>
                   <select
                     value={yearLevel}
                     onChange={(e) => setYearLevel(Number(e.target.value))}
                     className="w-full border rounded p-2 text-sm mt-1"
                   >
-                    {[1, 2, 3, 4, 5].map((y) => <option key={y} value={y}>Year {y}</option>)}
+                    {[1, 2, 3, 4, 5].map((y) => (
+                      <option key={y} value={y}>
+                        Year {y}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase">Section Number *</label>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase">
+                    Section Number *
+                  </label>
                   <input
                     type="number"
                     required
@@ -263,7 +316,9 @@ export const BlockSectionsPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase">Display Label *</label>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase">
+                    Display Label *
+                  </label>
                   <input
                     type="text"
                     required
@@ -276,8 +331,12 @@ export const BlockSectionsPage: React.FC = () => {
               </div>
 
               <div className="flex justify-end gap-2 border-t pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>Cancel</Button>
-                <Button type="submit" className="bg-[#580000] hover:bg-[#7a0c0c] text-white">Save Section</Button>
+                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-[#580000] hover:bg-[#7a0c0c] text-white">
+                  Save Section
+                </Button>
               </div>
             </form>
           </div>
@@ -288,4 +347,3 @@ export const BlockSectionsPage: React.FC = () => {
 };
 
 export default BlockSectionsPage;
-

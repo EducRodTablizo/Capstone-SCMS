@@ -15,26 +15,10 @@ export interface BlockSection {
 
 export const blockSectionService = {
   async getSections(programId?: string, status?: string): Promise<BlockSection[]> {
-    try {
-      const json = await apiClient.get<{ data: BlockSection[] }>('/block-sections', {
-        params: { program_id: programId, status },
-      });
-      return json.data || [];
-    } catch {
-      return [
-        {
-          id: 'daaaaaaa-1111-1111-1111-111111111111',
-          program_id: '11111111-1111-1111-1111-111111111111',
-          cohort_admission_year: 2023,
-          year_level: 4,
-          section_number: 1,
-          display_label: 'BSIT 4-1',
-          status: 'Active',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ];
-    }
+    const json = await apiClient.get<{ data: BlockSection[] }>('/block-sections', {
+      params: { program_id: programId, status },
+    });
+    return json.data || [];
   },
 
   async createSection(data: Partial<BlockSection>): Promise<BlockSection> {
@@ -42,7 +26,11 @@ export const blockSectionService = {
     return json.data;
   },
 
-  async updateStatus(id: string, status: 'Active' | 'Dissolved' | 'Merged', mergedIntoSectionId?: string): Promise<BlockSection> {
+  async updateStatus(
+    id: string,
+    status: 'Active' | 'Dissolved' | 'Merged',
+    mergedIntoSectionId?: string
+  ): Promise<BlockSection> {
     const json = await apiClient.patch<{ data: BlockSection }>(`/block-sections/${id}/status`, {
       status,
       merged_into_section_id: mergedIntoSectionId,

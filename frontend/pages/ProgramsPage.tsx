@@ -1,6 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Layers, Plus, Edit3, CheckCircle2, AlertTriangle, ShieldAlert, RefreshCw, X, Filter, BookOpen } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Layers,
+  Plus,
+  Edit3,
+  CheckCircle2,
+  AlertTriangle,
+  ShieldAlert,
+  RefreshCw,
+  X,
+  BookOpen,
+} from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
+import { apiClient } from '../services/apiClient';
 import { programService, Program } from '../services/programService';
 
 export const ProgramsPage: React.FC = () => {
@@ -24,22 +35,24 @@ export const ProgramsPage: React.FC = () => {
   });
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchPrograms = async () => {
+  const fetchPrograms = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await programService.getPrograms(filter === 'All' ? undefined : filter);
-      setPrograms(res.data);
+      const res = await apiClient.get<{ data: Program[]; count: number }>('/programs', {
+        params: { status: filter === 'All' ? undefined : filter },
+      });
+      setPrograms(res?.data || []);
     } catch (err: any) {
       setError(err.message || 'Failed to load programs. Backend service may be starting up.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
 
   useEffect(() => {
     fetchPrograms();
-  }, [filter]);
+  }, [fetchPrograms]);
 
   const handleOpenAdd = () => {
     setEditingProgram(null);
@@ -88,7 +101,7 @@ export const ProgramsPage: React.FC = () => {
         setSuccessMsg(`Program '${formData.code.toUpperCase()}' created successfully.`);
       }
       setIsModalOpen(false);
-      fetchPrograms();
+      await fetchPrograms();
     } catch (err: any) {
       setError(err.message || 'Operation failed.');
     } finally {
@@ -102,14 +115,14 @@ export const ProgramsPage: React.FC = () => {
     try {
       await programService.updateProgram(prog.id, { status: nextStatus });
       setSuccessMsg(`Program '${prog.code}' status changed to '${nextStatus}'.`);
-      fetchPrograms();
+      await fetchPrograms();
     } catch (err: any) {
       setError(err.message || 'Failed to toggle status.');
     }
   };
 
-  const activeCount = programs.filter(p => p.status === 'Active').length;
-  const phasedOutCount = programs.filter(p => p.status === 'Phased out').length;
+  const activeCount = programs.filter((p) => p.status === 'Active').length;
+  const phasedOutCount = programs.filter((p) => p.status === 'Phased out').length;
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6">
@@ -121,7 +134,9 @@ export const ProgramsPage: React.FC = () => {
               <Layers className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Academic Programs Catalogue</h1>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+                Academic Programs Catalogue
+              </h1>
               <p className="text-sm text-slate-500 font-medium">
                 PUPQC Authoritative Program Master SSOT (User Story: SMS-021)
               </p>
@@ -160,7 +175,9 @@ export const ProgramsPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Programs</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Total Programs
+            </p>
             <p className="text-2xl font-bold text-slate-900 mt-1">{programs.length}</p>
           </div>
           <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
@@ -170,7 +187,9 @@ export const ProgramsPage: React.FC = () => {
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">Active Programs</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">
+              Active Programs
+            </p>
             <p className="text-2xl font-bold text-slate-900 mt-1">{activeCount}</p>
           </div>
           <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
@@ -180,7 +199,9 @@ export const ProgramsPage: React.FC = () => {
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-amber-600">Phased Out Programs</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-amber-600">
+              Phased Out Programs
+            </p>
             <p className="text-2xl font-bold text-slate-900 mt-1">{phasedOutCount}</p>
           </div>
           <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
@@ -196,7 +217,9 @@ export const ProgramsPage: React.FC = () => {
             <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0" />
             <span>{error}</span>
           </div>
-          <button onClick={() => setError(null)}><X className="w-4 h-4 text-rose-500" /></button>
+          <button onClick={() => setError(null)}>
+            <X className="w-4 h-4 text-rose-500" />
+          </button>
         </div>
       )}
 
@@ -206,7 +229,9 @@ export const ProgramsPage: React.FC = () => {
             <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
             <span>{successMsg}</span>
           </div>
-          <button onClick={() => setSuccessMsg(null)}><X className="w-4 h-4 text-emerald-500" /></button>
+          <button onClick={() => setSuccessMsg(null)}>
+            <X className="w-4 h-4 text-emerald-500" />
+          </button>
         </div>
       )}
 
@@ -271,7 +296,11 @@ export const ProgramsPage: React.FC = () => {
                           : 'bg-amber-50 text-amber-700 border border-amber-200'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full ${prog.status === 'Active' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          prog.status === 'Active' ? 'bg-emerald-500' : 'bg-amber-500'
+                        }`}
+                      />
                       {prog.status}
                     </span>
                   </td>
@@ -364,7 +393,9 @@ export const ProgramsPage: React.FC = () => {
                 </label>
                 <select
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as 'Active' | 'Phased out' })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, status: e.target.value as 'Active' | 'Phased out' })
+                  }
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#800000] text-sm font-semibold bg-white"
                 >
                   <option value="Active">Active (Accepts Requirements)</option>
