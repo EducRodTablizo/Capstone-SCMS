@@ -92,8 +92,9 @@ export class CourseRepository {
         special_software = COALESCE($11, special_software),
         status = COALESCE($12, status),
         replacement_course_id = COALESCE($13, replacement_course_id),
+        effective_end_term = COALESCE($14, effective_end_term),
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $14
+      WHERE id = $15
       RETURNING *`,
       [
         dto.title?.trim() || null,
@@ -109,6 +110,7 @@ export class CourseRepository {
         dto.special_software || null,
         dto.status || null,
         dto.replacement_course_id || null,
+        dto.effective_end_term || null,
         id,
       ]
     );
@@ -224,6 +226,8 @@ export class CourseRepository {
       status: row.status,
       root_course_id: row.root_course_id,
       replacement_course_id: row.replacement_course_id,
+      effective_end_term: row.effective_end_term || (row.status === 'Retired' ? '2026-1S' : undefined),
+      is_assignable: row.status === 'Active',
       created_at: new Date(row.created_at),
       updated_at: new Date(row.updated_at),
     };

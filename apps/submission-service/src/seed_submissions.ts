@@ -262,6 +262,7 @@ export async function seedSubmissionsDatabase(): Promise<void> {
   console.log('===============================================================');
 
   await pool.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS fms_message_id VARCHAR(255)');
+  await pool.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS previous_faculty_id VARCHAR(100)');
 
   for (const item of SEED_SUBMISSIONS) {
     const now = new Date().toISOString();

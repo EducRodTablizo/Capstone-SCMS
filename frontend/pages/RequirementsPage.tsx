@@ -28,8 +28,8 @@ export interface UIRequirement {
 }
 
 export const RequirementsPage: React.FC = () => {
-  const { user } = useAuth();
-  const isAcademicHead = user?.role === 'ACADEMIC_HEAD';
+  const { user, role } = useAuth();
+  const isAcademicHead = (role || user?.role) === 'ACADEMIC_HEAD';
 
   const [requirements, setRequirements] = useState<UIRequirement[]>([]);
   const [activePrograms, setActivePrograms] = useState<Program[]>([]);
@@ -79,15 +79,19 @@ export const RequirementsPage: React.FC = () => {
         params: {
           program_code: selectedProgram !== 'ALL' ? selectedProgram : undefined,
           term_code: selectedTerm !== 'ALL' ? selectedTerm : undefined,
+          status: !isAcademicHead ? 'PUBLISHED' : undefined,
         },
       });
-      setRequirements(res?.data || []);
+      const list = res?.data || [];
+      setRequirements(
+        isAcademicHead ? list : list.filter((req) => req.status === 'PUBLISHED')
+      );
     } catch {
       setRequirements([]);
     } finally {
       setLoading(false);
     }
-  }, [selectedProgram, selectedTerm]);
+  }, [selectedProgram, selectedTerm, isAcademicHead]);
 
   useEffect(() => {
     fetchLookupDropdowns();
@@ -145,8 +149,12 @@ export const RequirementsPage: React.FC = () => {
     }
   };
 
+  const visibleRequirements = isAcademicHead
+    ? requirements
+    : requirements.filter((req) => req.status === 'PUBLISHED');
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
@@ -216,10 +224,10 @@ export const RequirementsPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {loading ? (
           <div className="col-span-2 text-center py-12 text-gray-500">Loading requirement definitions...</div>
-        ) : requirements.length === 0 ? (
+        ) : visibleRequirements.length === 0 ? (
           <div className="col-span-2 text-center py-12 text-gray-500">No requirements defined for this filter.</div>
         ) : (
-          requirements.map((req) => (
+          visibleRequirements.map((req) => (
             <div
               key={req.id}
               className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm space-y-3 flex flex-col justify-between"
@@ -296,7 +304,7 @@ export const RequirementsPage: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-serif font-bold text-lg text-[#580000]">New Requirement Definition</h3>
+              <h3 className="font-sans font-bold text-lg text-[#580000]">New Requirement Definition</h3>
               <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
                 ✕
               </button>

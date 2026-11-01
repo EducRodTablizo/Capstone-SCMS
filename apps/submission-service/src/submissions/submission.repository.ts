@@ -20,6 +20,7 @@ export class SubmissionRepository {
     try {
       await client.query('SELECT 1');
       await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS fms_message_id VARCHAR(255)');
+      await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS previous_faculty_id VARCHAR(100)');
       this.isInitialized = true;
       console.log('Connected to PostgreSQL sms_submissions');
     } finally {
@@ -40,6 +41,7 @@ export class SubmissionRepository {
       block_section_id: row.block_section_id ?? null,
       requirement_id: row.requirement_id,
       faculty_id: row.faculty_id,
+      previous_faculty_id: row.previous_faculty_id ?? null,
       substitute_id: row.substitute_id ?? null,
       course_code: row.course_code,
       section_label: row.section_label,
@@ -84,6 +86,7 @@ export class SubmissionRepository {
         course_id,
         block_section_id,
         faculty_id,
+        previous_faculty_id,
         substitute_id,
         course_code,
         section_label,
@@ -94,7 +97,7 @@ export class SubmissionRepository {
         submitted_at,
         created_at,
         updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING *
     `;
 
@@ -108,6 +111,7 @@ export class SubmissionRepository {
       data.course_id ?? null,
       data.block_section_id ?? null,
       data.faculty_id,
+      data.previous_faculty_id ?? null,
       data.substitute_id ?? null,
       data.course_code,
       data.section_label,
@@ -156,6 +160,7 @@ export class SubmissionRepository {
     requirement_id?: string;
     status?: string;
     course_code?: string;
+    faculty_id?: string;
   }): Promise<Submission[]> {
     await this.init();
     let q = 'SELECT * FROM submissions WHERE 1=1';
@@ -172,6 +177,21 @@ export class SubmissionRepository {
     if (filter?.course_code) {
       q += ` AND course_code = $${idx++}`;
       params.push(filter.course_code);
+    }
+    if (filter?.faculty_id) {
+      const fid = filter.faculty_id;
+      const isPrimaryFaculty =
+        fid === '22222222-2222-2222-2222-222222222222' ||
+        fid === 'fac-prof-delacruz' ||
+        fid === 'fac-prof-donayre' ||
+        fid === 'FMS-PUPQC-0492';
+      if (isPrimaryFaculty) {
+        q += ` AND faculty_id IN ($${idx++}, 'fac-prof-delacruz', 'fac-prof-donayre', '22222222-2222-2222-2222-222222222222', 'FMS-PUPQC-0492')`;
+        params.push(fid);
+      } else {
+        q += ` AND faculty_id = $${idx++}`;
+        params.push(fid);
+      }
     }
     q += ' ORDER BY created_at DESC';
     const res = await this.db.query(q, params);
@@ -206,19 +226,25 @@ export class SubmissionRepository {
     const mergedMessageId =
       extra.fms_message_id !== undefined ? extra.fms_message_id : existing.fms_message_id;
 
+    const mergedPreviousFacultyId =
+      extra.previous_faculty_id !== undefined
+        ? extra.previous_faculty_id
+        : (existing.previous_faculty_id ?? null);
+
     const query = `
       UPDATE submissions
       SET status = $1,
           assignment_version = $2,
           faculty_id = $3,
-          substitute_id = $4,
-          schedule = $5,
-          file_id = $6,
-          file_name = $7,
-          submitted_at = $8,
-          fms_message_id = $9,
-          updated_at = $10
-      WHERE id = $11
+          previous_faculty_id = $4,
+          substitute_id = $5,
+          schedule = $6,
+          file_id = $7,
+          file_name = $8,
+          submitted_at = $9,
+          fms_message_id = $10,
+          updated_at = $11
+      WHERE id = $12
       RETURNING *
     `;
 
@@ -226,6 +252,7 @@ export class SubmissionRepository {
       status,
       mergedVersion,
       extra.faculty_id ?? existing.faculty_id,
+      mergedPreviousFacultyId,
       extra.substitute_id !== undefined ? extra.substitute_id : existing.substitute_id,
       mergedSchedule ? JSON.stringify(mergedSchedule) : null,
       extra.file_id !== undefined ? extra.file_id : existing.file_id,
@@ -272,13 +299,14 @@ export class SubmissionRepository {
   async updateFacultyAssignment(
     id: string,
     newFacultyId: string,
-    versionBump: number = 1
+    versionBump: number = 1,
+    previousFacultyId?: string | null
   ): Promise<Submission | null> {
     await this.init();
     const now = new Date().toISOString();
     const res = await this.db.query(
-      'UPDATE submissions SET faculty_id = $1, assignment_version = COALESCE(assignment_version, 1) + $2, updated_at = $3 WHERE id = $4 RETURNING *',
-      [newFacultyId, versionBump, now, id]
+      'UPDATE submissions SET faculty_id = $1, previous_faculty_id = COALESCE($2, previous_faculty_id), assignment_version = COALESCE(assignment_version, 1) + $3, updated_at = $4 WHERE id = $5 RETURNING *',
+      [newFacultyId, previousFacultyId ?? null, versionBump, now, id]
     );
     if (!res.rows || res.rows.length === 0) return null;
     return this.mapSubmissionRow(res.rows[0]);
@@ -299,7 +327,9 @@ export class SubmissionRepository {
     id: string,
     schedule: FmsScheduleDetails,
     assignmentVersion: number,
-    fmsMessageId?: string | null
+    fmsMessageId?: string | null,
+    facultyId?: string,
+    previousFacultyId?: string | null
   ): Promise<Submission | null> {
     const existing = await this.findById(id);
     if (!existing) return null;
@@ -308,6 +338,8 @@ export class SubmissionRepository {
       assignment_version: assignmentVersion,
       fms_assignment_version: assignmentVersion,
       ...(fmsMessageId !== undefined ? { fms_message_id: fmsMessageId } : {}),
+      ...(facultyId ? { faculty_id: facultyId } : {}),
+      ...(previousFacultyId !== undefined ? { previous_faculty_id: previousFacultyId } : {}),
     });
   }
 

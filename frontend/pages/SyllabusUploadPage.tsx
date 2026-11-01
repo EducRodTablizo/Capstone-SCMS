@@ -15,10 +15,12 @@ import { submissionService } from '../services/submissionService';
 import { Course } from '../services/courseService';
 import { BlockSection } from '../services/blockSectionService';
 import { StatusBadge } from '../components/ui/StatusBadge';
+import { isSubmissionOwnedByFaculty, LiveSubmissionRecord } from './LiveCompliancePage';
 
 export const SyllabusUploadPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const navigate = useNavigate();
+  const isAcademicHead = (role || user?.role) === 'ACADEMIC_HEAD';
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [sections, setSections] = useState<BlockSection[]>([]);
@@ -31,21 +33,27 @@ export const SyllabusUploadPage: React.FC = () => {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [successResult, setSuccessResult] = useState<any | null>(null);
-  const [mySubmissions, setMySubmissions] = useState<any[]>([]);
+  const [mySubmissions, setMySubmissions] = useState<LiveSubmissionRecord[]>([]);
 
   const MAX_BYTES = 25 * 1024 * 1024; // 25MB (SCMS-008 AC 2)
 
   const fetchWorkspaceData = useCallback(async () => {
     try {
       const [subsRes, coursesRes, sectionsRes, reqsRes] = await Promise.allSettled([
-        apiClient.get<{ data: any[] }>('/submissions'),
+        apiClient.get<{ data: LiveSubmissionRecord[] }>('/submissions', {
+          params: !isAcademicHead && user?.id ? { faculty_id: user.id } : undefined,
+        }),
         apiClient.get<{ data: Course[] }>('/courses'),
         apiClient.get<{ data: BlockSection[] }>('/block-sections'),
         apiClient.get<{ data: any[] }>('/requirements'),
       ]);
 
       if (subsRes.status === 'fulfilled' && Array.isArray(subsRes.value?.data)) {
-        setMySubmissions(subsRes.value.data);
+        const rawList = subsRes.value.data;
+        const scoped = isAcademicHead
+          ? rawList
+          : rawList.filter((sub) => isSubmissionOwnedByFaculty(sub, user?.id));
+        setMySubmissions(scoped);
       }
 
       if (coursesRes.status === 'fulfilled' && Array.isArray(coursesRes.value?.data)) {
@@ -74,7 +82,7 @@ export const SyllabusUploadPage: React.FC = () => {
     } catch (err) {
       console.error('Failed to load syllabus submission workspace data:', err);
     }
-  }, []);
+  }, [isAcademicHead, user?.id]);
 
   useEffect(() => {
     fetchWorkspaceData();
@@ -118,7 +126,7 @@ export const SyllabusUploadPage: React.FC = () => {
     try {
       const res = await submissionService.submitSyllabus({
         requirementId,
-        facultyId: user?.id || 'fac-1092',
+        facultyId: user?.id || 'fac-prof-delacruz',
         facultyName: user?.name,
         courseCode,
         sectionLabel,
@@ -138,11 +146,11 @@ export const SyllabusUploadPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto font-sans">
       {/* Header */}
       <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-serif font-bold text-slate-900">
+          <h1 className="text-2xl font-serif font-bold text-[#580000]">
             Syllabus Submission Workspace
           </h1>
           <p className="text-sm text-slate-500 mt-1">
@@ -283,7 +291,7 @@ export const SyllabusUploadPage: React.FC = () => {
 
       {/* Submissions History Table */}
       <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-4">
-        <h3 className="font-serif font-bold text-lg text-slate-900">
+        <h3 className="font-sans font-bold text-lg text-slate-900">
           Recent Submissions for this Term
         </h3>
         <div className="overflow-x-auto">
@@ -310,12 +318,12 @@ export const SyllabusUploadPage: React.FC = () => {
                   <tr key={sub.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 font-semibold text-slate-800">{sub.course_code}</td>
                     <td className="px-4 py-3">{sub.section_label}</td>
-                    <td className="px-4 py-3">{sub.file_name || 'OBE Form'}</td>
+                    <td className="px-4 py-3">{sub.file_name || '-'}</td>
                     <td className="px-4 py-3">
                       {sub.submitted_at ? new Date(sub.submitted_at).toLocaleString() : 'N/A'}
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={sub.status.toLowerCase().replace(/\s+/g, '_')} />
+                      <StatusBadge status={sub.status.toLowerCase().replace(/\s+/g, '_') as any} />
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button

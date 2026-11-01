@@ -13,8 +13,8 @@ import { useAuth } from '../auth/AuthContext';
 import { Button } from '../components/ui/button';
 
 export const CoursesPage: React.FC = () => {
-  const { user } = useAuth();
-  const isAcademicHead = user?.role === 'ACADEMIC_HEAD';
+  const { user, role } = useAuth();
+  const isAcademicHead = (role || user?.role) === 'ACADEMIC_HEAD';
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -121,7 +121,7 @@ export const CoursesPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
@@ -278,9 +278,9 @@ export const CoursesPage: React.FC = () => {
                         {course.status !== 'Retired' && (
                           <Button
                             size="sm"
-                            variant="destructive"
+                            variant="outline"
                             onClick={() => handleRetire(course.id)}
-                            className="text-xs py-1 px-2 bg-red-800 hover:bg-red-900"
+                            className="text-xs py-1 px-2 border border-red-800 text-red-800 bg-transparent hover:bg-red-50"
                           >
                             Retire
                           </Button>
@@ -300,7 +300,7 @@ export const CoursesPage: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-serif font-bold text-lg text-[#580000]">
+              <h3 className="font-sans font-bold text-lg text-[#580000]">
                 New Course Master Specification
               </h3>
               <button

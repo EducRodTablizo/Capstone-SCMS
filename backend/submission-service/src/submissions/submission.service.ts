@@ -444,7 +444,12 @@ export class SubmissionService {
     const prevFacultyId = existing.faculty_id;
     const isApproved = existing.status === 'Approved';
 
-    const updated = await submissionRepository.updateFacultyAssignment(existing.id, params.newFacultyId, 1);
+    const updated = await submissionRepository.updateFacultyAssignment(
+      existing.id,
+      params.newFacultyId,
+      1,
+      prevFacultyId
+    );
     if (!updated) throw new Error('Failed to update faculty assignment.');
 
     const latestVersion = await submissionRepository.getLatestVersionNumber(existing.id);
@@ -640,6 +645,7 @@ export class SubmissionService {
     course_id: string;
     block_section_id: string;
     faculty_id: string;
+    previous_faculty_id?: string | null;
     assignment_status?: string;
     status?: string;
     schedule?: FmsScheduleDetails | null;
@@ -688,6 +694,9 @@ export class SubmissionService {
         throw err;
       }
 
+      const isFacultyReassigned = Boolean(payload.faculty_id && payload.faculty_id !== existing.faculty_id);
+      const prevFacultyId = isFacultyReassigned ? existing.faculty_id : (existing.previous_faculty_id ?? null);
+
       // AC 4: Schedule Update - If assignment already exists and payload has non-null schedule,
       // update only schedule details without changing compliance status or deadline.
       if (payload.schedule !== null && payload.schedule !== undefined) {
@@ -695,7 +704,9 @@ export class SubmissionService {
           existing.id,
           payload.schedule,
           incomingVersion,
-          resolvedMessageId ?? existing.fms_message_id
+          resolvedMessageId ?? existing.fms_message_id,
+          payload.faculty_id || existing.faculty_id,
+          prevFacultyId
         );
         if (!updated) {
           throw new Error('Failed to update assignment schedule.');
@@ -705,11 +716,11 @@ export class SubmissionService {
           actorId: 'system-fms-m2m',
           actorName: 'FMS Assignment Ingestion Engine',
           actorRole: 'SYSTEM_INTEGRATION',
-          actionType: 'ASSIGNMENT_SCHEDULE_UPDATED',
+          actionType: isFacultyReassigned ? 'ASSIGNMENT_REASSIGNED_SCHEDULE_UPDATED' : 'ASSIGNMENT_SCHEDULE_UPDATED',
           entityId: updated.id,
-          previousValue: existing.status,
-          newValue: updated.status,
-          details: `Schedule updated for assignment ${payload.assignment_id} (v${incomingVersion}) without altering status '${updated.status}'`
+          previousValue: isFacultyReassigned ? existing.faculty_id : existing.status,
+          newValue: isFacultyReassigned ? payload.faculty_id : updated.status,
+          details: `Schedule updated for assignment ${payload.assignment_id} (v${incomingVersion})${isFacultyReassigned ? ` and faculty reassigned from ${existing.faculty_id} to ${payload.faculty_id}` : ''} without altering status '${updated.status}'`
         });
 
         return { statusCode: 200, action: 'SCHEDULE_UPDATED', data: updated };
@@ -720,6 +731,7 @@ export class SubmissionService {
         assignment_version: incomingVersion,
         fms_assignment_version: incomingVersion,
         faculty_id: payload.faculty_id || existing.faculty_id,
+        previous_faculty_id: prevFacultyId,
         ...(resolvedMessageId ? { fms_message_id: resolvedMessageId } : {}),
       });
       if (!updated) {
@@ -730,11 +742,11 @@ export class SubmissionService {
         actorId: 'system-fms-m2m',
         actorName: 'FMS Assignment Ingestion Engine',
         actorRole: 'SYSTEM_INTEGRATION',
-        actionType: 'ASSIGNMENT_UPDATED',
+        actionType: isFacultyReassigned ? 'ASSIGNMENT_REASSIGNED' : 'ASSIGNMENT_UPDATED',
         entityId: updated.id,
-        previousValue: existing.status,
-        newValue: updated.status,
-        details: `Assignment ${payload.assignment_id} updated to version ${incomingVersion}`
+        previousValue: isFacultyReassigned ? existing.faculty_id : existing.status,
+        newValue: isFacultyReassigned ? payload.faculty_id : updated.status,
+        details: `Assignment ${payload.assignment_id} updated to version ${incomingVersion}${isFacultyReassigned ? ` and faculty reassigned from ${existing.faculty_id} to ${payload.faculty_id}` : ''}`
       });
 
       return { statusCode: 200, action: 'UPDATED', data: updated };
@@ -752,6 +764,7 @@ export class SubmissionService {
       block_section_id: payload.block_section_id || 'sec-bsit-4-1',
       requirement_id: `req-${payload.academic_term_id || 'term-2026-1s'}`,
       faculty_id: payload.faculty_id,
+      previous_faculty_id: (payload as any).previous_faculty_id ?? null,
       assignment_version: incomingVersion,
       fms_assignment_version: incomingVersion,
       course_code: courseCode,

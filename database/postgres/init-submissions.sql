@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS submissions (
     course_id VARCHAR(255),
     block_section_id VARCHAR(255),
     faculty_id VARCHAR(100) NOT NULL,
+    previous_faculty_id VARCHAR(100),
     substitute_id VARCHAR(100),
     course_code VARCHAR(50) NOT NULL,
     section_label VARCHAR(50) NOT NULL,
@@ -24,6 +25,7 @@ CREATE TABLE IF NOT EXISTS submissions (
 );
 
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS fms_message_id VARCHAR(255);
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS previous_faculty_id VARCHAR(100);
 
 CREATE TABLE IF NOT EXISTS submission_versions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

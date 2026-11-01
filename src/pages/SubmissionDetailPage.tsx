@@ -307,7 +307,7 @@ export const SubmissionDetailPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto py-12 text-center space-y-3">
+      <div className="max-w-6xl mx-auto py-12 text-center space-y-3 font-sans">
         <div className="w-8 h-8 border-4 border-[#580000] border-t-transparent rounded-full animate-spin mx-auto" />
         <p className="text-sm font-medium text-slate-600">
           Loading syllabus submission details...
@@ -318,7 +318,7 @@ export const SubmissionDetailPage: React.FC = () => {
 
   if (errorMessage || !submission) {
     return (
-      <div className="max-w-4xl mx-auto py-12">
+      <div className="max-w-4xl mx-auto py-12 font-sans">
         <div className="bg-red-50 border border-red-200 text-red-800 p-6 rounded-lg text-center space-y-3">
           <AlertCircle className="w-10 h-10 text-red-600 mx-auto" />
           <h3 className="font-bold text-lg">Unable to Load Submission</h3>
@@ -340,7 +340,7 @@ export const SubmissionDetailPage: React.FC = () => {
   const isNotSubmitted = submission.status === 'Not Submitted';
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-12">
+    <div className="max-w-6xl mx-auto space-y-6 pb-12 font-sans">
       {/* Top Navigation */}
       <div className="flex items-center justify-between">
         <button
@@ -385,7 +385,7 @@ export const SubmissionDetailPage: React.FC = () => {
               Section {submission.section_label}
             </span>
           </div>
-          <h1 className="text-2xl font-serif font-bold text-slate-900">
+          <h1 className="text-2xl font-serif font-bold text-[#580000]">
             Syllabus Evaluation &amp; Version Control
           </h1>
           <p className="text-xs text-slate-500 flex items-center space-x-4 pt-1">
@@ -488,7 +488,7 @@ export const SubmissionDetailPage: React.FC = () => {
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between">
-                <h3 className="font-serif font-bold text-base text-amber-950">
+                <h3 className="font-sans font-bold text-base text-amber-950">
                   Revision Required by {latestReturnReview.reviewer_name}
                 </h3>
                 <span className="text-xs text-amber-800 font-medium">
@@ -598,7 +598,7 @@ export const SubmissionDetailPage: React.FC = () => {
         <div className="lg:col-span-1 space-y-6">
           {/* Active File Card */}
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
-            <h3 className="font-serif font-bold text-sm text-slate-900 flex items-center space-x-2">
+            <h3 className="font-sans font-bold text-sm text-slate-900 flex items-center space-x-2">
               <FileText className="w-4 h-4 text-[#580000]" />
               <span>Current Active Document</span>
             </h3>
@@ -606,7 +606,7 @@ export const SubmissionDetailPage: React.FC = () => {
             <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono font-bold text-slate-800 break-all">
-                  {submission.file_name || 'Not uploaded'}
+                  {submission.file_name || '-'}
                 </span>
                 <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-800 rounded">
                   v{versions.length > 0 ? versions[versions.length - 1].version_number : 1}
@@ -653,7 +653,7 @@ export const SubmissionDetailPage: React.FC = () => {
           {/* Signatory Authority Block Card (SMS-035) */}
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h3 className="font-serif font-bold text-sm text-slate-900 flex items-center space-x-2">
+              <h3 className="font-sans font-bold text-sm text-slate-900 flex items-center space-x-2">
                 <FileCheck className="w-4 h-4 text-[#580000]" />
                 <span>4-Line Signatory Block (SMS-035)</span>
               </h3>
@@ -717,7 +717,7 @@ export const SubmissionDetailPage: React.FC = () => {
 
           {/* Review Decisions Log */}
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
-            <h3 className="font-serif font-bold text-sm text-slate-900 flex items-center space-x-2">
+            <h3 className="font-sans font-bold text-sm text-slate-900 flex items-center space-x-2">
               <MessageSquare className="w-4 h-4 text-[#580000]" />
               <span>Evaluation Comments &amp; History</span>
             </h3>
@@ -768,7 +768,7 @@ export const SubmissionDetailPage: React.FC = () => {
           <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-serif font-bold text-lg text-slate-900 flex items-center space-x-2">
+                <h3 className="font-sans font-bold text-lg text-slate-900 flex items-center space-x-2">
                   <History className="w-5 h-5 text-[#580000]" />
                   <span>Immutable Version History (SCMS-021)</span>
                 </h3>
@@ -888,7 +888,7 @@ export const SubmissionDetailPage: React.FC = () => {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4 border border-slate-200 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-serif font-bold text-lg text-slate-900 flex items-center space-x-2">
+              <h3 className="font-sans font-bold text-lg text-slate-900 flex items-center space-x-2">
                 {reviewDecision === 'Approved' ? (
                   <>
                     <CheckCircle2 className="w-5 h-5 text-emerald-600" />
@@ -982,7 +982,7 @@ export const SubmissionDetailPage: React.FC = () => {
               <div className="flex items-center space-x-3">
                 <BookOpen className="w-5 h-5 text-amber-300" />
                 <div>
-                  <h3 className="font-serif font-bold text-base">
+                  <h3 className="font-sans font-bold text-base">
                     Syllabus Document Viewer: {previewData.course_code}
                   </h3>
                   <p className="text-[11px] text-amber-200">
@@ -1017,7 +1017,7 @@ export const SubmissionDetailPage: React.FC = () => {
                 <p className="text-[11px] uppercase tracking-widest text-slate-500 font-semibold">
                   Republic of the Philippines
                 </p>
-                <h2 className="text-lg font-serif font-bold text-slate-900 tracking-wide">
+                <h2 className="text-lg font-sans font-bold text-slate-900 tracking-wide">
                   POLYTECHNIC UNIVERSITY OF THE PHILIPPINES
                 </h2>
                 <p className="text-xs text-slate-600 font-medium">QUEZON CITY CAMPUS</p>
@@ -1060,7 +1060,7 @@ export const SubmissionDetailPage: React.FC = () => {
 
               {/* Section I: Course Description */}
               <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-2">
-                <h4 className="font-serif font-bold text-sm text-[#580000] uppercase tracking-wider">
+                <h4 className="font-sans font-bold text-sm text-[#580000] uppercase tracking-wider">
                   I. Course Description
                 </h4>
                 <p className="text-xs text-slate-600 leading-relaxed">{previewData.description}</p>
@@ -1068,7 +1068,7 @@ export const SubmissionDetailPage: React.FC = () => {
 
               {/* Section II: Course Learning Outcomes */}
               <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-2">
-                <h4 className="font-serif font-bold text-sm text-[#580000] uppercase tracking-wider">
+                <h4 className="font-sans font-bold text-sm text-[#580000] uppercase tracking-wider">
                   II. Course Learning Outcomes (CLOs)
                 </h4>
                 <ul className="space-y-1.5 text-xs text-slate-700 pl-4 list-disc">
@@ -1082,7 +1082,7 @@ export const SubmissionDetailPage: React.FC = () => {
 
               {/* Section III: Weekly Modular Outline */}
               <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-3">
-                <h4 className="font-serif font-bold text-sm text-[#580000] uppercase tracking-wider">
+                <h4 className="font-sans font-bold text-sm text-[#580000] uppercase tracking-wider">
                   III. Modular Course Schedule Outline
                 </h4>
                 <div className="overflow-x-auto border border-slate-200 rounded-lg">
@@ -1111,7 +1111,7 @@ export const SubmissionDetailPage: React.FC = () => {
 
               {/* Section IV: Grading System */}
               <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-2 text-xs">
-                <h4 className="font-serif font-bold text-sm text-[#580000] uppercase tracking-wider">
+                <h4 className="font-sans font-bold text-sm text-[#580000] uppercase tracking-wider">
                   IV. Assessment &amp; Grading Criteria
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-slate-700">
@@ -1132,7 +1132,7 @@ export const SubmissionDetailPage: React.FC = () => {
 
               {/* Section V: Official Signatories Block */}
               <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-3">
-                <h4 className="font-serif font-bold text-sm text-[#580000] uppercase tracking-wider">
+                <h4 className="font-sans font-bold text-sm text-[#580000] uppercase tracking-wider">
                   V. Official Institutional Signatories
                 </h4>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">

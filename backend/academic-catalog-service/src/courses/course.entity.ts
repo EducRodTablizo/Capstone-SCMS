@@ -18,6 +18,8 @@ export interface Course {
   status: CourseStatus;
   root_course_id?: string;
   replacement_course_id?: string;
+  effective_end_term?: string;
+  is_assignable?: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -50,4 +52,5 @@ export interface UpdateCourseDto {
   special_software?: string[];
   status?: CourseStatus;
   replacement_course_id?: string;
+  effective_end_term?: string;
 }

@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS courses (
     status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (status IN ('Draft', 'Active', 'Revised', 'Retired')),
     root_course_id UUID,
     replacement_course_id UUID,
+    effective_end_term VARCHAR(50),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (course_code, version)

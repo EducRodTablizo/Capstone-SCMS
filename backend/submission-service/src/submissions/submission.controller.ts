@@ -30,11 +30,12 @@ export class SubmissionController {
 
   async list(req: Request, res: Response): Promise<void> {
     try {
-      const { requirement_id, status, course_code } = req.query;
+      const { requirement_id, status, course_code, faculty_id } = req.query;
       const list = await submissionRepository.listAll({
         requirement_id: requirement_id as string,
         status: status as string,
-        course_code: course_code as string
+        course_code: course_code as string,
+        faculty_id: faculty_id as string
       });
       res.json({ success: true, count: list.length, data: list });
     } catch (err: any) {

@@ -9,11 +9,18 @@ import {
 } from 'lucide-react';
 import { StatusBadge, ComplianceStatus } from '../components/ui/StatusBadge';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 import { apiClient } from '../services/apiClient';
-import { LiveSubmissionRecord } from './LiveCompliancePage';
+import {
+  LiveSubmissionRecord,
+  truncateUuid,
+  isSubmissionOwnedByFaculty,
+} from './LiveCompliancePage';
 
 export const ReviewQueuePage: React.FC = () => {
   const navigate = useNavigate();
+  const { user, role } = useAuth();
+  const isAcademicHead = role === 'ACADEMIC_HEAD';
 
   const [submissions, setSubmissions] = useState<LiveSubmissionRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -42,19 +49,24 @@ export const ReviewQueuePage: React.FC = () => {
         success: boolean;
         count: number;
         data: LiveSubmissionRecord[];
-      }>('/submissions');
-      const list = Array.isArray(response?.data)
+      }>('/submissions', {
+        params: !isAcademicHead && user?.id ? { faculty_id: user.id } : undefined,
+      });
+      const rawList = Array.isArray(response?.data)
         ? response.data
         : Array.isArray(response)
           ? (response as unknown as LiveSubmissionRecord[])
           : [];
-      setSubmissions(list);
+      const scopedList = isAcademicHead
+        ? rawList
+        : rawList.filter((sub) => isSubmissionOwnedByFaculty(sub, user?.id));
+      setSubmissions(scopedList);
     } catch (err: any) {
       console.error('Failed to load review queue:', err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAcademicHead, user?.id]);
 
   useEffect(() => {
     fetchReviewQueue();
@@ -77,7 +89,7 @@ export const ReviewQueuePage: React.FC = () => {
   });
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12 font-sans">
       {/* Header */}
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
@@ -85,8 +97,10 @@ export const ReviewQueuePage: React.FC = () => {
             <CheckSquare className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-serif font-bold text-slate-900">
-              Academic Head Syllabus Review Queue
+            <h1 className="text-2xl font-serif font-bold text-[#580000]">
+              {isAcademicHead
+                ? 'Academic Head Syllabus Review Queue'
+                : 'My Syllabus Review Queue'}
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">
               Evaluate, approve, or return faculty syllabus submissions stored in PostgreSQL (
@@ -143,7 +157,7 @@ export const ReviewQueuePage: React.FC = () => {
             <thead className="bg-slate-100 text-slate-700 uppercase font-bold text-[11px]">
               <tr>
                 <th className="px-4 py-3">Submission UUID</th>
-                <th className="px-4 py-3">Course & Section</th>
+                <th className="px-4 py-3">Course &amp; Section</th>
                 <th className="px-4 py-3">Faculty ID</th>
                 <th className="px-4 py-3">Syllabus File</th>
                 <th className="px-4 py-3">Submitted At</th>
@@ -167,8 +181,11 @@ export const ReviewQueuePage: React.FC = () => {
               ) : (
                 filteredQueue.map((submission) => (
                   <tr key={submission.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 font-mono text-[11px] text-slate-500">
-                      {submission.id}
+                    <td
+                      className="px-4 py-3 font-mono text-[11px] text-slate-500"
+                      title={submission.id}
+                    >
+                      {truncateUuid(submission.id)}
                     </td>
                     <td className="px-4 py-3">
                       <span className="font-bold text-slate-900 block">
@@ -188,13 +205,13 @@ export const ReviewQueuePage: React.FC = () => {
                           <span>{submission.file_name}</span>
                         </span>
                       ) : (
-                        <span className="text-slate-400 italic">No document uploaded</span>
+                        <span className="text-slate-400">-</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-slate-500">
                       {submission.submitted_at
                         ? new Date(submission.submitted_at).toLocaleString()
-                        : 'Pending'}
+                        : 'NOT SUBMITTED'}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={toBadgeStatus(submission.status)} />
@@ -221,4 +238,3 @@ export const ReviewQueuePage: React.FC = () => {
 };
 
 export default ReviewQueuePage;
-

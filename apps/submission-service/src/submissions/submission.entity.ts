@@ -8,7 +8,18 @@ export type CanonicalStatus =
   | 'Overdue'
   | 'Unassigned';
 
+export interface MeetingSchedule {
+  startsAt: string;
+  endsAt: string;
+  mode: 'FACE_TO_FACE' | 'ONLINE' | 'HYBRID' | string;
+  roomId?: string;
+  roomLabel?: string;
+  [key: string]: any;
+}
+
 export interface FmsScheduleDetails {
+  timeZone?: string;
+  meetings?: MeetingSchedule[];
   schedule_day_time?: string | null;
   room_id?: string | null;
   room_label?: string | null;
@@ -26,6 +37,7 @@ export interface Submission {
   block_section_id?: string | null;
   requirement_id: string;
   faculty_id: string;
+  previous_faculty_id?: string | null;
   substitute_id?: string | null;
   course_code: string;
   section_label: string;

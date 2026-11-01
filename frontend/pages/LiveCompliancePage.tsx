@@ -45,6 +45,35 @@ export interface LiveSubmissionRecord {
   updated_at: string;
 }
 
+export const truncateUuid = (id: string): string => {
+  if (!id) return '-';
+  const str = String(id);
+  return str.length > 12 ? `${str.slice(0, 8)}...${str.slice(-4)}` : str;
+};
+
+export const isSubmissionOwnedByFaculty = (
+  sub: LiveSubmissionRecord,
+  userId?: string | null
+): boolean => {
+  if (!userId) return false;
+  const fid = sub.faculty_id;
+  if (fid === userId) return true;
+  if (
+    userId === '22222222-2222-2222-2222-222222222222' ||
+    userId === 'fac-prof-delacruz' ||
+    userId === 'fac-prof-donayre' ||
+    userId === 'FMS-PUPQC-0492'
+  ) {
+    return (
+      fid === 'fac-prof-delacruz' ||
+      fid === 'fac-prof-donayre' ||
+      fid === '22222222-2222-2222-2222-222222222222' ||
+      fid === 'FMS-PUPQC-0492'
+    );
+  }
+  return false;
+};
+
 export const LiveCompliancePage: React.FC = () => {
   const { user, role } = useAuth();
   const navigate = useNavigate();
@@ -83,7 +112,10 @@ export const LiveCompliancePage: React.FC = () => {
       setLoading(true);
       const [subRes, progRes, termRes, metricsRes] = await Promise.allSettled([
         apiClient.get<{ success: boolean; count: number; data: LiveSubmissionRecord[] }>(
-          '/submissions'
+          '/submissions',
+          {
+            params: !isAcademicHead && user?.id ? { faculty_id: user.id } : undefined,
+          }
         ),
         apiClient.get<{ data: Program[] }>('/programs'),
         apiClient.get<{ data: AcademicTerm[] }>('/terms'),
@@ -92,12 +124,15 @@ export const LiveCompliancePage: React.FC = () => {
 
       if (subRes.status === 'fulfilled') {
         const response = subRes.value;
-        const list = Array.isArray(response?.data)
+        const rawList = Array.isArray(response?.data)
           ? response.data
           : Array.isArray(response)
             ? (response as unknown as LiveSubmissionRecord[])
             : [];
-        setSubmissions(list);
+        const scopedList = isAcademicHead
+          ? rawList
+          : rawList.filter((sub) => isSubmissionOwnedByFaculty(sub, user?.id));
+        setSubmissions(scopedList);
       }
 
       if (progRes.status === 'fulfilled' && Array.isArray(progRes.value?.data)) {
@@ -118,7 +153,7 @@ export const LiveCompliancePage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAcademicHead, user?.id]);
 
   useEffect(() => {
     loadComplianceData();
@@ -197,16 +232,18 @@ export const LiveCompliancePage: React.FC = () => {
   const complianceRate =
     totalCount > 0
       ? parseFloat(((counts.approved / totalCount) * 100).toFixed(1))
-      : metrics?.compliance_rate ?? 0;
+      : isAcademicHead
+        ? metrics?.compliance_rate ?? 0
+        : 0;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12 font-sans">
       {/* User Welcome Banner */}
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-2xl font-serif font-bold text-slate-900">
-              Live Compliance Monitoring View
+            <h1 className="text-2xl font-serif font-bold text-[#580000]">
+              {isAcademicHead ? 'Live Compliance Monitoring View' : 'My Compliance Status'}
             </h1>
             <span
               className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
@@ -281,10 +318,10 @@ export const LiveCompliancePage: React.FC = () => {
 
         <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
           <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
-            Pending
+            NOT SUBMITTED
           </span>
           <p className="text-2xl font-bold text-slate-800 mt-1">{counts.not_submitted}</p>
-          <span className="text-[10px] text-slate-400">Not Uploaded</span>
+          <span className="text-[10px] text-slate-400">Awaiting Syllabus</span>
         </div>
 
         <div className="bg-white p-3.5 rounded-xl border border-red-300 shadow-sm bg-red-50/20">
@@ -308,10 +345,10 @@ export const LiveCompliancePage: React.FC = () => {
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Official Campus Compliance Performance
+            {isAcademicHead ? 'Official Campus Compliance Performance' : 'My Compliance Status'}
           </span>
           <div className="flex items-baseline space-x-3">
-            <span className="text-4xl font-serif font-bold text-[#580000]">{complianceRate}%</span>
+            <span className="text-4xl font-bold text-[#580000]">{complianceRate}%</span>
             <span className="text-xs text-slate-600 font-medium">
               Approved Syllabi Compliance Rate ({counts.approved} of {totalCount} sections)
             </span>
@@ -417,8 +454,10 @@ export const LiveCompliancePage: React.FC = () => {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-2">
         <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="font-serif font-bold text-base text-slate-900">
-              Campus Compliance Roster ({filteredSubmissions.length} Sections)
+            <h3 className="font-sans font-bold text-base text-slate-900">
+              {isAcademicHead
+                ? `Campus Compliance Roster (${filteredSubmissions.length} Sections)`
+                : `My Assigned Course Sections (${filteredSubmissions.length} Sections)`}
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
               Fetched directly from PostgreSQL <code>/api/v1/submissions</code>.
@@ -493,14 +532,14 @@ export const LiveCompliancePage: React.FC = () => {
                   <tr key={sub.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3">
                       <span className="font-bold text-slate-900 block">{sub.course_code}</span>
-                      <span className="text-[10px] font-mono text-slate-400">
-                        {sub.id.slice(0, 8)}...
+                      <span className="text-[10px] font-mono text-slate-400" title={sub.id}>
+                        {truncateUuid(sub.id)}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-medium text-slate-800">{sub.section_label}</td>
                     <td className="px-4 py-3 text-slate-800 font-semibold">{sub.faculty_id}</td>
                     <td className="px-4 py-3 text-slate-600 text-[11px]">
-                      {sub.file_name || 'Not uploaded'}
+                      {sub.file_name || '-'}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={toBadgeStatus(sub.status)} />

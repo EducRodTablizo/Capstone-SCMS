@@ -5,7 +5,6 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { muiTheme } from '../../theme/muiTheme';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
-import { PupFooter } from './PupFooter';
 import { useAuth } from '../../auth/AuthContext';
 
 interface AppLayoutProps {
@@ -51,9 +50,6 @@ export function AppLayout({
           <main className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
             {children ?? <Outlet />}
           </main>
-
-          {/* Institutional Branding Footer */}
-          <PupFooter />
         </div>
       </div>
     </ThemeProvider>

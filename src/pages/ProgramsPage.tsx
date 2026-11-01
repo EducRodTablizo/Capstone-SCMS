@@ -15,8 +15,8 @@ import { apiClient } from '../services/apiClient';
 import { programService, Program } from '../services/programService';
 
 export const ProgramsPage: React.FC = () => {
-  const { user } = useAuth();
-  const isAcademicHead = user?.role === 'ACADEMIC_HEAD';
+  const { user, role } = useAuth();
+  const isAcademicHead = (role || user?.role) === 'ACADEMIC_HEAD';
 
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,16 +125,16 @@ export const ProgramsPage: React.FC = () => {
   const phasedOutCount = programs.filter((p) => p.status === 'Phased out').length;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-6 font-sans">
       {/* Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div>
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-[#800000]/10 text-[#800000] rounded-xl">
+            <div className="p-3 bg-[#580000]/10 text-[#580000] rounded-xl">
               <Layers className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+              <h1 className="text-2xl font-serif font-bold text-[#580000] tracking-tight">
                 Academic Programs Catalogue
               </h1>
               <p className="text-sm text-slate-500 font-medium">
@@ -157,7 +157,7 @@ export const ProgramsPage: React.FC = () => {
           {isAcademicHead ? (
             <button
               onClick={handleOpenAdd}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#800000] hover:bg-[#660000] shadow-sm rounded-xl transition-all"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#580000] hover:bg-[#430000] shadow-sm rounded-xl transition-all"
             >
               <Plus className="w-4 h-4" />
               Add Program
@@ -243,7 +243,7 @@ export const ProgramsPage: React.FC = () => {
             onClick={() => setFilter(tab)}
             className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all ${
               filter === tab
-                ? 'bg-[#800000] text-white shadow-sm'
+                ? 'bg-[#580000] text-white shadow-sm'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
@@ -317,7 +317,7 @@ export const ProgramsPage: React.FC = () => {
                         <button
                           onClick={() => handleOpenEdit(prog)}
                           title="Edit Program Details"
-                          className="p-1.5 text-slate-500 hover:text-[#800000] hover:bg-slate-100 rounded-lg transition-colors"
+                          className="p-1.5 text-slate-500 hover:text-[#580000] hover:bg-slate-100 rounded-lg transition-colors"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
@@ -356,7 +356,7 @@ export const ProgramsPage: React.FC = () => {
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                   placeholder="e.g. BSIT"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#800000] text-sm font-semibold uppercase disabled:bg-slate-100 disabled:text-slate-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#580000] text-sm font-semibold uppercase disabled:bg-slate-100 disabled:text-slate-500"
                 />
               </div>
 
@@ -370,7 +370,7 @@ export const ProgramsPage: React.FC = () => {
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="e.g. Bachelor of Science in Information Technology"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#800000] text-sm"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#580000] text-sm"
                 />
               </div>
 
@@ -383,7 +383,7 @@ export const ProgramsPage: React.FC = () => {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="e.g. College of Computer and Information Sciences"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#800000] text-sm"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#580000] text-sm"
                 />
               </div>
 
@@ -396,7 +396,7 @@ export const ProgramsPage: React.FC = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, status: e.target.value as 'Active' | 'Phased out' })
                   }
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#800000] text-sm font-semibold bg-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#580000] text-sm font-semibold bg-white"
                 >
                   <option value="Active">Active (Accepts Requirements)</option>
                   <option value="Phased out">Phased out (Archived / Legacy)</option>
@@ -414,7 +414,7 @@ export const ProgramsPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 text-sm font-semibold text-white bg-[#800000] hover:bg-[#660000] rounded-xl shadow-sm transition-all disabled:opacity-50"
+                  className="px-5 py-2 text-sm font-semibold text-white bg-[#580000] hover:bg-[#430000] rounded-xl shadow-sm transition-all disabled:opacity-50"
                 >
                   {submitting ? 'Saving...' : editingProgram ? 'Update Program' : 'Create Program'}
                 </button>

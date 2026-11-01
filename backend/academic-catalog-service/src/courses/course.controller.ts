@@ -75,21 +75,32 @@ courseRouter.get('/:id', authenticate, async (req: Request, res: Response) => {
     }
 
     if (course.status === 'Retired') {
-      res.status(410).json({
-        statusCode: 410,
+      const effectiveEndTerm = course.effective_end_term || '2026-1S';
+      const replacementCourseId = course.replacement_course_id || null;
+      res.status(200).json({
+        statusCode: 200,
         status: 'RETIRED',
-        replacedBy: course.replacement_course_id || null,
-        message: `Course '${course.course_code}' has been retired.`,
-        error: 'Gone',
+        is_assignable: false,
+        effective_end_term: effectiveEndTerm,
+        replaced_by_course_id: replacementCourseId,
         data: {
           ...course,
-          replacedBy: course.replacement_course_id || null,
+          status: 'RETIRED',
+          is_assignable: false,
+          effective_end_term: effectiveEndTerm,
+          replaced_by_course_id: replacementCourseId,
         },
       });
       return;
     }
 
-    res.status(200).json({ statusCode: 200, data: course });
+    res.status(200).json({
+      statusCode: 200,
+      data: {
+        ...course,
+        is_assignable: course.status === 'Active',
+      },
+    });
   } catch (err: any) {
     res.status(500).json({ statusCode: 500, message: 'Failed to retrieve course.', error: err.message });
   }

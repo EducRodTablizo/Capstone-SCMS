@@ -280,13 +280,13 @@ export const FmsSyncPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-gray-200 gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <Shield className="w-7 h-7 text-[#800000]" />
-            <h1 className="text-2xl font-serif font-bold text-gray-900">
+            <Shield className="w-7 h-7 text-[#580000]" />
+            <h1 className="text-2xl font-serif font-bold text-[#580000]">
               FMS Integration &amp; 4-Tier Resilience Gateway
             </h1>
           </div>
@@ -317,7 +317,7 @@ export const FmsSyncPage: React.FC = () => {
             className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold rounded-full shadow-sm transition-colors"
             title="Manual Operator Reconcile Path (Joint Rehearsal Rule 9)"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-[#800000]" />
+            <RotateCcw className="w-3.5 h-3.5 text-[#580000]" />
             <span>Operator Reconcile</span>
           </button>
         </div>
@@ -405,7 +405,7 @@ export const FmsSyncPage: React.FC = () => {
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <UserCheck className="w-5 h-5 text-[#800000]" />
+              <UserCheck className="w-5 h-5 text-[#580000]" />
               FMS Faculty Profile Ingestion (SMS-016)
             </h2>
             <span className="text-xs text-gray-500">24h Resilient Cache</span>
@@ -423,7 +423,7 @@ export const FmsSyncPage: React.FC = () => {
               <select
                 value={selectedFacultyId}
                 onChange={(e) => setSelectedFacultyId(e.target.value)}
-                className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800000]"
+                className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#580000]"
               >
                 {facultyList.map((f) => (
                   <option key={f.id} value={f.id}>
@@ -435,7 +435,7 @@ export const FmsSyncPage: React.FC = () => {
                 type="button"
                 onClick={() => fetchProfile(selectedFacultyId)}
                 disabled={lookupLoading || !selectedFacultyId}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#800000] text-white text-xs font-semibold rounded-md hover:bg-[#600000] transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#580000] text-white text-xs font-semibold rounded-md hover:bg-[#430000] transition-colors"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${lookupLoading ? 'animate-spin' : ''}`} />
                 Sync
@@ -510,7 +510,7 @@ export const FmsSyncPage: React.FC = () => {
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <ArrowRightLeft className="w-5 h-5 text-[#800000]" />
+              <ArrowRightLeft className="w-5 h-5 text-[#580000]" />
               FMS Teaching Assignment Simulator (SMS-023)
             </h2>
             <span className="text-xs text-gray-500">Inbound M2M Webhook</span>
@@ -527,7 +527,7 @@ export const FmsSyncPage: React.FC = () => {
                   onClick={() => setSimAction('REASSIGN')}
                   className={`py-1.5 px-2 text-xs font-semibold rounded border text-center transition-colors ${
                     simAction === 'REASSIGN'
-                      ? 'bg-[#800000] text-white border-[#800000]'
+                      ? 'bg-[#580000] text-white border-[#580000]'
                       : 'bg-gray-50 text-gray-700 border-gray-200'
                   }`}
                 >
@@ -538,7 +538,7 @@ export const FmsSyncPage: React.FC = () => {
                   onClick={() => setSimAction('SUBSTITUTE')}
                   className={`py-1.5 px-2 text-xs font-semibold rounded border text-center transition-colors ${
                     simAction === 'SUBSTITUTE'
-                      ? 'bg-[#800000] text-white border-[#800000]'
+                      ? 'bg-[#580000] text-white border-[#580000]'
                       : 'bg-gray-50 text-gray-700 border-gray-200'
                   }`}
                 >
@@ -549,7 +549,7 @@ export const FmsSyncPage: React.FC = () => {
                   onClick={() => setSimAction('WITHDRAW')}
                   className={`py-1.5 px-2 text-xs font-semibold rounded border text-center transition-colors ${
                     simAction === 'WITHDRAW'
-                      ? 'bg-[#800000] text-white border-[#800000]'
+                      ? 'bg-[#580000] text-white border-[#580000]'
                       : 'bg-gray-50 text-gray-700 border-gray-200'
                   }`}
                 >
@@ -646,7 +646,7 @@ export const FmsSyncPage: React.FC = () => {
             <button
               type="submit"
               disabled={simLoading}
-              className="w-full inline-flex items-center justify-center gap-2 py-2 bg-[#800000] text-white text-xs font-bold rounded hover:bg-[#600000] transition-colors"
+              className="w-full inline-flex items-center justify-center gap-2 py-2 bg-[#580000] text-white text-xs font-bold rounded hover:bg-[#430000] transition-colors"
             >
               {simLoading ? 'Transmitting...' : 'Trigger Inbound FMS Assignment Webhook'}
             </button>
@@ -675,7 +675,7 @@ export const FmsSyncPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
           <div>
             <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-              <Send className="w-4 h-4 text-[#800000]" />
+              <Send className="w-4 h-4 text-[#580000]" />
               Outbound Catalog Change Webhook Dispatcher &amp; Retry Queue (SMS-027)
             </h3>
             <p className="text-xs text-gray-500">
@@ -687,7 +687,7 @@ export const FmsSyncPage: React.FC = () => {
               type="button"
               onClick={() => handleDispatchCatalogWebhook(false)}
               disabled={dispatchLoading}
-              className="px-3 py-1.5 bg-[#800000] text-white text-xs font-bold rounded hover:bg-[#600000] shadow-sm transition-colors"
+              className="px-3 py-1.5 bg-[#580000] text-white text-xs font-bold rounded hover:bg-[#430000] shadow-sm transition-colors"
             >
               Simulate Successful Push
             </button>

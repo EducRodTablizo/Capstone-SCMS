@@ -139,31 +139,73 @@ class EmbeddedSubmissionsPostgresEngine {
 
     // 4. SUBMISSIONS INSERT
     if (/^INSERT\s+INTO\s+submissions/i.test(normalized)) {
-      // Expected columns:
-      // (id, fms_message_id, assignment_id, assignment_version, requirement_id, academic_term_id,
-      //  course_id, block_section_id, faculty_id, substitute_id, course_code,
-      //  section_label, status, schedule, file_id, file_name, submitted_at, created_at, updated_at)
-      const [
-        id = randomUUID(),
-        fms_message_id = null,
-        assignment_id = null,
-        assignment_version = 1,
-        requirement_id,
-        academic_term_id = null,
-        course_id = null,
-        block_section_id = null,
-        faculty_id,
-        substitute_id = null,
-        course_code,
-        section_label,
-        status = 'Not Submitted',
-        schedule = null,
-        file_id = null,
-        file_name = null,
-        submitted_at = null,
-        created_at = new Date().toISOString(),
-        updated_at = new Date().toISOString(),
-      ] = params;
+      let id = randomUUID();
+      let fms_message_id: any = null;
+      let assignment_id: any = null;
+      let assignment_version: any = 1;
+      let requirement_id: any;
+      let academic_term_id: any = null;
+      let course_id: any = null;
+      let block_section_id: any = null;
+      let faculty_id: any;
+      let previous_faculty_id: any = null;
+      let substitute_id: any = null;
+      let course_code: any;
+      let section_label: any;
+      let status: any = 'Not Submitted';
+      let schedule: any = null;
+      let file_id: any = null;
+      let file_name: any = null;
+      let submitted_at: any = null;
+      let created_at: any = new Date().toISOString();
+      let updated_at: any = new Date().toISOString();
+
+      if (params.length >= 20) {
+        [
+          id,
+          fms_message_id,
+          assignment_id,
+          assignment_version,
+          requirement_id,
+          academic_term_id,
+          course_id,
+          block_section_id,
+          faculty_id,
+          previous_faculty_id,
+          substitute_id,
+          course_code,
+          section_label,
+          status,
+          schedule,
+          file_id,
+          file_name,
+          submitted_at,
+          created_at,
+          updated_at,
+        ] = params;
+      } else {
+        [
+          id,
+          fms_message_id,
+          assignment_id,
+          assignment_version,
+          requirement_id,
+          academic_term_id,
+          course_id,
+          block_section_id,
+          faculty_id,
+          substitute_id,
+          course_code,
+          section_label,
+          status,
+          schedule,
+          file_id,
+          file_name,
+          submitted_at,
+          created_at,
+          updated_at,
+        ] = params;
+      }
 
       if (!VALID_STATUSES.has(status)) {
         throw new Error(`new row for relation "submissions" violates check constraint "submissions_status_check"`);
@@ -187,6 +229,7 @@ class EmbeddedSubmissionsPostgresEngine {
         course_id: course_id ?? null,
         block_section_id: block_section_id ?? null,
         faculty_id,
+        previous_faculty_id: previous_faculty_id ?? null,
         substitute_id: substitute_id ?? null,
         course_code,
         section_label,
@@ -257,18 +300,47 @@ class EmbeddedSubmissionsPostgresEngine {
       // Check which columns are being updated
       if (/SET\s+status\s*=\s*\$1\s*,\s*assignment_version\s*=\s*\$2/i.test(normalized)) {
         // Full updateStatus / updateApprovedAssignment / updateAssignmentSchedule
-        const [
-          status,
-          assignment_version,
-          faculty_id,
-          substitute_id,
-          schedule,
-          file_id,
-          file_name,
-          submitted_at,
-          fms_message_id,
-          updated_at,
-        ] = params;
+        let status: any;
+        let assignment_version: any;
+        let faculty_id: any;
+        let previous_faculty_id: any;
+        let substitute_id: any;
+        let schedule: any;
+        let file_id: any;
+        let file_name: any;
+        let submitted_at: any;
+        let fms_message_id: any;
+        let updated_at: any;
+
+        if (params.length >= 12) {
+          [
+            status,
+            assignment_version,
+            faculty_id,
+            previous_faculty_id,
+            substitute_id,
+            schedule,
+            file_id,
+            file_name,
+            submitted_at,
+            fms_message_id,
+            updated_at,
+          ] = params;
+        } else {
+          [
+            status,
+            assignment_version,
+            faculty_id,
+            substitute_id,
+            schedule,
+            file_id,
+            file_name,
+            submitted_at,
+            fms_message_id,
+            updated_at,
+          ] = params;
+        }
+
         if (!VALID_STATUSES.has(status)) {
           throw new Error(`new row for relation "submissions" violates check constraint "submissions_status_check"`);
         }
@@ -276,6 +348,9 @@ class EmbeddedSubmissionsPostgresEngine {
         updated.assignment_version = Number(assignment_version ?? updated.assignment_version ?? 1);
         updated.fms_assignment_version = updated.assignment_version;
         updated.faculty_id = faculty_id ?? updated.faculty_id;
+        if (previous_faculty_id !== undefined) {
+          updated.previous_faculty_id = previous_faculty_id;
+        }
         updated.substitute_id = substitute_id !== undefined ? substitute_id : updated.substitute_id;
         updated.schedule = schedule !== undefined ? this.parseJsonColumn(schedule) : updated.schedule;
         updated.file_id = file_id !== undefined ? file_id : updated.file_id;
@@ -284,11 +359,22 @@ class EmbeddedSubmissionsPostgresEngine {
         updated.fms_message_id = fms_message_id !== undefined ? fms_message_id : updated.fms_message_id;
         updated.updated_at = updated_at || new Date().toISOString();
       } else if (/SET\s+faculty_id\s*=\s*\$1/i.test(normalized)) {
-        const [newFacultyId, versionBump, updatedAt] = params;
-        updated.faculty_id = newFacultyId;
-        updated.assignment_version = (updated.assignment_version || 1) + Number(versionBump || 1);
-        updated.fms_assignment_version = updated.assignment_version;
-        updated.updated_at = updatedAt || new Date().toISOString();
+        if (/previous_faculty_id/i.test(normalized)) {
+          const [newFacultyId, prevFacultyId, versionBump, updatedAt] = params;
+          updated.faculty_id = newFacultyId;
+          if (prevFacultyId !== null && prevFacultyId !== undefined) {
+            updated.previous_faculty_id = prevFacultyId;
+          }
+          updated.assignment_version = (updated.assignment_version || 1) + Number(versionBump || 1);
+          updated.fms_assignment_version = updated.assignment_version;
+          updated.updated_at = updatedAt || new Date().toISOString();
+        } else {
+          const [newFacultyId, versionBump, updatedAt] = params;
+          updated.faculty_id = newFacultyId;
+          updated.assignment_version = (updated.assignment_version || 1) + Number(versionBump || 1);
+          updated.fms_assignment_version = updated.assignment_version;
+          updated.updated_at = updatedAt || new Date().toISOString();
+        }
       } else if (/SET\s+substitute_id\s*=\s*\$1/i.test(normalized)) {
         const [subId, updatedAt] = params;
         updated.substitute_id = subId;

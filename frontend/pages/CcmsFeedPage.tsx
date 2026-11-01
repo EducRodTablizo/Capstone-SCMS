@@ -103,13 +103,13 @@ export const CcmsFeedPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-gray-200 gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <ExternalLink className="w-7 h-7 text-[#800000]" />
-            <h1 className="text-2xl font-serif font-bold text-gray-900">
+            <ExternalLink className="w-7 h-7 text-[#580000]" />
+            <h1 className="text-2xl font-serif font-bold text-[#580000]">
               CCMS Integration &amp; 4-Tier Resilience Gateway
             </h1>
           </div>
@@ -217,7 +217,7 @@ export const CcmsFeedPage: React.FC = () => {
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-[#800000]" />
+              <Calendar className="w-5 h-5 text-[#580000]" />
               CCMS Academic Calendar Feed (SMS-018, SMS-034)
             </h2>
             <span className="text-xs text-gray-500">Inbound Calendar SSOT</span>
@@ -280,13 +280,13 @@ export const CcmsFeedPage: React.FC = () => {
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <Send className="w-5 h-5 text-[#800000]" />
+              <Send className="w-5 h-5 text-[#580000]" />
               Outbound Compliance Summary Push (SMS-019)
             </h2>
             <button
               onClick={handlePushNow}
               disabled={pushing}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#800000] text-white text-xs font-bold rounded hover:bg-[#600000] transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#580000] text-white text-xs font-bold rounded hover:bg-[#430000] transition-colors disabled:opacity-50"
             >
               <Send className={`w-3.5 h-3.5 ${pushing ? 'animate-spin' : ''}`} />
               {pushing ? 'Transmitting...' : 'Push to CCMS Now'}

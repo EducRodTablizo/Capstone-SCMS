@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Lock, Search, Filter } from 'lucide-react';
 import { auditLogService, AuditLogItem } from '../services/auditLogService';
+import { truncateUuid } from './LiveCompliancePage';
 
 const formatAuditValue = (value: unknown): string => {
   if (value === null || value === undefined || value === '') {
@@ -26,7 +27,7 @@ export const AuditLogPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await auditLogService.getLogs({
-        actionType: actionFilter || undefined
+        actionType: actionFilter || undefined,
       });
       if (res && Array.isArray(res.data)) {
         setLogs(res.data);
@@ -61,12 +62,14 @@ export const AuditLogPage: React.FC = () => {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       {/* Header */}
       <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-2xl font-serif font-bold text-slate-900">Institutional Audit Ledger</h1>
+            <h1 className="text-2xl font-serif font-bold text-[#580000]">
+              Institutional Audit Ledger
+            </h1>
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-900 text-white uppercase tracking-wider flex items-center">
               <Lock className="w-3 h-3 mr-1" />
               Append-Only (Read-Only)
@@ -150,18 +153,21 @@ export const AuditLogPage: React.FC = () => {
                   );
                   const roleDisplay = String(log.actorRole || 'FACULTY_STAFF');
                   const actionDisplay = String(log.actionType || log.action || 'UNKNOWN_ACTION');
+                  const truncatedEntityId = log.entityId
+                    ? truncateUuid(String(log.entityId))
+                    : '';
                   const entityDisplay = `${String(log.entityName || '-')}${
-                    log.entityId ? ` (${String(log.entityId)})` : ''
+                    truncatedEntityId ? ` (${truncatedEntityId})` : ''
                   }`;
                   const newValueDisplay = log.newValue
                     ? JSON.stringify(log.newValue)
                     : log.details
-                    ? typeof log.details === 'object'
-                      ? JSON.stringify(log.details)
-                      : String(log.details)
-                    : log.oldValue || log.previousValue
-                    ? JSON.stringify(log.oldValue || log.previousValue)
-                    : '-';
+                      ? typeof log.details === 'object'
+                        ? JSON.stringify(log.details)
+                        : String(log.details)
+                      : log.oldValue || log.previousValue
+                        ? JSON.stringify(log.oldValue || log.previousValue)
+                        : '-';
                   const hashDisplay = log.current_hash ? String(log.current_hash) : '-';
 
                   return (
@@ -178,7 +184,14 @@ export const AuditLogPage: React.FC = () => {
                           {actionDisplay}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-mono text-[11px] text-slate-700">
+                      <td
+                        className="px-4 py-3 font-mono text-[11px] text-slate-700"
+                        title={
+                          log.entityId
+                            ? `${log.entityName || '-'} (${log.entityId})`
+                            : String(log.entityName || '-')
+                        }
+                      >
                         {entityDisplay}
                       </td>
                       <td
@@ -191,7 +204,7 @@ export const AuditLogPage: React.FC = () => {
                         className="px-4 py-3 font-mono text-[11px] text-emerald-700 max-w-[140px] truncate"
                         title={hashDisplay}
                       >
-                        {hashDisplay !== '-' ? `${hashDisplay.slice(0, 12)}...` : '-'}
+                        {hashDisplay !== '-' ? `${hashDisplay.slice(0, 8)}...${hashDisplay.slice(-4)}` : '-'}
                       </td>
                       <td className="px-4 py-3 font-mono text-[11px] text-slate-400">
                         {String(log.clientIp || '127.0.0.1')}
