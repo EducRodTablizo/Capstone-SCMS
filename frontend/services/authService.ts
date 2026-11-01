@@ -18,6 +18,7 @@ export const authService = {
         { skipAuthRedirect: true }
       );
     } catch (err: any) {
+      console.error('Login Error Details:', err);
       if (err instanceof ApiError) {
         return {
           statusCode: err.statusCode,

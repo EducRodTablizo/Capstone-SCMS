@@ -33,10 +33,12 @@ export const LoginPage: React.FC = () => {
         login(result.token, result.user);
         navigate('/dashboard');
       } else {
+        console.error('Login Error Details (Server response):', result);
         // SCMS-001 AC2: Generic error message from backend
         setError(result.message || 'Invalid credentials. Please verify your email and password.');
       }
-    } catch (err) {
+    } catch (err: any) {
+      console.error('Login Error Details:', err);
       setError('An error occurred during authentication. Please try again.');
     } finally {
       setIsLoading(false);

@@ -10,7 +10,7 @@ const PORT = process.env.GATEWAY_PORT || 3000;
 
 // Enable CORS for frontend Vite client
 app.use(cors({
-  origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  origin: true,
   credentials: true,
 }));
 

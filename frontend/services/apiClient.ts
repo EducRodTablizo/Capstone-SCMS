@@ -2,6 +2,8 @@ export const API_BASE_URL: string =
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL) ||
   'http://localhost:3000/api/v1';
 
+console.log('API Base URL:', API_BASE_URL);
+
 export interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
   params?: Record<string, string | number | boolean | undefined | null>;
   skipAuthRedirect?: boolean;
@@ -79,13 +81,25 @@ class ApiClient {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    const response = await fetch(url, {
-      method,
-      headers,
-      credentials: restOptions.credentials || 'include',
-      body: isFormData ? (body as BodyInit) : (body !== undefined ? JSON.stringify(body) : undefined),
-      ...restOptions,
+    console.log(`[apiClient] Request: ${method} ${url}`, {
+      isFormData,
+      contentType: headers['Content-Type'],
+      body: isFormData ? '[FormData]' : body,
     });
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method,
+        headers,
+        credentials: restOptions.credentials || 'include',
+        body: isFormData ? (body as BodyInit) : (body !== undefined ? JSON.stringify(body) : undefined),
+        ...restOptions,
+      });
+    } catch (fetchErr: any) {
+      console.error(`[apiClient] Network failure on ${method} ${url}:`, fetchErr);
+      throw fetchErr;
+    }
 
     let parsedBody: any = null;
     const contentType = response.headers.get('content-type') || '';
