@@ -61,6 +61,42 @@ authRouter.post('/login', async (req: Request, res: Response) => {
 });
 
 /**
+ * Clerk OIDC Sign-In Endpoint
+ * Validates Clerk token, extracts email, checks local PostgreSQL users,
+ * and returns local JWT session.
+ */
+authRouter.post('/clerk-login', async (req: Request, res: Response) => {
+  const { clerkToken } = req.body || {};
+
+  const result = await authService.clerkLogin(clerkToken);
+
+  if (!result.success || !result.token) {
+    const status = result.statusCode || (result.error?.includes('Invite-only') ? 403 : 401);
+    res.status(status).json({
+      statusCode: status,
+      error: status === 403 ? 'Forbidden' : 'Unauthorized',
+      message: result.error || 'Clerk authentication failed.',
+    });
+    return;
+  }
+
+  // Set secure HttpOnly session cookie
+  res.cookie('scms_session', result.token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 8 * 60 * 60 * 1000, // 8 hours
+  });
+
+  res.status(200).json({
+    statusCode: 200,
+    message: 'Clerk authentication successful',
+    token: result.token,
+    user: result.user,
+  });
+});
+
+/**
  * Sign-Out Endpoint
  */
 authRouter.post('/logout', (req: Request, res: Response) => {

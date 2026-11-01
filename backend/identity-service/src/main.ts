@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import http from 'http';
 import { authRouter } from './auth/auth.controller';
 import { userRepository } from './users/user.repository';

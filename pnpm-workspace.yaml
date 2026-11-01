@@ -3,9 +3,11 @@ packages:
   - 'packages/*'
 
 allowBuilds:
+  '@clerk/shared': true
   argon2: true
   esbuild: true
 
 onlyBuiltDependencies:
   - esbuild
   - argon2
+  - '@clerk/shared'
