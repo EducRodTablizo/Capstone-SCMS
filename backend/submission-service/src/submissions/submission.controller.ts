@@ -6,27 +6,34 @@ import { downloadFileFromGridFS } from '../config/gridfs';
 export class SubmissionController {
   async submit(req: Request, res: Response): Promise<void> {
     try {
+      const body = req.body || {};
       const file = req.file as any;
-      const {
-        requirementId,
-        requirementStatus,
-        facultyId,
-        facultyName,
-        courseCode,
-        sectionLabel,
-        mode,
-        fileName,
-        fileSize,
-        obeFormPayload,
-      } = req.body;
+
+      const requirementId = body.requirementId || body.requirement_id;
+      const requirementStatus = body.requirementStatus || body.requirement_status;
+      const facultyId = body.facultyId || body.faculty_id;
+      const facultyName = body.facultyName || body.faculty_name;
+      const courseCode = body.courseCode || body.course_code;
+      const sectionLabel = body.sectionLabel || body.section_label;
+      const mode = body.mode || (file ? 'FILE_UPLOAD' : 'OBE_FORM');
+      const fileName = file ? file.originalname : (body.fileName || body.file_name);
+      const fileSize = file ? file.size : (body.fileSize || body.file_size ? parseInt(String(body.fileSize || body.file_size), 10) : undefined);
+      const obeFormPayload = body.obeFormPayload || body.obe_form_payload;
 
       if (!requirementId || !facultyId || !courseCode || !sectionLabel) {
-        res.status(400).json({ error: 'Missing required fields: requirementId, facultyId, courseCode, sectionLabel' });
+        res.status(400).json({
+          error: 'Missing required fields: requirementId, facultyId, courseCode, sectionLabel',
+          details: {
+            hasBody: Boolean(req.body),
+            bodyKeys: Object.keys(body),
+            hasFile: Boolean(file),
+          },
+        });
         return;
       }
 
-      const resolvedFileName = file ? file.originalname : (fileName || 'Syllabus.pdf');
-      const resolvedFileSize = file ? file.size : (fileSize ? parseInt(fileSize, 10) : undefined);
+      const resolvedFileName = fileName || (file ? file.originalname : 'Syllabus.pdf');
+      const resolvedFileSize = fileSize !== undefined ? fileSize : (file ? file.size : undefined);
       const resolvedFileId = file ? (file.id ? String(file.id) : (file.filename ? String(file.filename) : undefined)) : undefined;
 
       const parsedObePayload = typeof obeFormPayload === 'string'
@@ -114,23 +121,27 @@ export class SubmissionController {
 
   async resubmit(req: Request, res: Response): Promise<void> {
     try {
+      const body = req.body || {};
       const file = req.file as any;
-      const { facultyId, facultyName, fileName, fileSize, changeSummary } = req.body;
-      const resolvedFileName = file ? file.originalname : fileName;
-      if (!resolvedFileName) {
+      const facultyId = body.facultyId || body.faculty_id || 'fac_01';
+      const facultyName = body.facultyName || body.faculty_name || 'Faculty Staff';
+      const fileName = file ? file.originalname : (body.fileName || body.file_name);
+      const fileSize = file ? file.size : (body.fileSize || body.file_size ? parseInt(String(body.fileSize || body.file_size), 10) : 1024);
+      const changeSummary = body.changeSummary || body.change_summary;
+
+      if (!fileName) {
         res.status(400).json({ error: 'File name is required for resubmission.' });
         return;
       }
-      const resolvedFileSize = file ? file.size : (fileSize ? parseInt(fileSize, 10) : 1024);
       const resolvedFileId = file ? (file.id ? String(file.id) : (file.filename ? String(file.filename) : undefined)) : undefined;
 
       const result = await submissionService.resubmitSyllabus({
         submissionId: req.params.id,
-        facultyId: facultyId || 'fac_01',
-        facultyName: facultyName || 'Faculty Staff',
+        facultyId,
+        facultyName,
         fileId: resolvedFileId,
-        fileName: resolvedFileName,
-        fileSize: resolvedFileSize,
+        fileName,
+        fileSize,
         changeSummary,
       });
       res.json({ success: true, data: result.submission, version: result.version });

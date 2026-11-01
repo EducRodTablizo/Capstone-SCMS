@@ -69,17 +69,28 @@ export const upload = multer({
  * Middleware wrapper to handle Multer upload and return clean JSON errors on violation
  */
 export function uploadMiddleware(req: Request, res: Response, next: NextFunction): void {
-  upload.single('file')(req, res, (err: any) => {
-    if (err) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        res.status(400).json({ error: 'File size exceeds 25MB limit.' });
+  const contentType = (req.headers['content-type'] || '').toLowerCase();
+  if (contentType.includes('multipart/form-data')) {
+    upload.single('file')(req, res, (err: any) => {
+      if (err) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          res.status(400).json({ error: 'File size exceeds 25MB limit.' });
+          return;
+        }
+        res.status(400).json({ error: err.message || 'File upload error.' });
         return;
       }
-      res.status(400).json({ error: err.message || 'File upload error.' });
-      return;
+      if (!req.body) {
+        req.body = {};
+      }
+      next();
+    });
+  } else {
+    if (!req.body) {
+      req.body = {};
     }
     next();
-  });
+  }
 }
 
 /**
