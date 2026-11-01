@@ -124,16 +124,20 @@ export const SyllabusUploadPage: React.FC = () => {
     setSuccessResult(null);
 
     try {
-      const res = await submissionService.submitSyllabus({
-        requirementId,
-        facultyId: user?.id || 'fac-prof-delacruz',
-        facultyName: user?.name,
-        courseCode,
-        sectionLabel,
-        mode: 'FILE_UPLOAD',
-        fileName: file.name,
-        fileSize: file.size,
-      });
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('requirementId', requirementId);
+      formData.append('facultyId', user?.id || 'fac-prof-delacruz');
+      if (user?.name) {
+        formData.append('facultyName', user.name);
+      }
+      formData.append('courseCode', courseCode);
+      formData.append('sectionLabel', sectionLabel);
+      formData.append('mode', 'FILE_UPLOAD');
+      formData.append('fileName', file.name);
+      formData.append('fileSize', String(file.size));
+
+      const res = await submissionService.submitSyllabus(formData);
 
       setSuccessResult(res.data);
       setFile(null);

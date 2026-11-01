@@ -283,13 +283,17 @@ export const SubmissionDetailPage: React.FC = () => {
     setActionLoading(true);
     setResubmitError(null);
     try {
-      await submissionService.resubmitSyllabus(id, {
-        facultyId: user?.id || submission?.faculty_id,
-        facultyName: user?.name,
-        fileName: resubmitFile.name,
-        fileSize: resubmitFile.size,
-        changeSummary: changeSummary.trim() || 'Revised syllabus addressing feedback',
-      });
+      const formData = new FormData();
+      formData.append('file', resubmitFile);
+      formData.append('facultyId', user?.id || submission?.faculty_id || '');
+      if (user?.name) {
+        formData.append('facultyName', user.name);
+      }
+      formData.append('fileName', resubmitFile.name);
+      formData.append('fileSize', String(resubmitFile.size));
+      formData.append('changeSummary', changeSummary.trim() || 'Revised syllabus addressing feedback');
+
+      await submissionService.resubmitSyllabus(id, formData);
 
       setSuccessMessage(
         'Revised version successfully submitted. Status updated to Resubmitted.'

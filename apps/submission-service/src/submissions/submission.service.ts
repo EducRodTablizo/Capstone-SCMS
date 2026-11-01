@@ -119,6 +119,7 @@ export class SubmissionService {
     courseCode: string;
     sectionLabel: string;
     mode: 'FILE_UPLOAD' | 'OBE_FORM';
+    fileId?: string;
     fileName?: string;
     fileSize?: number;
     obeFormPayload?: Record<string, any>;
@@ -128,6 +129,7 @@ export class SubmissionService {
         submissionId: params.submissionId,
         facultyId: params.facultyId,
         facultyName: params.facultyName,
+        fileId: params.fileId,
         fileName: params.fileName || 'OBE_Form.pdf',
         fileSize: params.fileSize || 1024,
         changeSummary: 'Resubmitted revision'
@@ -157,7 +159,7 @@ export class SubmissionService {
       course_code: params.courseCode,
       section_label: params.sectionLabel,
       status: 'Submitted',
-      file_id: params.fileName ? 'file_' + Date.now() : null,
+      file_id: params.fileId || (params.fileName ? 'file_' + Date.now() : null),
       file_name: params.fileName || 'OBE_Form.pdf',
       file_size: params.fileSize || 0,
       submission_mode: params.mode,
@@ -344,6 +346,7 @@ export class SubmissionService {
     submissionId: string;
     facultyId: string;
     facultyName?: string;
+    fileId?: string;
     fileName: string;
     fileSize: number;
     changeSummary?: string;
@@ -364,12 +367,21 @@ export class SubmissionService {
     const newVersionNum = latestVersion + 1;
     const newVersionLabel = 'v' + newVersionNum;
 
+    const resolvedFileId = params.fileId || existing.file_id || ('file_' + Date.now());
+
     // Update submission record
     await submissionRepository.updateStatus(existing.id, 'Resubmitted', {
       file_name: params.fileName,
+      file_id: resolvedFileId,
       submitted_at: serverTimestamp
     });
-    const updatedSub = await submissionRepository.updateFileMetadata(existing.id, params.fileName, params.fileSize, serverTimestamp);
+    const updatedSub = await submissionRepository.updateFileMetadata(
+      existing.id,
+      params.fileName,
+      params.fileSize,
+      serverTimestamp,
+      resolvedFileId
+    );
     if (!updatedSub) throw new Error('Resubmission update failed.');
 
     // Save immutable new version (SCMS-021 AC 1)
@@ -377,7 +389,7 @@ export class SubmissionService {
       submission_id: existing.id,
       version_number: newVersionNum,
       version_label: newVersionLabel,
-      file_id: 'file_' + Date.now(),
+      file_id: resolvedFileId,
       file_name: params.fileName,
       file_size: params.fileSize,
       submitted_by: params.facultyId,

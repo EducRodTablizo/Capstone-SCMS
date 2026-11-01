@@ -3,6 +3,7 @@ import cors from 'cors';
 import { submissionController } from './submissions/submission.controller';
 import { submissionRepository } from './submissions/submission.repository';
 import { pool } from './config/db';
+import { uploadMiddleware } from './config/gridfs';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3003', 10);
@@ -17,12 +18,12 @@ app.get('/health', (_req, res) => {
 });
 
 // Sprint 4 & Sprint 5 Endpoints
-app.post('/api/v1/submissions', (req, res) => submissionController.submit(req, res));
+app.post('/api/v1/submissions', uploadMiddleware, (req, res) => submissionController.submit(req, res));
 app.get('/api/v1/submissions', (req, res) => submissionController.list(req, res));
 app.get('/api/v1/submissions/:id', (req, res) => submissionController.getById(req, res));
 app.patch('/api/v1/submissions/:id/open-review', (req, res) => submissionController.openReview(req, res));
 app.post('/api/v1/submissions/:id/review', (req, res) => submissionController.review(req, res));
-app.post('/api/v1/submissions/:id/resubmit', (req, res) => submissionController.resubmit(req, res));
+app.post('/api/v1/submissions/:id/resubmit', uploadMiddleware, (req, res) => submissionController.resubmit(req, res));
 app.get('/api/v1/submissions/:id/versions', (req, res) => submissionController.getVersions(req, res));
 app.get('/api/v1/submissions/:id/file', (req, res) => submissionController.downloadFile(req, res));
 app.get('/api/v1/submissions/:id/preview', (req, res) => submissionController.getPreview(req, res));

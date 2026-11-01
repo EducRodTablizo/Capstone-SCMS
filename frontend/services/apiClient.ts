@@ -67,8 +67,10 @@ class ApiClient {
     const { params, skipAuthRedirect, headers: customHeaders, ...restOptions } = options;
     const url = this.buildUrl(endpoint, params);
 
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(customHeaders as Record<string, string>),
     };
 
@@ -81,7 +83,7 @@ class ApiClient {
       method,
       headers,
       credentials: restOptions.credentials || 'include',
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: isFormData ? (body as BodyInit) : (body !== undefined ? JSON.stringify(body) : undefined),
       ...restOptions,
     });
 

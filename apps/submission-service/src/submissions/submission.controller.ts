@@ -1,15 +1,38 @@
 import { Request, Response } from 'express';
 import { submissionService } from './submission.service';
 import { submissionRepository } from './submission.repository';
+import { downloadFileFromGridFS } from '../config/gridfs';
 
 export class SubmissionController {
   async submit(req: Request, res: Response): Promise<void> {
     try {
-      const { requirementId, requirementStatus, facultyId, facultyName, courseCode, sectionLabel, mode, fileName, fileSize, obeFormPayload } = req.body;
+      const file = req.file as any;
+      const {
+        requirementId,
+        requirementStatus,
+        facultyId,
+        facultyName,
+        courseCode,
+        sectionLabel,
+        mode,
+        fileName,
+        fileSize,
+        obeFormPayload,
+      } = req.body;
+
       if (!requirementId || !facultyId || !courseCode || !sectionLabel) {
         res.status(400).json({ error: 'Missing required fields: requirementId, facultyId, courseCode, sectionLabel' });
         return;
       }
+
+      const resolvedFileName = file ? file.originalname : (fileName || 'Syllabus.pdf');
+      const resolvedFileSize = file ? file.size : (fileSize ? parseInt(fileSize, 10) : undefined);
+      const resolvedFileId = file ? (file.id ? String(file.id) : (file.filename ? String(file.filename) : undefined)) : undefined;
+
+      const parsedObePayload = typeof obeFormPayload === 'string'
+        ? (() => { try { return JSON.parse(obeFormPayload); } catch { return null; } })()
+        : obeFormPayload;
+
       const result = await submissionService.submitSyllabus({
         requirementId,
         requirementStatus,
@@ -17,10 +40,11 @@ export class SubmissionController {
         facultyName,
         courseCode,
         sectionLabel,
-        mode: mode || 'FILE_UPLOAD',
-        fileName,
-        fileSize: fileSize ? parseInt(fileSize, 10) : undefined,
-        obeFormPayload
+        mode: mode || (file ? 'FILE_UPLOAD' : 'OBE_FORM'),
+        fileId: resolvedFileId,
+        fileName: resolvedFileName,
+        fileSize: resolvedFileSize,
+        obeFormPayload: parsedObePayload,
       });
       res.status(201).json({ success: true, data: result.submission, version: result.version });
     } catch (err: any) {
@@ -90,18 +114,24 @@ export class SubmissionController {
 
   async resubmit(req: Request, res: Response): Promise<void> {
     try {
+      const file = req.file as any;
       const { facultyId, facultyName, fileName, fileSize, changeSummary } = req.body;
-      if (!fileName) {
+      const resolvedFileName = file ? file.originalname : fileName;
+      if (!resolvedFileName) {
         res.status(400).json({ error: 'File name is required for resubmission.' });
         return;
       }
+      const resolvedFileSize = file ? file.size : (fileSize ? parseInt(fileSize, 10) : 1024);
+      const resolvedFileId = file ? (file.id ? String(file.id) : (file.filename ? String(file.filename) : undefined)) : undefined;
+
       const result = await submissionService.resubmitSyllabus({
         submissionId: req.params.id,
         facultyId: facultyId || 'fac_01',
         facultyName: facultyName || 'Faculty Staff',
-        fileName,
-        fileSize: fileSize ? parseInt(fileSize, 10) : 1024,
-        changeSummary
+        fileId: resolvedFileId,
+        fileName: resolvedFileName,
+        fileSize: resolvedFileSize,
+        changeSummary,
       });
       res.json({ success: true, data: result.submission, version: result.version });
     } catch (err: any) {
@@ -125,6 +155,17 @@ export class SubmissionController {
         res.status(404).json({ error: 'Submission not found' });
         return;
       }
+
+      if (sub.file_id) {
+        const gridFsFile = await downloadFileFromGridFS(sub.file_id);
+        if (gridFsFile) {
+          res.setHeader('Content-Type', gridFsFile.contentType || 'application/octet-stream');
+          res.setHeader('Content-Disposition', `attachment; filename="${gridFsFile.filename}"`);
+          gridFsFile.stream.pipe(res);
+          return;
+        }
+      }
+
       const fileName = sub.file_name || `${sub.course_code}_Syllabus.docx`;
       const isDocx = fileName.endsWith('.docx');
       const isPdf = fileName.endsWith('.pdf');

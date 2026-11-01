@@ -70,7 +70,7 @@ export interface SignatoryDetails {
 }
 
 export const submissionService = {
-  async submitSyllabus(payload: SubmissionPayload): Promise<any> {
+  async submitSyllabus(payload: SubmissionPayload | FormData): Promise<any> {
     return apiClient.post('/submissions', payload);
   },
 
@@ -95,7 +95,7 @@ export const submissionService = {
 
   async resubmitSyllabus(
     id: string,
-    payload: { facultyId?: string; facultyName?: string; fileName: string; fileSize?: number; changeSummary?: string }
+    payload: { facultyId?: string; facultyName?: string; fileName: string; fileSize?: number; changeSummary?: string } | FormData
   ): Promise<any> {
     return apiClient.post(`/submissions/${id}/resubmit`, payload);
   },

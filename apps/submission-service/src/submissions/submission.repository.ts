@@ -271,17 +271,26 @@ export class SubmissionRepository {
     id: string,
     fileName: string,
     _fileSize: number,
-    submittedAt: string
+    submittedAt: string,
+    fileId?: string
   ): Promise<Submission | null> {
     await this.init();
     const now = new Date().toISOString();
-    const query = `
+    const query = fileId
+      ? `
+      UPDATE submissions
+      SET file_name = $1, file_id = $2, submitted_at = $3, updated_at = $4
+      WHERE id = $5
+      RETURNING *
+    `
+      : `
       UPDATE submissions
       SET file_name = $1, submitted_at = $2, updated_at = $3
       WHERE id = $4
       RETURNING *
     `;
-    const res = await this.db.query(query, [fileName, submittedAt, now, id]);
+    const params = fileId ? [fileName, fileId, submittedAt, now, id] : [fileName, submittedAt, now, id];
+    const res = await this.db.query(query, params);
     if (!res.rows || res.rows.length === 0) return null;
     return this.mapSubmissionRow(res.rows[0]);
   }

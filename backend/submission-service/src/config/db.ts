@@ -380,10 +380,18 @@ class EmbeddedSubmissionsPostgresEngine {
         updated.substitute_id = subId;
         updated.updated_at = updatedAt || new Date().toISOString();
       } else if (/SET\s+file_name\s*=\s*\$1/i.test(normalized)) {
-        const [fileName, submittedAt, updatedAt] = params;
-        updated.file_name = fileName;
-        updated.submitted_at = submittedAt;
-        updated.updated_at = updatedAt || new Date().toISOString();
+        if (/file_id/i.test(normalized)) {
+          const [fileName, fileId, submittedAt, updatedAt] = params;
+          updated.file_name = fileName;
+          updated.file_id = fileId;
+          updated.submitted_at = submittedAt;
+          updated.updated_at = updatedAt || new Date().toISOString();
+        } else {
+          const [fileName, submittedAt, updatedAt] = params;
+          updated.file_name = fileName;
+          updated.submitted_at = submittedAt;
+          updated.updated_at = updatedAt || new Date().toISOString();
+        }
       }
 
       this.submissions.set(id, updated);
