@@ -1,4 +1,4 @@
-﻿import { requirementService, RequirementForbiddenError, RequirementValidationError } from './requirements/requirement.service';
+import { requirementService, RequirementForbiddenError, RequirementValidationError } from './requirements/requirement.service';
 const auditLogService: any = { clearForTesting: () => {}, count: 0, getLogs: () => [], updateAuditRecord: () => {}, deleteAuditRecord: () => {}, logAction: () => {}, getLogById: () => null, getAuditLogs: () => [] };
 import { UserContext } from './requirements/requirement.types';
 

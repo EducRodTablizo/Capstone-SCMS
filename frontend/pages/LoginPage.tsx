@@ -5,7 +5,7 @@ import { SignIn, useAuth, useClerk } from '@clerk/clerk-react';
 import { Button } from '../components/ui/button';
 import { authService } from '../services/authService';
 import { useAuth as useScmsAuth, UserProfile } from '../auth/AuthContext';
-import { isClerkConfigured } from '../main';
+import { isClerkConfigured } from '../utils/clerkConfig';
 
 interface ClerkAuthBridgeProps {
   onSuccess: (token: string, user: UserProfile) => void;
@@ -115,16 +115,19 @@ export const LoginPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
 
-    if (!email || !password) {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
       setError('Please enter both your SCMS institutional email and password.');
       setIsLoading(false);
       return;
     }
 
     try {
-      const result = await authService.login(email, password);
+      console.log('[LoginPage] Initiating local login for:', trimmedEmail);
+      const result = await authService.login(trimmedEmail, password);
 
       if (result.statusCode === 200 && result.user && result.token) {
+        console.log('[LoginPage] Login successful, redirecting to /dashboard');
         login(result.token, result.user);
         navigate('/dashboard');
       } else {
@@ -151,7 +154,7 @@ export const LoginPage: React.FC = () => {
           Syllabus Compliance Monitoring System
         </h2>
         <p className="mt-1 text-center text-xs font-medium text-[#580000] tracking-wider uppercase">
-          Polytechnic University of the Philippines — Quezon City Campus
+          Polytechnic University of the Philippines - Quezon City Campus
         </p>
       </div>
 
@@ -245,7 +248,7 @@ export const LoginPage: React.FC = () => {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••••••"
+                      placeholder="Enter password"
                       className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-[#580000] focus:border-[#580000] sm:text-sm"
                     />
                   </div>
@@ -272,9 +275,10 @@ export const LoginPage: React.FC = () => {
                       setEmail('academic.head@pup.edu.ph');
                       setPassword('AcademicHead2026!');
                     }}
-                    className="text-left text-[#580000] hover:underline"
+                    className="text-left text-[#580000] hover:underline flex items-center gap-1.5"
                   >
-                    🔑 Academic Head: <span className="font-mono">academic.head@pup.edu.ph</span>
+                    <KeyRound className="w-3 h-3 text-[#580000]" />
+                    <span>Academic Head: <span className="font-mono">academic.head@pup.edu.ph</span></span>
                   </button>
                   <button
                     type="button"
@@ -282,9 +286,10 @@ export const LoginPage: React.FC = () => {
                       setEmail('faculty.donayre@pup.edu.ph');
                       setPassword('Faculty2026!');
                     }}
-                    className="text-left text-[#580000] hover:underline"
+                    className="text-left text-[#580000] hover:underline flex items-center gap-1.5"
                   >
-                    🔑 Faculty Staff: <span className="font-mono">faculty.donayre@pup.edu.ph</span>
+                    <KeyRound className="w-3 h-3 text-[#580000]" />
+                    <span>Faculty Staff: <span className="font-mono">faculty.donayre@pup.edu.ph</span></span>
                   </button>
                 </div>
               </div>

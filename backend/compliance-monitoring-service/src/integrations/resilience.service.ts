@@ -316,7 +316,7 @@ export class ResilienceService {
       digest_signature: signature
     };
 
-    const targetUrl = 'http://localhost:3002/api/v1/integrations/scms/catalog-events';
+    const targetUrl = process.env.REQUIREMENTS_SERVICE_URL || 'http://requirements-service:3002/api/v1/integrations/scms/catalog-events';
     const isFailed = params.simulateFailure === true;
 
     const logEntry: CatalogWebhookLog = {
@@ -408,7 +408,7 @@ export class ResilienceService {
         'Content-Length': Buffer.byteLength(body)
       }
     });
-    req.on('error', () => {});
+    req.on('error', () => { });
     req.write(body);
     req.end();
   }

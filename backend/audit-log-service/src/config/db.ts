@@ -18,8 +18,8 @@ export interface AuditDbConfig {
 }
 
 export const dbConfig: AuditDbConfig = {
-  host: process.env.DB_HOST || process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || process.env.AUDIT_DB_PORT || '5438', 10),
+  host: process.env.DB_HOST || process.env.POSTGRES_HOST || 'scms_postgres_audit',
+  port: parseInt(process.env.DB_PORT || process.env.AUDIT_DB_PORT || '5432', 10),
   user: process.env.DB_USER || process.env.POSTGRES_USER || 'scms_admin',
   password: process.env.DB_PASSWORD || process.env.POSTGRES_PASSWORD || 'scms_secure_pass_2026',
   database: process.env.DB_NAME || process.env.AUDIT_DB_NAME || 'sms_audit',
@@ -216,7 +216,7 @@ export class AuditPool {
     }
     return {
       query: (text: string, params?: any[]) => this.embeddedEngine.execute(text, params),
-      release: () => {},
+      release: () => { },
     };
   }
 

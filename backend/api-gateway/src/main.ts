@@ -37,15 +37,16 @@ const SERVICES: Record<string, { port: number; name: string }> = {
 
 // Generic reverse proxy handler using native Node.js HTTP
 function proxyToService(targetPort: number, serviceName: string) {
+  const targetHost = process.env.LOCAL_DEV === 'true' ? 'localhost' : serviceName;
   return (req: Request, res: Response) => {
     const options: http.RequestOptions = {
-      hostname: 'localhost',
+      hostname: targetHost,
       port: targetPort,
       path: req.originalUrl,
       method: req.method,
       headers: {
         ...req.headers,
-        host: `localhost:${targetPort}`,
+        host: `${targetHost}:${targetPort}`,
         'x-forwarded-for': req.ip,
         'x-forwarded-host': req.headers.host || 'localhost:3000',
         'x-forwarded-proto': 'http',
@@ -58,7 +59,7 @@ function proxyToService(targetPort: number, serviceName: string) {
     });
 
     proxyReq.on('error', (err) => {
-      console.error(`[API Gateway] Error proxying to ${serviceName} (Port ${targetPort}):`, err.message);
+      console.error(`[API Gateway] Error proxying to ${serviceName} (${targetHost}:${targetPort}):`, err.message);
       if (!res.headersSent) {
         res.status(503).json({
           statusCode: 503,

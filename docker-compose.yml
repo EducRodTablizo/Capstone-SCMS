@@ -1,6 +1,8 @@
-version: '3.8'
-
 services:
+  # -------------------------------------------------------------
+  # DATABASES & INFRASTRUCTURE
+  # -------------------------------------------------------------
+
   # 1. Identity & Access Database (Port 5434)
   scms_postgres_identity:
     image: postgres:16-alpine
@@ -147,6 +149,173 @@ services:
       - scms_postgres_submissions
       - scms_postgres_audit
       - scms_postgres_compliance
+
+  # -------------------------------------------------------------
+  # NODE.JS MICROSERVICES (CONTAINERIZED)
+  # -------------------------------------------------------------
+
+  # Microservice 1: Identity & Access Service
+  identity-service:
+    build:
+      context: .
+      dockerfile: apps/identity-service/Dockerfile
+    container_name: scms-identity-service
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - DB_HOST=scms_postgres_identity
+      - DB_PORT=5432
+      - DB_USER=scms_admin
+      - DB_PASSWORD=scms_secure_pass_2026
+      - DB_NAME=sms_identity
+      - JWT_SECRET=pup_scms_super_secret_jwt_key_sprint1_2026
+      - CLIENT_ORIGIN=http://localhost:5173
+      - CLERK_SECRET_KEY=sk_test_placeholder
+      - CLERK_ISSUER_URL=https://wondrous-lionfish-5125.clerk.accounts.dev
+    networks:
+      - scms-network
+    depends_on:
+      - scms_postgres_identity
+
+  # Microservice 2: Requirements & Academic Deadlines Service
+  requirements-service:
+    build:
+      context: .
+      dockerfile: apps/requirements-service/Dockerfile
+    container_name: scms-requirements-service
+    restart: always
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - DB_HOST=scms_postgres_requirements
+      - DB_PORT=5432
+      - DB_USER=scms_admin
+      - DB_PASSWORD=scms_secure_pass_2026
+      - DB_NAME=sms_requirements
+      - CATALOG_DB_HOST=scms_postgres_catalog
+      - CATALOG_DB_PORT=5432
+    networks:
+      - scms-network
+    depends_on:
+      - scms_postgres_requirements
+      - scms_postgres_catalog
+
+  # Microservice 3: Submissions & Syllabus GridFS Service
+  submission-service:
+    build:
+      context: .
+      dockerfile: apps/submission-service/Dockerfile
+    container_name: scms-submission-service
+    restart: always
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - DB_HOST=scms_postgres_submissions
+      - DB_PORT=5432
+      - DB_USER=scms_admin
+      - DB_PASSWORD=scms_secure_pass_2026
+      - DB_NAME=sms_submissions
+      - MONGO_URI=mongodb://scms_admin:scms_mongo_pass_2026@scms-mongo:27017/scms_documents?authSource=admin
+      - AUDIT_SERVICE_HOST=audit-log-service
+      - AUDIT_SERVICE_PORT=3004
+    networks:
+      - scms-network
+    depends_on:
+      - scms_postgres_submissions
+      - mongo
+
+  # Microservice 4: Tamper-Evident Audit Log Service
+  audit-log-service:
+    build:
+      context: .
+      dockerfile: apps/audit-log-service/Dockerfile
+    container_name: scms-audit-log-service
+    restart: always
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      - DB_HOST=scms_postgres_audit
+      - DB_PORT=5432
+      - DB_USER=scms_admin
+      - DB_PASSWORD=scms_secure_pass_2026
+      - DB_NAME=sms_audit
+    networks:
+      - scms-network
+    depends_on:
+      - scms_postgres_audit
+
+  # Microservice 5: Compliance Monitoring & CCMS Push Service
+  compliance-monitoring-service:
+    build:
+      context: .
+      dockerfile: apps/compliance-monitoring-service/Dockerfile
+    container_name: scms-compliance-monitoring-service
+    restart: always
+    ports:
+      - "3005:3005"
+    environment:
+      - PORT=3005
+      - DB_HOST=scms_postgres_compliance
+      - DB_PORT=5432
+      - DB_USER=scms_admin
+      - DB_PASSWORD=scms_secure_pass_2026
+      - DB_NAME=sms_compliance
+      - REDIS_URL=redis://scms-redis:6379
+      - REQUIREMENTS_SERVICE_URL=http://requirements-service:3002/api/v1/integrations/scms/catalog-events
+    networks:
+      - scms-network
+    depends_on:
+      - scms_postgres_compliance
+      - redis
+
+  # Microservice 6: Academic Catalog & Curriculum SSOT Service
+  academic-catalog-service:
+    build:
+      context: .
+      dockerfile: apps/academic-catalog-service/Dockerfile
+    container_name: scms-academic-catalog-service
+    restart: always
+    ports:
+      - "3006:3006"
+    environment:
+      - PORT=3006
+      - DB_HOST=scms_postgres_catalog
+      - DB_PORT=5432
+      - DB_USER=scms_admin
+      - DB_PASSWORD=scms_secure_pass_2026
+      - DB_NAME=sms_catalog
+    networks:
+      - scms-network
+    depends_on:
+      - scms_postgres_catalog
+
+  # Microservice 0: Ingress API Gateway Router
+  api-gateway:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    container_name: scms-api-gateway
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - GATEWAY_PORT=3000
+      - LOCAL_DEV=false
+      - NODE_ENV=production
+    networks:
+      - scms-network
+    depends_on:
+      - identity-service
+      - requirements-service
+      - submission-service
+      - audit-log-service
+      - compliance-monitoring-service
+      - academic-catalog-service
 
 networks:
   scms-network:

@@ -6,7 +6,7 @@ import { Request, Response, NextFunction } from 'express';
 export const MONGO_URI =
   process.env.MONGO_URI ||
   process.env.MONGODB_URI ||
-  'mongodb://scms_admin:scms_mongo_pass_2026@localhost:27017/scms_documents?authSource=admin';
+  'mongodb://scms_admin:scms_mongo_pass_2026@scms-mongo:27017/scms_documents?authSource=admin';
 
 let mongoClient: MongoClient | null = null;
 let isConnected = false;

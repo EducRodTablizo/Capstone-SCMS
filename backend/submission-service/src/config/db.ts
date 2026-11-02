@@ -18,8 +18,8 @@ export interface SubmissionsDbConfig {
 }
 
 export const dbConfig: SubmissionsDbConfig = {
-  host: process.env.DB_HOST || process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || process.env.SUBMISSIONS_DB_PORT || '5437', 10),
+  host: process.env.DB_HOST || process.env.POSTGRES_HOST || 'scms_postgres_submissions',
+  port: parseInt(process.env.DB_PORT || process.env.SUBMISSIONS_DB_PORT || '5432', 10),
   user: process.env.DB_USER || process.env.POSTGRES_USER || 'scms_admin',
   password: process.env.DB_PASSWORD || process.env.POSTGRES_PASSWORD || 'scms_secure_pass_2026',
   database: process.env.DB_NAME || process.env.SUBMISSIONS_DB_NAME || 'sms_submissions',

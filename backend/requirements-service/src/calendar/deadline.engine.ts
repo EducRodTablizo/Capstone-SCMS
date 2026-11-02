@@ -1,4 +1,4 @@
-﻿import { calendarRepository } from './calendar.repository';
+import { calendarRepository } from './calendar.repository';
 
 export interface DeadlineAdjustmentResult {
   original_deadline: string;

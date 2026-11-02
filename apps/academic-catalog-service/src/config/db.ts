@@ -18,8 +18,8 @@ export interface CatalogDbConfig {
 }
 
 export const dbConfig: CatalogDbConfig = {
-  host: process.env.DB_HOST || process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || process.env.CATALOG_DB_PORT || '5435', 10),
+  host: process.env.DB_HOST || process.env.POSTGRES_HOST || 'scms_postgres_catalog',
+  port: parseInt(process.env.DB_PORT || process.env.CATALOG_DB_PORT || '5432', 10),
   user: process.env.DB_USER || process.env.POSTGRES_USER || 'scms_admin',
   password: process.env.DB_PASSWORD || process.env.POSTGRES_PASSWORD || 'scms_secure_pass_2026',
   database: process.env.DB_NAME || process.env.CATALOG_DB_NAME || 'sms_catalog',
@@ -810,7 +810,7 @@ export class CatalogPool {
     }
     return {
       query: (text: string, params?: any[]) => this.embeddedEngine.execute(text, params),
-      release: () => {},
+      release: () => { },
     };
   }
 

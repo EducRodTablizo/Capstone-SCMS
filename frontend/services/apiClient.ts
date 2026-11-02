@@ -1,6 +1,5 @@
 export const API_BASE_URL: string =
-  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL) ||
-  'http://localhost:3000/api/v1';
+  import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 console.log('API Base URL:', API_BASE_URL);
 

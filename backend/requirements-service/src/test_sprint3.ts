@@ -1,4 +1,4 @@
-﻿import jwt from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import http from 'http';
 import { app } from './main';
 import { calendarRepository } from './calendar/calendar.repository';

@@ -1,4 +1,4 @@
-﻿import { Router, Request, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { calendarRepository } from './calendar.repository';
 import { deadlineEngine } from './deadline.engine';
 import { authenticate, requireRole } from '../guards/role.guard';

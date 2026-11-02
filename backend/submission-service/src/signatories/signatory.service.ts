@@ -88,8 +88,8 @@ export class SignatoryService {
     });
 
     const req = http.request({
-      hostname: 'localhost',
-      port: 3004,
+      hostname: process.env.AUDIT_SERVICE_HOST || 'audit-log-service',
+      port: parseInt(process.env.AUDIT_SERVICE_PORT || '3004', 10),
       path: '/api/v1/audit/logs',
       method: 'POST',
       headers: {

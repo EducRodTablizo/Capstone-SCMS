@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
 export type UserRole = 'ACADEMIC_HEAD' | 'FACULTY_STAFF';
 

@@ -18,10 +18,10 @@ export interface DbConfig {
 }
 
 export const dbConfig: DbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5434', 10),
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
+  host: process.env.DB_HOST || 'scms_postgres_identity',
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  user: process.env.DB_USER || 'scms_admin',
+  password: process.env.DB_PASSWORD || 'scms_secure_pass_2026',
   database: process.env.DB_NAME || 'sms_identity',
   max: 10,
   idleTimeoutMillis: 30000,
