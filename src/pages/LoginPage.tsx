@@ -80,13 +80,17 @@ const ClerkAuthBridge: React.FC<ClerkAuthBridgeProps> = ({ onSuccess, onError })
           elements: {
             rootBox: 'w-full',
             card: 'shadow-none border-0 p-0 w-full bg-transparent',
-            headerTitle: 'font-serif text-[#0F172A] text-xl',
-            headerSubtitle: 'text-xs text-slate-500',
+            headerTitle: 'font-serif text-[#580000] text-xl font-bold tracking-tight',
+            headerSubtitle: 'font-sans text-xs text-slate-500',
             formButtonPrimary:
-              'bg-[#580000] hover:bg-[#430000] text-sm text-white font-medium py-2 rounded shadow-sm transition-colors',
-            footerActionLink: 'text-[#580000] hover:underline font-semibold',
+              'bg-[#580000] hover:bg-[#430000] text-sm text-white font-medium py-2.5 rounded-md shadow-sm transition-colors',
+            footerActionLink: 'text-[#580000] hover:underline font-semibold text-xs',
             identityPreviewText: 'text-sm font-medium text-slate-700',
-            formFieldInput: 'rounded border-slate-300 focus:ring-[#580000] focus:border-[#580000]',
+            formFieldInput:
+              'rounded-md border-slate-300 focus:ring-[#580000] focus:border-[#580000] text-sm font-sans',
+            formFieldLabel: 'font-sans text-xs uppercase font-semibold text-slate-600 tracking-wider',
+            dividerLine: 'bg-slate-200',
+            dividerText: 'text-xs text-slate-400 font-sans',
           },
         }}
       />
@@ -158,7 +162,7 @@ export const LoginPage: React.FC = () => {
           Syllabus Compliance Monitoring System
         </h2>
         <p className="mt-1 text-center text-xs font-medium text-[#580000] tracking-wider uppercase">
-          Polytechnic University of the Philippines - Quezon City Campus
+          Polytechnic University of the Philippines - Caloocan Campus
         </p>
       </div>
 
@@ -182,10 +186,10 @@ export const LoginPage: React.FC = () => {
                     setError(null);
                     setUseEmergencyLocal(true);
                   }}
-                  className="text-xs text-slate-500 hover:text-[#580000] font-medium flex items-center justify-center mx-auto space-x-1.5 transition-colors"
+                  className="text-xs text-slate-500 hover:text-[#580000] font-medium inline-flex items-center justify-center mx-auto space-x-1.5 transition-colors group"
                 >
-                  <KeyRound className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Emergency Fallback: Local Admin Login (Argon2id)</span>
+                  <KeyRound className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#580000]" />
+                  <span className="underline underline-offset-2">Use Local Admin Login</span>
                 </button>
               </div>
             </div>

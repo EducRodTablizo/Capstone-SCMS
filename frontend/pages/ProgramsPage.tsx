@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../auth/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { programService, Program } from '../services/programService';
+import { truncateUuid } from '../utils/formatters';
 
 export const ProgramsPage: React.FC = () => {
   const { user, role } = useAuth();
@@ -255,13 +256,13 @@ export const ProgramsPage: React.FC = () => {
       {/* Program Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
-              <th className="py-4 px-6">Program Code</th>
-              <th className="py-4 px-6">Official Title</th>
-              <th className="py-4 px-6">College / Description</th>
-              <th className="py-4 px-6">Lifecycle Status</th>
-              {isAcademicHead && <th className="py-4 px-6 text-right">Actions</th>}
+          <thead className="bg-[#580000] text-white">
+            <tr className="text-xs font-bold text-white uppercase tracking-wider">
+              <th className="py-3.5 px-6 text-white">Program Code</th>
+              <th className="py-3.5 px-6 text-white">Official Title</th>
+              <th className="py-3.5 px-6 text-white">College / Description</th>
+              <th className="py-3.5 px-6 text-white">Lifecycle Status</th>
+              {isAcademicHead && <th className="py-3.5 px-6 text-right text-white">Actions</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-sm font-medium text-slate-700">
@@ -280,10 +281,13 @@ export const ProgramsPage: React.FC = () => {
               </tr>
             ) : (
               programs.map((prog) => (
-                <tr key={prog.id} className="hover:bg-slate-50/80 transition-colors">
+                <tr key={prog.id} className="hover:bg-slate-50 transition-colors">
                   <td className="py-4 px-6 font-bold text-slate-900 tracking-wide font-mono">
                     <span className="px-2.5 py-1 bg-slate-100 text-slate-800 rounded-md border border-slate-200">
                       {prog.code}
+                    </span>
+                    <span className="block text-[10px] text-slate-400 font-mono mt-1 font-normal" title={prog.id}>
+                      {truncateUuid(prog.id)}
                     </span>
                   </td>
                   <td className="py-4 px-6 font-semibold text-slate-900">{prog.title}</td>

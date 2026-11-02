@@ -154,15 +154,15 @@ export const ReviewQueuePage: React.FC = () => {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-100 text-slate-700 uppercase font-bold text-[11px]">
+            <thead className="bg-[#580000] text-white uppercase font-bold text-[11px]">
               <tr>
-                <th className="px-4 py-3">Submission UUID</th>
-                <th className="px-4 py-3">Course &amp; Section</th>
-                <th className="px-4 py-3">Faculty ID</th>
-                <th className="px-4 py-3">Syllabus File</th>
-                <th className="px-4 py-3">Submitted At</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Action</th>
+                <th className="px-4 py-3 text-white">Submission UUID</th>
+                <th className="px-4 py-3 text-white">Course &amp; Section</th>
+                <th className="px-4 py-3 text-white">Faculty ID</th>
+                <th className="px-4 py-3 text-white">Syllabus File</th>
+                <th className="px-4 py-3 text-white">Submitted At</th>
+                <th className="px-4 py-3 text-white">Status</th>
+                <th className="px-4 py-3 text-right text-white">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">

@@ -15,6 +15,7 @@ import { submissionService } from '../services/submissionService';
 import { complianceService } from '../services/complianceService';
 import { Course } from '../services/courseService';
 import { BlockSection } from '../services/blockSectionService';
+import { truncateUuid } from '../utils/formatters';
 
 interface FmsFacultyProfile {
   id: string;
@@ -712,19 +713,21 @@ export const FmsSyncPage: React.FC = () => {
             <table className="w-full text-xs text-left">
               <thead className="bg-[#580000] text-white">
                 <tr>
-                  <th className="px-3 py-2">Event ID</th>
-                  <th className="px-3 py-2">Event Type</th>
-                  <th className="px-3 py-2">Target Course</th>
-                  <th className="px-3 py-2">Delivery Status</th>
-                  <th className="px-3 py-2">Attempts</th>
-                  <th className="px-3 py-2">Next Retry</th>
-                  <th className="px-3 py-2">Timestamp</th>
+                  <th className="px-3 py-2 text-white">Event ID</th>
+                  <th className="px-3 py-2 text-white">Event Type</th>
+                  <th className="px-3 py-2 text-white">Target Course</th>
+                  <th className="px-3 py-2 text-white">Delivery Status</th>
+                  <th className="px-3 py-2 text-white">Attempts</th>
+                  <th className="px-3 py-2 text-white">Next Retry</th>
+                  <th className="px-3 py-2 text-white">Timestamp</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {webhookLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 font-mono text-[11px] text-gray-500">{log.event_id}</td>
+                  <tr key={log.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-3 py-2 font-mono text-[11px] text-gray-500" title={log.event_id}>
+                      {truncateUuid(log.event_id)}
+                    </td>
                     <td className="px-3 py-2 font-bold text-gray-800">{log.event_type}</td>
                     <td className="px-3 py-2 font-semibold text-gray-700">
                       {log.payload?.course_code}

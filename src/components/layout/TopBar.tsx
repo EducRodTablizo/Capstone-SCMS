@@ -49,7 +49,7 @@ export function TopBar({
           <Menu className="w-5 h-5" />
         </button>
         <div className="flex items-center gap-2">
-          <span className="font-serif font-bold text-lg text-primary tracking-tight">SCMS</span>
+          <span className="font-serif font-bold text-lg text-[#580000] tracking-tight">SCMS</span>
           <span className="text-muted-foreground text-sm hidden sm:inline">/</span>
           <span className="text-xs sm:text-sm font-medium text-foreground">Syllabus Compliance Monitoring</span>
         </div>

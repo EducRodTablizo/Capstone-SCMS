@@ -20,7 +20,7 @@ interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
   currentPath?: string;
-  role?: 'Academic Head' | 'Faculty Staff';
+  role?: 'Academic Head' | 'Faculty Staff' | string;
 }
 
 export function Sidebar({
@@ -31,7 +31,7 @@ export function Sidebar({
 }: SidebarProps) {
   // Navigation sections strictly scoped to the 2 user roles
   const navSections =
-    role === 'Academic Head'
+    !(role === 'Faculty Staff' || role === 'FACULTY_STAFF')
       ? [
           {
             group: 'Academic Catalog Core',
@@ -86,7 +86,7 @@ export function Sidebar({
       <div className="h-16 flex items-center justify-between px-4 border-b border-[#4a0000]">
         {!collapsed && (
           <div className="flex flex-col">
-            <span className="font-serif font-bold text-lg text-white tracking-wide">PUPQC SCMS</span>
+            <span className="font-serif font-bold text-lg text-white tracking-wide">PUP Caloocan SCMS</span>
             <span className="text-[10px] text-[#C8960C] font-semibold tracking-wider uppercase">
               Compliance Monitoring
             </span>
@@ -141,8 +141,12 @@ export function Sidebar({
       {/* Institutional Branding Footer Tag */}
       {!collapsed && (
         <div className="p-4 border-t border-[#4a0000] bg-[#4a0000]/40 text-[11px] text-gray-300">
-          <p className="font-semibold text-white">Office of the Academic Head</p>
-          <p className="text-[10px] text-gray-300">PUP Quezon City Campus</p>
+          <p className="font-semibold text-white">
+            {role === 'Faculty Staff' || role === 'FACULTY_STAFF'
+              ? 'Faculty Member Workspace'
+              : 'Office of the Academic Head'}
+          </p>
+          <p className="text-[10px] text-gray-300">PUP Caloocan Campus</p>
         </div>
       )}
     </aside>

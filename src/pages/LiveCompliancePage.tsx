@@ -45,11 +45,8 @@ export interface LiveSubmissionRecord {
   updated_at: string;
 }
 
-export const truncateUuid = (id: string): string => {
-  if (!id) return '-';
-  const str = String(id);
-  return str.length > 12 ? `${str.slice(0, 8)}...${str.slice(-4)}` : str;
-};
+import { truncateUuid } from '../utils/formatters';
+export { truncateUuid };
 
 export const isSubmissionOwnedByFaculty = (
   sub: LiveSubmissionRecord,
@@ -503,15 +500,15 @@ export const LiveCompliancePage: React.FC = () => {
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-100 text-slate-700 uppercase font-bold text-[11px]">
+            <thead className="bg-[#580000] text-white uppercase font-bold text-[11px]">
               <tr>
-                <th className="px-4 py-3">Course Code</th>
-                <th className="px-4 py-3">Section</th>
-                <th className="px-4 py-3">Assigned Faculty</th>
-                <th className="px-4 py-3">Syllabus Document</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Last Submission</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3 text-white">Course Code</th>
+                <th className="px-4 py-3 text-white">Section</th>
+                <th className="px-4 py-3 text-white">Assigned Faculty</th>
+                <th className="px-4 py-3 text-white">Syllabus Document</th>
+                <th className="px-4 py-3 text-white">Status</th>
+                <th className="px-4 py-3 text-white">Last Submission</th>
+                <th className="px-4 py-3 text-right text-white">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">

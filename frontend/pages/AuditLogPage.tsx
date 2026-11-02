@@ -122,15 +122,15 @@ export const AuditLogPage: React.FC = () => {
       <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-100 text-slate-700 uppercase font-semibold">
+            <thead className="bg-[#580000] text-white uppercase font-semibold">
               <tr>
-                <th className="px-4 py-3">Timestamp (UTC)</th>
-                <th className="px-4 py-3">Actor &amp; Role</th>
-                <th className="px-4 py-3">Action Type</th>
-                <th className="px-4 py-3">Target Entity</th>
-                <th className="px-4 py-3">New Value / Details</th>
-                <th className="px-4 py-3">SHA-256 Chain Hash</th>
-                <th className="px-4 py-3">Client IP</th>
+                <th className="px-4 py-3 text-white">Timestamp (UTC)</th>
+                <th className="px-4 py-3 text-white">Actor &amp; Role</th>
+                <th className="px-4 py-3 text-white">Action Type</th>
+                <th className="px-4 py-3 text-white">Target Entity</th>
+                <th className="px-4 py-3 text-white">New Value / Details</th>
+                <th className="px-4 py-3 text-white">SHA-256 Chain Hash</th>
+                <th className="px-4 py-3 text-white">Client IP</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">

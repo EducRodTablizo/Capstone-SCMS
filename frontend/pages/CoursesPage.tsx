@@ -183,12 +183,12 @@ export const CoursesPage: React.FC = () => {
         <table className="w-full text-left text-sm text-gray-600">
           <thead className="bg-[#580000] text-white text-xs uppercase font-semibold">
             <tr>
-              <th className="px-4 py-3">Course Code</th>
-              <th className="px-4 py-3">Course Title</th>
-              <th className="px-4 py-3">Units &amp; Hours</th>
-              <th className="px-4 py-3">Lab &amp; Tools</th>
-              <th className="px-4 py-3">Version &amp; Status</th>
-              {isAcademicHead && <th className="px-4 py-3 text-right">Actions</th>}
+              <th className="px-4 py-3 text-white">Course Code</th>
+              <th className="px-4 py-3 text-white">Course Title</th>
+              <th className="px-4 py-3 text-white">Units &amp; Hours</th>
+              <th className="px-4 py-3 text-white">Lab &amp; Tools</th>
+              <th className="px-4 py-3 text-white">Version &amp; Status</th>
+              {isAcademicHead && <th className="px-4 py-3 text-right text-white">Actions</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">

@@ -16,6 +16,7 @@ import { Course } from '../services/courseService';
 import { BlockSection } from '../services/blockSectionService';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { isSubmissionOwnedByFaculty, LiveSubmissionRecord } from './LiveCompliancePage';
+import { truncateUuid } from '../utils/formatters';
 
 export const SyllabusUploadPage: React.FC = () => {
   const { user, role } = useAuth();
@@ -300,14 +301,14 @@ export const SyllabusUploadPage: React.FC = () => {
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-100 text-slate-700 uppercase font-semibold">
+            <thead className="bg-[#580000] text-white uppercase font-semibold">
               <tr>
-                <th className="px-4 py-3">Course</th>
-                <th className="px-4 py-3">Section</th>
-                <th className="px-4 py-3">File Name</th>
-                <th className="px-4 py-3">Submitted At</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3 text-white">Course</th>
+                <th className="px-4 py-3 text-white">Section</th>
+                <th className="px-4 py-3 text-white">File Name</th>
+                <th className="px-4 py-3 text-white">Submitted At</th>
+                <th className="px-4 py-3 text-white">Status</th>
+                <th className="px-4 py-3 text-right text-white">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -319,8 +320,13 @@ export const SyllabusUploadPage: React.FC = () => {
                 </tr>
               ) : (
                 mySubmissions.map((sub) => (
-                  <tr key={sub.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-semibold text-slate-800">{sub.course_code}</td>
+                  <tr key={sub.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3">
+                      <span className="font-semibold text-slate-800 block">{sub.course_code}</span>
+                      <span className="text-[10px] font-mono text-slate-400" title={sub.id}>
+                        {truncateUuid(sub.id)}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">{sub.section_label}</td>
                     <td className="px-4 py-3">{sub.file_name || '-'}</td>
                     <td className="px-4 py-3">

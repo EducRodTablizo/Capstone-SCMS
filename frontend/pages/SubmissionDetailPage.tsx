@@ -788,15 +788,15 @@ export const SubmissionDetailPage: React.FC = () => {
             {/* Versions Table */}
             <div className="overflow-x-auto border border-slate-200 rounded-lg">
               <table className="w-full text-left text-xs text-slate-600">
-                <thead className="bg-slate-100 text-slate-700 uppercase font-bold text-[11px]">
+                <thead className="bg-[#580000] text-white uppercase font-bold text-[11px]">
                   <tr>
-                    <th className="px-4 py-3">Version</th>
-                    <th className="px-4 py-3">File Name</th>
-                    <th className="px-4 py-3">Author</th>
-                    <th className="px-4 py-3">Timestamp</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Summary / Notes</th>
-                    <th className="px-4 py-3 text-right">Action</th>
+                    <th className="px-4 py-3 text-white">Version</th>
+                    <th className="px-4 py-3 text-white">File Name</th>
+                    <th className="px-4 py-3 text-white">Author</th>
+                    <th className="px-4 py-3 text-white">Timestamp</th>
+                    <th className="px-4 py-3 text-white">Status</th>
+                    <th className="px-4 py-3 text-white">Summary / Notes</th>
+                    <th className="px-4 py-3 text-right text-white">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -1091,11 +1091,11 @@ export const SubmissionDetailPage: React.FC = () => {
                 </h4>
                 <div className="overflow-x-auto border border-slate-200 rounded-lg">
                   <table className="w-full text-left text-xs text-slate-600">
-                    <thead className="bg-slate-100 text-slate-700 uppercase font-bold text-[10px]">
+                    <thead className="bg-[#580000] text-white uppercase font-bold text-[10px]">
                       <tr>
-                        <th className="px-3 py-2">Week</th>
-                        <th className="px-3 py-2">Course Topic / Learning Unit</th>
-                        <th className="px-3 py-2 text-right">Hours</th>
+                        <th className="px-3 py-2 text-white">Week</th>
+                        <th className="px-3 py-2 text-white">Course Topic / Learning Unit</th>
+                        <th className="px-3 py-2 text-right text-white">Hours</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
