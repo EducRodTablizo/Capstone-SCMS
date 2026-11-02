@@ -39,6 +39,7 @@ const SERVICES: Record<string, { port: number; name: string }> = {
 function proxyToService(targetPort: number, serviceName: string) {
   const targetHost = process.env.LOCAL_DEV === 'true' ? 'localhost' : serviceName;
   return (req: Request, res: Response) => {
+    console.log(`[API Gateway] Proxy: ${req.method} ${req.originalUrl} -> http://${targetHost}:${targetPort}${req.originalUrl} | Auth: ${req.headers.authorization ? 'Bearer present' : 'None'}`);
     const options: http.RequestOptions = {
       hostname: targetHost,
       port: targetPort,

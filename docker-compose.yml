@@ -195,6 +195,7 @@ services:
       - DB_USER=scms_admin
       - DB_PASSWORD=scms_secure_pass_2026
       - DB_NAME=sms_requirements
+      - JWT_SECRET=pup_scms_super_secret_jwt_key_sprint1_2026
       - CATALOG_DB_HOST=scms_postgres_catalog
       - CATALOG_DB_PORT=5432
     networks:
@@ -219,6 +220,7 @@ services:
       - DB_USER=scms_admin
       - DB_PASSWORD=scms_secure_pass_2026
       - DB_NAME=sms_submissions
+      - JWT_SECRET=pup_scms_super_secret_jwt_key_sprint1_2026
       - MONGO_URI=mongodb://scms_admin:scms_mongo_pass_2026@scms-mongo:27017/scms_documents?authSource=admin
       - AUDIT_SERVICE_HOST=audit-log-service
       - AUDIT_SERVICE_PORT=3004
@@ -244,6 +246,7 @@ services:
       - DB_USER=scms_admin
       - DB_PASSWORD=scms_secure_pass_2026
       - DB_NAME=sms_audit
+      - JWT_SECRET=pup_scms_super_secret_jwt_key_sprint1_2026
     networks:
       - scms-network
     depends_on:
@@ -265,6 +268,7 @@ services:
       - DB_USER=scms_admin
       - DB_PASSWORD=scms_secure_pass_2026
       - DB_NAME=sms_compliance
+      - JWT_SECRET=pup_scms_super_secret_jwt_key_sprint1_2026
       - REDIS_URL=redis://scms-redis:6379
       - REQUIREMENTS_SERVICE_URL=http://requirements-service:3002/api/v1/integrations/scms/catalog-events
     networks:
@@ -289,6 +293,7 @@ services:
       - DB_USER=scms_admin
       - DB_PASSWORD=scms_secure_pass_2026
       - DB_NAME=sms_catalog
+      - JWT_SECRET=pup_scms_super_secret_jwt_key_sprint1_2026
     networks:
       - scms-network
     depends_on:
@@ -307,6 +312,7 @@ services:
       - GATEWAY_PORT=3000
       - LOCAL_DEV=false
       - NODE_ENV=production
+      - JWT_SECRET=pup_scms_super_secret_jwt_key_sprint1_2026
     networks:
       - scms-network
     depends_on:

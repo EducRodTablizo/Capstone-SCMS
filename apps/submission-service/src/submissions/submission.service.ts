@@ -3,7 +3,6 @@ import { SignatoryConfig } from '../signatories/signatory.entity';
 import { obtlPdfService } from './obtl-pdf.service';
 import { submissionRepository } from './submission.repository';
 import { Submission, SubmissionVersion, CanonicalStatus, ALLOWED_TRANSITIONS, ReviewDecision, FmsScheduleDetails } from './submission.entity';
-import { auditLogService } from '../../../audit-log-service/src/audit/audit.service';
 import * as http from 'http';
 
 export const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25MB (SCMS-008 AC 2)
@@ -25,18 +24,6 @@ export class SubmissionService {
     details?: string;
   }): Promise<void> {
     const resolvedEmail = payload.actorEmail || payload.actorName || 'system@pup.edu.ph';
-    await auditLogService.logAction({
-      actorId: payload.actorId,
-      actorEmail: resolvedEmail,
-      actorRole: payload.actorRole,
-      actionType: payload.actionType,
-      entityName: 'SUBMISSION',
-      entityId: payload.entityId,
-      previousValue: payload.previousValue ? { status: payload.previousValue } : null,
-      newValue: payload.newValue ? { status: payload.newValue } : null,
-      details: payload.details ? { note: payload.details } : null,
-      clientIp: '127.0.0.1'
-    });
 
     const body = JSON.stringify({
       actorId: payload.actorId,

@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { pool as sharedCatalogPool } from '../../../academic-catalog-service/src/config/db';
+import { Pool as PgPool } from 'pg';
 
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -500,5 +500,23 @@ export class RequirementsPool {
 
 export const pool = new RequirementsPool(dbConfig);
 export const requirementsPool = pool;
-export const catalogPool = sharedCatalogPool;
+
+export const catalogDbConfig = {
+  host: process.env.CATALOG_DB_HOST || 'scms_postgres_catalog',
+  port: parseInt(process.env.CATALOG_DB_PORT || '5432', 10),
+  user: process.env.DB_USER || 'scms_admin',
+  password: process.env.DB_PASSWORD || 'scms_secure_pass_2026',
+  database: process.env.CATALOG_DB_NAME || 'sms_catalog',
+  max: 10,
+  idleTimeoutMillis: 30000,
+};
+
+let nativeCatalogPool: any = null;
+try {
+  nativeCatalogPool = new PgPool(catalogDbConfig);
+} catch {
+  nativeCatalogPool = null;
+}
+
+export const catalogPool = nativeCatalogPool || pool;
 export type Pool = RequirementsPool;

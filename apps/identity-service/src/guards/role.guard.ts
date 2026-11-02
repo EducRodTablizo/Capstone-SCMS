@@ -52,8 +52,8 @@ export const jwtUtil = {
   },
 };
 
-export const JWT_SECRET = process.env.JWT_SECRET || 'scms_super_secret_jwt_key_pupqc_2026';
-export const ALT_SECRET = 'scms_jwt_secret_dev_key_2026_super_secure';
+export const JWT_SECRET = process.env.JWT_SECRET || 'pup_scms_super_secret_jwt_key_sprint1_2026';
+export const ALT_SECRET = 'scms_super_secret_jwt_key_pupqc_2026';
 
 export interface AuthenticatedUserPayload {
   id: string;

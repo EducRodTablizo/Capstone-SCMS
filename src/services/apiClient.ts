@@ -33,11 +33,16 @@ class ApiClient {
 
   private getAuthToken(): string | null {
     if (typeof window === 'undefined') return null;
-    const tokenFromStorage = localStorage.getItem('scms_token');
-    if (tokenFromStorage) return tokenFromStorage;
+    let token = localStorage.getItem('scms_token');
+    if (token) {
+      if (token.startsWith('"') && token.endsWith('"')) {
+        token = token.slice(1, -1);
+      }
+      return token.trim();
+    }
 
-    const match = document.cookie.match(/(?:^|;\s*)scms_token=([^;]*)/);
-    return match ? decodeURIComponent(match[1]) : null;
+    const match = document.cookie.match(/(?:^|;\s*)(?:scms_token|scms_session)=([^;]*)/);
+    return match ? decodeURIComponent(match[1]).trim() : null;
   }
 
   public buildUrl(
@@ -75,12 +80,14 @@ class ApiClient {
       ...(customHeaders as Record<string, string>),
     };
 
+    const isLoginEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/clerk-login');
     const token = this.getAuthToken();
-    if (token && !headers.Authorization) {
+    if (token && !isLoginEndpoint) {
       headers.Authorization = `Bearer ${token}`;
     }
 
     console.log(`[apiClient] Request: ${method} ${url}`, {
+      hasAuth: Boolean(headers.Authorization),
       isFormData,
       contentType: headers['Content-Type'],
       body: isFormData ? '[FormData]' : body,

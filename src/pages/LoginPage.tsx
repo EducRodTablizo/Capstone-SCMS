@@ -106,6 +106,8 @@ export const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleClerkSuccess = (token: string, user: UserProfile) => {
+    localStorage.setItem('scms_token', token);
+    localStorage.setItem('scms_user', JSON.stringify(user));
     login(token, user);
     navigate('/dashboard');
   };
@@ -127,7 +129,9 @@ export const LoginPage: React.FC = () => {
       const result = await authService.login(trimmedEmail, password);
 
       if (result.statusCode === 200 && result.user && result.token) {
-        console.log('[LoginPage] Login successful, redirecting to /dashboard');
+        console.log('[LoginPage] Login successful, synchronously persisting token before navigate');
+        localStorage.setItem('scms_token', result.token);
+        localStorage.setItem('scms_user', JSON.stringify(result.user));
         login(result.token, result.user);
         navigate('/dashboard');
       } else {

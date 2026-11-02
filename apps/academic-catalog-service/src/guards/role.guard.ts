@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'scms_jwt_secret_dev_key_2026_super_secure';
+const JWT_SECRET = process.env.JWT_SECRET || 'pup_scms_super_secret_jwt_key_sprint1_2026';
 const ALT_SECRET = 'scms_super_secret_jwt_key_pupqc_2026';
+const DEV_SECRET = 'scms_jwt_secret_dev_key_2026_super_secure';
 
 export interface AuthenticatedUser {
   id: string;
@@ -36,19 +37,24 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
   }
 
   let payload: AuthenticatedUser | null = null;
-  try {
-    payload = jwt.verify(token, JWT_SECRET) as AuthenticatedUser;
-  } catch {
+  const secrets = [JWT_SECRET, ALT_SECRET, DEV_SECRET];
+  for (const secret of secrets) {
     try {
-      payload = jwt.verify(token, ALT_SECRET) as AuthenticatedUser;
+      payload = jwt.verify(token, secret) as AuthenticatedUser;
+      break;
     } catch {
-      res.status(401).json({
-        statusCode: 401,
-        message: 'Invalid or expired session token.',
-        error: 'Unauthorized',
-      });
-      return;
+      // try next
     }
+  }
+
+  if (!payload) {
+    console.error('[academic-catalog-service auth] Failed to verify token with any known JWT_SECRET');
+    res.status(401).json({
+      statusCode: 401,
+      message: 'Invalid or expired session token.',
+      error: 'Unauthorized',
+    });
+    return;
   }
 
   req.user = payload;
@@ -60,7 +66,7 @@ export function requireRole(allowedRoles: ('ACADEMIC_HEAD' | 'FACULTY_STAFF')[])
     if (!req.user) {
       res.status(401).json({
         statusCode: 401,
-        message: 'Authentication required.',
+        message: 'Authentication required. Please sign in to SCMS.',
         error: 'Unauthorized',
       });
       return;
@@ -69,7 +75,7 @@ export function requireRole(allowedRoles: ('ACADEMIC_HEAD' | 'FACULTY_STAFF')[])
     if (!allowedRoles.includes(req.user.role)) {
       res.status(403).json({
         statusCode: 403,
-        message: `Access Denied: Only ${allowedRoles.join(', ')} can perform this action (SMS-021 AC3).`,
+        message: `Forbidden: Access restricted to roles [${allowedRoles.join(', ')}]. Current role: ${req.user.role}`,
         error: 'Forbidden',
       });
       return;

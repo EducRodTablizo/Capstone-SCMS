@@ -1,6 +1,5 @@
 import { SignatoryConfig, DEFAULT_SIGNATORIES } from './signatory.entity';
 import { submissionRepository } from '../submissions/submission.repository';
-import { auditLogService } from '../../../audit-log-service/src/audit/audit.service';
 import * as http from 'http';
 
 export class SignatoryService {
@@ -37,19 +36,6 @@ export class SignatoryService {
       reviewed_by_name: this.config.reviewed_by_name,
       recommending_name: this.config.recommending_name,
       approving_name: this.config.approved_by_name,
-    });
-
-    void auditLogService.logAction({
-      actorId: 'user-head-001',
-      actorEmail,
-      actorRole: 'ACADEMIC_HEAD',
-      actionType: 'SIGNATORY_AUTHORITY_UPDATED',
-      entityName: 'SIGNATORY_CONFIG',
-      entityId: 'signatory-authority-pupqc',
-      previousValue: { snapshot: JSON.stringify(previous) },
-      newValue: { snapshot: JSON.stringify(this.config) },
-      details: { note: 'Updated official PUPQC OBTL syllabus signatory authorities' },
-      clientIp: '127.0.0.1',
     });
 
     this.dispatchAuditLog({
