@@ -1,4 +1,4 @@
-﻿# Dependencies
+# Dependencies
 node_modules/
 **/node_modules/
 .pnpm-store/
@@ -24,3 +24,5 @@ pnpm-debug.log*
 # System Files
 .DS_Store
 Thumbs.db
+0.26.0
+
