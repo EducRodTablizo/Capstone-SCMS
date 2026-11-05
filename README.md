@@ -61,6 +61,9 @@ Every submission progresses through a standardized 7-status state machine:
 
 ## 🚀 Setup & Installation Guide (Start to Finish)
 
+> [!TIP]
+> **New Developer Onboarding:** A complete, foolproof guide for setting up and running SCMS on any machine (covering folder layout, resolving lockfiles, seed accounts, and troubleshooting) is available in **[`docs/SETUP_GUIDE.md`](docs/SETUP_GUIDE.md)**.
+
 Follow these steps sequentially to set up and run the system on your machine upon cloning.
 
 ### 1. Prerequisites
