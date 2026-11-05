@@ -22,7 +22,7 @@ function createApp(): any {
     expressApp.use(cookieParser());
     expressApp.use(
       cors({
-        origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+        origin: true,
         credentials: true,
       })
     );

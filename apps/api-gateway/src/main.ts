@@ -16,10 +16,13 @@ app.set('trust proxy', 1);
 // Allowed origins for CORS (Local development, Vercel preview/production, and custom domain)
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://localhost:5174',
   'http://localhost:3000',
   'http://localhost:4173',
   'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
   'http://127.0.0.1:3000',
+  'https://capstone-scms-poq9.vercel.app',
   'https://sms.pupqc.edu.ph',
 ];
 
@@ -38,7 +41,7 @@ app.use(
         return callback(null, true);
       }
 
-      // Check Vercel preview deployments (e.g. https://scms-xxx.vercel.app)
+      // Check Vercel preview deployments (e.g. https://*.vercel.app, https://capstone-scms-poq9.vercel.app)
       if (/^https:\/\/.*\.vercel\.app$/.test(origin)) {
         return callback(null, true);
       }
@@ -136,7 +139,15 @@ function proxyToService(defaultPort: number, serviceName: string) {
     };
 
     const proxyReq = client.request(options, (proxyRes) => {
-      res.writeHead(proxyRes.statusCode || 500, proxyRes.headers);
+      // Strip downstream CORS headers so Gateway's CORS policy remains authoritative
+      const responseHeaders = { ...proxyRes.headers };
+      for (const headerKey of Object.keys(responseHeaders)) {
+        if (headerKey.toLowerCase().startsWith('access-control-')) {
+          delete responseHeaders[headerKey];
+        }
+      }
+
+      res.writeHead(proxyRes.statusCode || 500, responseHeaders);
       proxyRes.pipe(res);
     });
 
