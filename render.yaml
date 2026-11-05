@@ -1,0 +1,186 @@
+# ==============================================================================
+# SCMS (Syllabus Compliance Monitoring System) - Render Blueprint
+# ==============================================================================
+# Architecture:
+# - Ingress API Gateway (Single Entry Point / Reverse Proxy)
+# - 6 Core Domain Microservices (Dynamic PORT, /health endpoints)
+# - Free-tier web service deployment (requires type: web to accept HTTP traffic)
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # 0. API GATEWAY ROUTER
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: scms-api-gateway
+    env: node
+    plan: free
+    buildCommand: pnpm install
+    startCommand: npx tsx apps/api-gateway/src/main.ts
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: CLIENT_ORIGIN
+        sync: false
+      - key: IDENTITY_SERVICE_URL
+        fromService:
+          type: web
+          name: scms-identity-service
+          property: host
+      - key: REQUIREMENTS_SERVICE_URL
+        fromService:
+          type: web
+          name: scms-requirements-service
+          property: host
+      - key: SUBMISSION_SERVICE_URL
+        fromService:
+          type: web
+          name: scms-submission-service
+          property: host
+      - key: AUDIT_LOG_SERVICE_URL
+        fromService:
+          type: web
+          name: scms-audit-log-service
+          property: host
+      - key: COMPLIANCE_MONITORING_SERVICE_URL
+        fromService:
+          type: web
+          name: scms-compliance-monitoring-service
+          property: host
+      - key: ACADEMIC_CATALOG_SERVICE_URL
+        fromService:
+          type: web
+          name: scms-academic-catalog-service
+          property: host
+
+  # ----------------------------------------------------------------------------
+  # 1. IDENTITY & ACCESS SERVICE
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: scms-identity-service
+    env: node
+    plan: free
+    buildCommand: pnpm install
+    startCommand: npx tsx apps/identity-service/src/main.ts
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_ISSUER_URL
+        sync: false
+
+  # ----------------------------------------------------------------------------
+  # 2. REQUIREMENTS & DEADLINES SERVICE
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: scms-requirements-service
+    env: node
+    plan: free
+    buildCommand: pnpm install
+    startCommand: npx tsx apps/requirements-service/src/main.ts
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: CATALOG_DATABASE_URL
+        sync: false
+
+  # ----------------------------------------------------------------------------
+  # 3. SUBMISSIONS & GRIDFS SERVICE
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: scms-submission-service
+    env: node
+    plan: free
+    buildCommand: pnpm install
+    startCommand: npx tsx apps/submission-service/src/main.ts
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: AUDIT_SERVICE_HOST
+        fromService:
+          type: web
+          name: scms-audit-log-service
+          property: host
+
+  # ----------------------------------------------------------------------------
+  # 4. TAMPER-EVIDENT AUDIT LOG SERVICE
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: scms-audit-log-service
+    env: node
+    plan: free
+    buildCommand: pnpm install
+    startCommand: npx tsx apps/audit-log-service/src/main.ts
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+
+  # ----------------------------------------------------------------------------
+  # 5. COMPLIANCE MONITORING & WEBSOCKET SERVICE
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: scms-compliance-monitoring-service
+    env: node
+    plan: free
+    buildCommand: pnpm install
+    startCommand: npx tsx apps/compliance-monitoring-service/src/main.ts
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: REQUIREMENTS_SERVICE_URL
+        fromService:
+          type: web
+          name: scms-requirements-service
+          property: host
+
+  # ----------------------------------------------------------------------------
+  # 6. ACADEMIC CATALOG & SSOT SERVICE
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: scms-academic-catalog-service
+    env: node
+    plan: free
+    buildCommand: pnpm install
+    startCommand: npx tsx apps/academic-catalog-service/src/main.ts
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+

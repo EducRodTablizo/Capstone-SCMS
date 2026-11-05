@@ -172,7 +172,7 @@ export async function startServer(): Promise<void> {
   await userRepository.init();
   console.log('Connected to PostgreSQL sms_identity');
 
-  app.listen(Number(PORT), () => {
+  app.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`=======================================================`);
     console.log(`  SCMS Identity & Access Service running on port ${PORT}`);
     console.log(`  Institution: PUPQC - Syllabus Compliance Monitoring`);

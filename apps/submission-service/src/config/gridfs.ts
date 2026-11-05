@@ -2,6 +2,12 @@ import { MongoClient, GridFSBucket, ObjectId } from 'mongodb';
 import { GridFsStorage } from 'multer-gridfs-storage';
 import multer from 'multer';
 import { Request, Response, NextFunction } from 'express';
+import path from 'path';
+import dotenv from 'dotenv';
+
+// Support both service directory .env and monorepo root .env
+dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 export const MONGO_URI =
   process.env.MONGO_URI ||

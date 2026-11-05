@@ -4,6 +4,7 @@ import http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { complianceController } from './compliance/compliance.controller';
 import { complianceService } from './compliance/compliance.service';
+import { createRedisClient, REDIS_URI } from './config/redis';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3005', 10);
@@ -90,12 +91,53 @@ wss.on('connection', (ws: WebSocket) => {
   });
 });
 
-export function broadcast(message: object) {
+// Distributed Redis Pub/Sub adapter for Upstash (TLS enabled via rediss://)
+let redisPub: any = null;
+let redisSub: any = null;
+
+if (process.env.NODE_ENV !== 'test') {
+  try {
+    redisPub = createRedisClient();
+    redisSub = createRedisClient();
+
+    redisPub.connect().then(() => {
+      console.log(`[Redis] Publisher connected to ${REDIS_URI.startsWith('rediss://') ? 'Upstash Redis (TLS)' : 'Redis'}`);
+    }).catch((err: any) => {
+      console.warn('[Redis] Publisher connection skipped:', err.message);
+    });
+
+    redisSub.connect().then(async () => {
+      console.log(`[Redis] Subscriber connected to ${REDIS_URI.startsWith('rediss://') ? 'Upstash Redis (TLS)' : 'Redis'}`);
+      await redisSub.subscribe('scms:compliance:events');
+      redisSub.on('message', (_channel: string, messageStr: string) => {
+        try {
+          const parsed = JSON.parse(messageStr);
+          localBroadcast(parsed);
+        } catch {
+          // ignore malformed
+        }
+      });
+    }).catch((err: any) => {
+      console.warn('[Redis] Subscriber connection skipped:', err.message);
+    });
+  } catch (err: any) {
+    console.warn('[Redis] Initialization skipped:', err.message);
+  }
+}
+
+function localBroadcast(message: object) {
   const data = JSON.stringify(message);
   for (const client of connectedClients) {
     if (client.readyState === WebSocket.OPEN) {
       client.send(data);
     }
+  }
+}
+
+export function broadcast(message: object) {
+  localBroadcast(message);
+  if (redisPub && redisPub.status === 'ready') {
+    redisPub.publish('scms:compliance:events', JSON.stringify(message)).catch(() => {});
   }
 }
 

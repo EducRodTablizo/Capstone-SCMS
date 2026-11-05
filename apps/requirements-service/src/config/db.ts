@@ -472,7 +472,17 @@ export class RequirementsPool {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const PgPool = require('pg').Pool;
-      this.nativePool = new PgPool(config);
+      const connectionString = process.env.DATABASE_URL;
+      const isNeon = connectionString?.includes('neon.tech') || connectionString?.includes('sslmode=require');
+      const poolOptions = connectionString
+        ? {
+          connectionString,
+          ssl: isNeon ? { rejectUnauthorized: false } : undefined,
+          max: 10,
+          idleTimeoutMillis: 30000,
+        }
+        : config;
+      this.nativePool = new PgPool(poolOptions);
     } catch {
       this.useEmbedded = true;
     }
@@ -492,7 +502,7 @@ export class RequirementsPool {
     }
     return {
       query: (text: string, params?: any[]) => this.embeddedEngine.execute(text, params),
-      release: () => {},
+      release: () => { },
     };
   }
 
@@ -532,7 +542,18 @@ export const catalogDbConfig = {
 
 let nativeCatalogPool: any = null;
 try {
-  nativeCatalogPool = new PgPool(catalogDbConfig);
+  const catalogConnStr = process.env.CATALOG_DATABASE_URL;
+  if (catalogConnStr) {
+    const isNeon = catalogConnStr.includes('neon.tech') || catalogConnStr.includes('sslmode=require');
+    nativeCatalogPool = new PgPool({
+      connectionString: catalogConnStr,
+      ssl: isNeon ? { rejectUnauthorized: false } : undefined,
+      max: 10,
+      idleTimeoutMillis: 30000,
+    });
+  } else {
+    nativeCatalogPool = new PgPool(catalogDbConfig);
+  }
 } catch {
   nativeCatalogPool = null;
 }

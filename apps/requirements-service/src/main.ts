@@ -45,7 +45,7 @@ export async function bootstrap(): Promise<void> {
 if (require.main === module) {
   bootstrap()
     .then(() => {
-      app.listen(PORT, () => {
+      app.listen(Number(PORT), '0.0.0.0', () => {
         console.log('=======================================================');
         console.log(`  SCMS Requirements Service running on port ${PORT}`);
         console.log('  Responsibilities: Requirements, Academic Terms & Calendar');

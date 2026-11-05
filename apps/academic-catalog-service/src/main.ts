@@ -41,7 +41,7 @@ export async function startServer(): Promise<void> {
   await programRepository.init();
   console.log('Connected to PostgreSQL sms_catalog');
 
-  app.listen(PORT, () => {
+  app.listen(Number(PORT), '0.0.0.0', () => {
     console.log('=======================================================');
     console.log(`  SCMS Academic Catalog Service running on port ${PORT}`);
     console.log('  SSOT: Programs, Courses, Curricula, Block Sections');

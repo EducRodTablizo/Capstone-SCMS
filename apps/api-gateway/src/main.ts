@@ -1,18 +1,63 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import http from 'http';
+import https from 'https';
 import dotenv from 'dotenv';
+import { URL } from 'url';
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.GATEWAY_PORT || 3000;
+const PORT = process.env.PORT || process.env.GATEWAY_PORT || 3000;
 
-// Enable CORS for frontend Vite client
-app.use(cors({
-  origin: true,
-  credentials: true,
-}));
+// Enable reverse proxy trust for cloud providers (Render, Heroku, AWS ELB)
+app.set('trust proxy', 1);
+
+// Allowed origins for CORS (Local development, Vercel preview/production, and custom domain)
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:4173',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000',
+  'https://sms.pupqc.edu.ph',
+];
+
+if (process.env.CLIENT_ORIGIN) {
+  allowedOrigins.push(process.env.CLIENT_ORIGIN);
+}
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+
+      // Check exact matches
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Check Vercel preview deployments (e.g. https://scms-xxx.vercel.app)
+      if (/^https:\/\/.*\.vercel\.app$/.test(origin)) {
+        return callback(null, true);
+      }
+
+      // Check PUPQC subdomains (e.g. https://*.pupqc.edu.ph)
+      if (/^https:\/\/.*\.pupqc\.edu\.ph$/.test(origin)) {
+        return callback(null, true);
+      }
+
+      // Check localhost on any port for development
+      if (/^http:\/\/localhost(:\d+)?$/.test(origin) || /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`CORS policy: Origin ${origin} not allowed`));
+    },
+    credentials: true,
+  })
+);
 
 // Downstream microservices map
 const SERVICES: Record<string, { port: number; name: string }> = {
@@ -35,36 +80,72 @@ const SERVICES: Record<string, { port: number; name: string }> = {
   '/api/v1/catalogue': { port: 3006, name: 'academic-catalog-service' },
 };
 
-// Generic reverse proxy handler using native Node.js HTTP
-function proxyToService(targetPort: number, serviceName: string) {
-  const targetHost = process.env.LOCAL_DEV === 'true' ? 'localhost' : serviceName;
+/**
+ * Resolves the target base URL for a microservice.
+ * Supports environment overrides (e.g. IDENTITY_SERVICE_URL or IDENTITY_SERVICE_HOST)
+ * for flexible deployment on Render, Docker, or localhost.
+ */
+function resolveServiceTarget(serviceName: string, defaultPort: number) {
+  const envPrefix = serviceName.toUpperCase().replace(/-/g, '_');
+  const serviceUrl = process.env[`${envPrefix}_URL`];
+  if (serviceUrl) {
+    const formattedUrl = serviceUrl.startsWith('http://') || serviceUrl.startsWith('https://')
+      ? serviceUrl
+      : `https://${serviceUrl}`;
+    const parsed = new URL(formattedUrl);
+    return {
+      protocol: parsed.protocol,
+      hostname: parsed.hostname,
+      port: parsed.port ? parseInt(parsed.port, 10) : (parsed.protocol === 'https:' ? 443 : 80),
+      isHttps: parsed.protocol === 'https:',
+    };
+  }
+
+  const customHost = process.env[`${envPrefix}_HOST`];
+  const targetHost = customHost || (process.env.LOCAL_DEV === 'true' ? 'localhost' : serviceName);
+  return {
+    protocol: 'http:',
+    hostname: targetHost,
+    port: defaultPort,
+    isHttps: false,
+  };
+}
+
+// Generic reverse proxy handler supporting HTTP/HTTPS targets
+function proxyToService(defaultPort: number, serviceName: string) {
   return (req: Request, res: Response) => {
-    console.log(`[API Gateway] Proxy: ${req.method} ${req.originalUrl} -> http://${targetHost}:${targetPort}${req.originalUrl} | Auth: ${req.headers.authorization ? 'Bearer present' : 'None'}`);
+    const target = resolveServiceTarget(serviceName, defaultPort);
+    const client = target.isHttps ? https : http;
+
+    console.log(
+      `[API Gateway] Proxy: ${req.method} ${req.originalUrl} -> ${target.protocol}//${target.hostname}:${target.port}${req.originalUrl} | Auth: ${req.headers.authorization ? 'Bearer present' : 'None'}`
+    );
+
     const options: http.RequestOptions = {
-      hostname: targetHost,
-      port: targetPort,
+      hostname: target.hostname,
+      port: target.port,
       path: req.originalUrl,
       method: req.method,
       headers: {
         ...req.headers,
-        host: `${targetHost}:${targetPort}`,
+        host: `${target.hostname}:${target.port}`,
         'x-forwarded-for': req.ip,
-        'x-forwarded-host': req.headers.host || 'localhost:3000',
-        'x-forwarded-proto': 'http',
+        'x-forwarded-host': req.headers.host || `localhost:${PORT}`,
+        'x-forwarded-proto': req.secure ? 'https' : 'http',
       },
     };
 
-    const proxyReq = http.request(options, (proxyRes) => {
+    const proxyReq = client.request(options, (proxyRes) => {
       res.writeHead(proxyRes.statusCode || 500, proxyRes.headers);
       proxyRes.pipe(res);
     });
 
     proxyReq.on('error', (err) => {
-      console.error(`[API Gateway] Error proxying to ${serviceName} (${targetHost}:${targetPort}):`, err.message);
+      console.error(`[API Gateway] Error proxying to ${serviceName} (${target.hostname}:${target.port}):`, err.message);
       if (!res.headersSent) {
         res.status(503).json({
           statusCode: 503,
-          message: `Service '${serviceName}' is temporarily unavailable on port ${targetPort}. Please verify that the microservice is running.`,
+          message: `Service '${serviceName}' is temporarily unavailable on port ${target.port}. Please verify that the microservice is running.`,
           error: 'Service Unavailable',
           targetService: serviceName,
         });
@@ -85,13 +166,26 @@ app.get('/health', async (req: Request, res: Response) => {
   const serviceChecks: Record<string, string> = {};
 
   for (const [route, target] of Object.entries(SERVICES)) {
+    if (serviceChecks[target.name]) continue; // Avoid duplicate checks for services mapped to multiple routes
+
     try {
+      const resolved = resolveServiceTarget(target.name, target.port);
+      const client = resolved.isHttps ? https : http;
+
       const isUp = await new Promise<boolean>((resolve) => {
-        const pingReq = http.get(`http://localhost:${target.port}/health`, (pingRes) => {
-          resolve(pingRes.statusCode === 200);
-        });
+        const pingReq = client.get(
+          {
+            hostname: resolved.hostname,
+            port: resolved.port,
+            path: '/health',
+            timeout: 2000,
+          },
+          (pingRes) => {
+            resolve(pingRes.statusCode === 200);
+          }
+        );
         pingReq.on('error', () => resolve(false));
-        pingReq.setTimeout(1000, () => {
+        pingReq.on('timeout', () => {
           pingReq.destroy();
           resolve(false);
         });
@@ -111,7 +205,7 @@ app.get('/health', async (req: Request, res: Response) => {
   });
 });
 
-app.listen(PORT, () => {
+app.listen(Number(PORT), '0.0.0.0', () => {
   console.log('=======================================================');
   console.log(`  SCMS API Gateway running on port ${PORT}`);
   console.log('  Single Entry Point & Reverse Proxy for all microservices');

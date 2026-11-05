@@ -790,7 +790,17 @@ export class CatalogPool {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const PgPool = require('pg').Pool;
-      this.nativePool = new PgPool(config);
+      const connectionString = process.env.DATABASE_URL;
+      const isNeon = connectionString?.includes('neon.tech') || connectionString?.includes('sslmode=require');
+      const poolOptions = connectionString
+        ? {
+          connectionString,
+          ssl: isNeon ? { rejectUnauthorized: false } : undefined,
+          max: 10,
+          idleTimeoutMillis: 30000,
+        }
+        : config;
+      this.nativePool = new PgPool(poolOptions);
     } catch {
       this.useEmbedded = true;
     }
