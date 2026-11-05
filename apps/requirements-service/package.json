@@ -4,7 +4,7 @@
   "description": "Server 2: Academic Requirements & Deadlines (SMS-004, SMS-005)",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "ts-node src/main.ts",
+    "dev": "npx tsx src/main.ts",
     "start": "node dist/main.js",
     "build": "tsc"
   },

@@ -4,8 +4,9 @@ echo   Starting SCMS Microservices & Web Client
 echo   Syllabus Compliance Monitoring System - PUPQC
 echo ===================================================
 
-echo [1/3] Starting Database Infrastructure (Postgres, Mongo, Redis)...
-docker-compose up -d
+echo [1/3] Ensuring host ports are free & starting database infrastructure...
+docker-compose stop api-gateway identity-service requirements-service submission-service compliance-monitoring-service academic-catalog-service audit-log-service >nul 2>&1
+docker-compose up -d scms_postgres_identity scms_postgres_catalog scms_postgres_requirements scms_postgres_submissions scms_postgres_audit scms_postgres_compliance mongo redis adminer
 
 echo [2/3] Waiting for databases to initialize...
 timeout /t 5 /nobreak >nul

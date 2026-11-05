@@ -8,8 +8,9 @@ export type TermStatus =
   | 'Closed'
   | 'Archived';
 
-export type CalendarEntryType = 'REGULAR_HOLIDAY' | 'SPECIAL_NON_WORKING' | 'SUSPENSION' | 'ACADEMIC_EVENT';
-export type AppliesToScope = 'CLASSES' | 'WORK' | 'BOTH';
+export type CalendarEntryType = 'REGULAR_HOLIDAY' | 'SPECIAL_NON_WORKING' | 'LOCAL_HOLIDAY' | 'SUSPENSION' | 'ACADEMIC_EVENT';
+export type AppliesToScope = 'CLASSES' | 'WORK' | 'BOTH' | string[] | string;
+export type ClassEffect = 'SUSPENDED' | 'ONLINE' | null;
 
 export interface AcademicTerm {
   id?: string;
@@ -68,37 +69,52 @@ export interface CalendarEvent {
   date: string;
   name: string;
   entry_type: CalendarEntryType;
-  applies_to: AppliesToScope;
+  applies_to: string;
+  effect?: ClassEffect;
+  interval_start?: string | null;
+  interval_end?: string | null;
   created_at: string;
 }
 
+export interface CalendarEntryDto {
+  event_id?: string;
+  entity_id?: string;
+  id?: string;
+  revision?: number;
+  change_kind?: 'ADDED' | 'UPDATED' | 'REMOVED';
+  date: string;
+  name?: string;
+  reason?: string;
+  entry_type?: CalendarEntryType;
+  type?: CalendarEntryType;
+  applies_to?: AppliesToScope;
+  appliesTo?: AppliesToScope;
+  effect?: ClassEffect;
+  interval?: { start?: string; end?: string };
+  start_time?: string;
+  end_time?: string;
+}
+
 export interface CalendarSnapshotPayload {
-  sync_id: string;
-  schema_version: string;
-  timestamp: string;
-  academic_term: {
+  sync_id?: string;
+  syncId?: string;
+  snapshot?: boolean;
+  schema_version?: string;
+  timestamp?: string;
+  academic_term?: {
     academic_term_id?: string;
-    academic_year: string;
-    semester_number: number;
-    semester_label: string;
+    academic_year?: string;
+    semester_number?: number;
+    semester_label?: string;
     term_code: string;
     term_name?: string;
     display_label?: string;
-    start_date: string;
-    end_date: string;
+    start_date?: string;
+    end_date?: string;
   };
-  holidays?: Array<{
-    event_id: string;
-    date: string;
-    name: string;
-    entry_type: CalendarEntryType;
-    applies_to: AppliesToScope;
-  }>;
-  suspensions?: Array<{
-    event_id: string;
-    date: string;
-    name: string;
-    entry_type: CalendarEntryType;
-    applies_to: AppliesToScope;
-  }>;
+  term_code?: string;
+  termId?: string;
+  entries?: CalendarEntryDto[];
+  holidays?: CalendarEntryDto[];
+  suspensions?: CalendarEntryDto[];
 }

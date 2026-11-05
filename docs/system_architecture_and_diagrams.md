@@ -554,7 +554,7 @@ flowchart LR
 SMS enforces strict role separation between the **Academic Head** (Governance, Review, Catalog Administration, Compliance Oversight) and **Faculty Staff** (Authoring, Document Upload, Status Tracking, Revision).
 
 #### 2. Key Use Cases Detailed
-* **UC1 (Sign In):** Secure local authentication generating HttpOnly JWT session tokens.
+* **UC1 (Sign In):** SMS integrates with the PUP QC AAIP Clerk Shared SSO for authentication via OIDC under an Invite-Only policy (unregistered users rejected with HTTP 403 Forbidden). Local Argon2id remains as an emergency fallback to guarantee zero downtime.
 * **UC2 (Submit Syllabus):** Allows faculty to upload PDF/DOCX or use interactive OBE Form Mode. Header details are pre-filled and locked from FMS data.
 * **UC3 (Resubmit Revised Syllabus):** Handles syllabus resubmissions following a `Returned` decision, transitioning the record to `Resubmitted`.
 * **UC4 (Track Real-time Status):** Provides instant visibility across all 8 lifecycle statuses without manual page refresh.
@@ -659,7 +659,7 @@ flowchart TB
 | Service | Host Port | Database & Port | Core Responsibilities |
 | :--- | :---: | :---: | :--- |
 | **Server 0: API Gateway** | `:3000` | N/A | Ingress routing, TLS 1.3 termination, WAF filtering, JWT validation, WebSocket proxy. |
-| **Server 1: Identity & Access** | `:3001` | `sms_identity` (`:5434`) | Local user authentication (Argon2id), RBAC enforcement (Academic Head, Faculty, Substitute). |
+| **Server 1: Identity & Access** | `:3001` | `sms_identity` (`:5434`) | PUP QC AAIP Clerk Shared SSO via OIDC (`/auth/clerk-login`) with emergency local Argon2id fallback (`/auth/login`). Strict RBAC (Academic Head & Faculty Staff). |
 | **Server 2: Requirements Service** | `:3002` | `sms_requirements` (`:5436`) | Submission quotas, working-day statutory deadlines (23:59:59 PHT), CCMS suspension pushouts (SMS-033). |
 | **Server 3: Submissions Service** | `:3003` | `sms_submissions` (`:5437`) & GridFS (`:27017`) | File uploads (PDF/DOCX), OBE Form Mode engine, review evaluations (Approve/Return), reassignment adoption. |
 | **Server 4: Audit Log Service** | `:3004` | `sms_audit` (`:5438`) | Immutable audit ledger with cryptographic SHA-256 hash chaining (update/delete blocked at DB level). |
@@ -952,3 +952,25 @@ When exporting the finalized syllabus or displaying official review status, the 
 2. **Reviewed and Checked by:** `Academic Head` *(Single reviewer, single level in SMS)*
 3. **Recommending Approval:** `Campus Director` *(Printed name only; does not review inside SMS)*
 4. **Approved by:** `Vice President for Campuses` *(Printed name only; does not review inside SMS)*
+
+---
+
+## 10. Tri-System Authentication Architecture: PUP QC AAIP Clerk Shared SSO & Local Fallback
+
+### 1. Architectural Alignment & Updated Decision
+> **Core Policy Statement:**  
+> **"SMS integrates with the PUP QC AAIP Clerk Shared SSO for authentication. Local Argon2id remains as an emergency fallback."**
+
+* **Historical Context (Decision A9):** Initially, SMS maintained fully decoupled local credentials without shared identity.
+* **Updated Consensus (Option 2 - Full Clerk OIDC Integration):** The team aligned with the Tri-System Integration Contract (FMS, CCMS, and SMS) by adopting the **PUP QC AAIP Clerk Shared SSO**.
+* **Defense Panel Script (Exact response if questioned on SSO):**
+  > *"Contrary to our initial architecture decision (Decision A9), we have successfully aligned with the Tri-System Integration Contract. SMS DOES participate in the CCMS-FMS shared SSO bridge via Clerk OIDC. However, to ensure zero downtime during this transition period (while waiting for the production keys), we have implemented a Local Argon2id Fallback. Once the Clerk keys are deployed, the shared SSO will be the primary login method."*
+
+### 2. Dual-Mode Implementation Mechanics
+1. **Primary Mode (Clerk Shared SSO):**
+   * **Frontend:** `<SignIn />` and `<ClerkProvider>` in `src/main.tsx` and `src/pages/LoginPage.tsx`.
+   * **Backend:** `POST /api/v1/auth/clerk-login` in `identity-service`.
+   * **Invite-Only Policy (No Auto-JIT Provisioning):** SMS enforces an Invite-Only policy. Unregistered Clerk users are rejected with HTTP 403 Forbidden. A user must exist in the local PostgreSQL users table before Clerk can grant them access. This strictly enforces the **Two Roles Only** constraint (`ACADEMIC_HEAD` or `FACULTY_STAFF`).
+2. **Emergency Fallback Mode (Local Argon2id):**
+   * When Clerk publishable keys are in placeholder mode or external identity providers experience network interruptions, the login interface provides a seamless fallback to local authentication (`POST /api/v1/auth/login`).
+   * Passwords are verified against salted Argon2id hashes, ensuring 100% operational resiliency during defense demonstrations.

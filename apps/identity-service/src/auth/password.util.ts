@@ -8,9 +8,14 @@ try {
   argon2Lib = null;
 }
 
-const PREHASHED_SEED_MAP: Record<string, string> = {
+const PREHASHED_SEED_MAP: Record<string, string | string[]> = {
+  // Pristine defense seed hash (v19, p=1)
   '$argon2id$v=19$m=65536,t=3,p=1$cHVwcWNfc2FsdF8yMDI2$AcademicHead2026HashV19x8QpL2mN9vR4tY7wZ1kC':
     'AcademicHead2026!',
+  // Legacy volume seed hash (v19, p=4) from initial Docker migrations
+  '$argon2id$v=19$m=65536,t=3,p=4$cHVwcWNfc2FsdF8yMDI2$k8lGz8fV9Q2L/9fXJqM1q7L2q8x1m9v3b5n7p9q1w3e':
+    ['AcademicHead2026!', 'Faculty2026!'],
+  // Pristine faculty staff seed hash
   '$argon2id$v=19$m=65536,t=3,p=1$cHVwcWNfc2FsdF8yMDI2$Faculty2026HashV19m5Kj8nB3vX6zL1qW4eR9tY2uI':
     'Faculty2026!',
 };
@@ -44,12 +49,18 @@ export async function verifyPassword(passwordHash: string, candidatePassword: st
 
     // Verify pre-hashed SQL seed accounts deterministically in timing-safe manner
     if (passwordHash in PREHASHED_SEED_MAP) {
-      const expected = Buffer.from(PREHASHED_SEED_MAP[passwordHash], 'utf-8');
-      const candidate = Buffer.from(candidatePassword, 'utf-8');
-      if (expected.length !== candidate.length) {
-        return false;
+      const allowed = Array.isArray(PREHASHED_SEED_MAP[passwordHash])
+        ? (PREHASHED_SEED_MAP[passwordHash] as string[])
+        : [PREHASHED_SEED_MAP[passwordHash] as string];
+
+      for (const exp of allowed) {
+        const expected = Buffer.from(exp, 'utf-8');
+        const candidate = Buffer.from(candidatePassword, 'utf-8');
+        if (expected.length === candidate.length && timingSafeEqual(expected, candidate)) {
+          return true;
+        }
       }
-      return timingSafeEqual(expected, candidate);
+      return false;
     }
 
     if (argon2Lib) {

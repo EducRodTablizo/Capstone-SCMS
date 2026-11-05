@@ -40,8 +40,12 @@ Identity & Access     Requirements           Submission & Storage   Review & Aud
 * Broadcasts real-time submission status mutations to connected Academic Head client sockets.
 
 ### Server 1: Identity & Access Service (Module A / M1)
+* **Authentication Architecture:**
+  * **Primary:** PUP QC AAIP Clerk Shared SSO via OIDC (`POST /auth/clerk-login`). Validates Clerk JWT under an Invite-Only policy (unregistered emails rejected with HTTP 403 Forbidden), mapping strictly to existing local PostgreSQL accounts with SCMS-scoped roles (`ACADEMIC_HEAD` or `FACULTY_STAFF`). No auto-JIT account creation is permitted.
+  * **Fallback:** Emergency Local Argon2id authentication (`POST /auth/login`). Verifies credentials against local PostgreSQL `users` table to guarantee zero downtime during network or Clerk key transitions.
 * **Endpoints:**
-  * `POST /auth/login` — Verifies local credentials with Argon2id hash against SCMS's own user accounts. On failure, returns **HTTP 401** with generic message (`Invalid credentials`) without revealing which field was incorrect. Issues HttpOnly JWT session cookie; no SSO or shared session with CCMS/FMS.
+  * `POST /auth/clerk-login` — Validates Clerk session token via `@clerk/backend`, maps institutional email, and issues SCMS JWT.
+  * `POST /auth/login` — Verifies local credentials with Argon2id hash against SCMS's own user accounts. On failure, returns **HTTP 401** with generic message (`Invalid credentials`) without revealing which field was incorrect. Issues HttpOnly JWT session cookie.
   * `POST /auth/logout` — Blacklists token in Redis and clears HttpOnly session cookie.
   * `GET /users/me` — Returns authenticated profile with role (`ACADEMIC_HEAD` or `FACULTY_STAFF`).
   * `GET /faculty/lookup/:facultyId` — Queries FMS adapter for minimal profile details (`name`, `college`, `unit`); caches in Redis.

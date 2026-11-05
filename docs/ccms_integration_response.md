@@ -27,7 +27,7 @@
 | Module / Service | Port | What it does |
 | :--- | :---: | :--- |
 | **API Gateway** | `:3000` | Unified entry point, JWT session routing, and external integration webhook dispatcher. |
-| **Identity Service** | `:3001` | SCMS local account authentication (Argon2id password hashing), session tokens, and strict two-role scoping (Academic Head vs. Faculty Staff). No shared sign-in with CCMS or FMS (Decision A9). |
+| **Identity Service** | `:3001` | SCMS user authentication via PUP QC AAIP Clerk Shared SSO with emergency Local Argon2id fallback, session tokens, and strict two-role scoping (Academic Head vs. Faculty Staff). |
 | **Requirements Service** | `:3002` | **Connects to CCMS.** Program requirement setup, term deadlines, and official academic calendar synchronization (`SCMS-018` / `AUD-023`). Ingests term boundaries, holidays, and intraday suspensions. |
 | **Submission Service** | `:3003` | Syllabus file uploads (MongoDB GridFS), interactive PUPQC OBE Form Mode authoring, 6-stage status lifecycle (`Not Submitted`, `Submitted`, `Under Review`, `Returned`, `Resubmitted`, `Approved`), and multi-version history retention (`SCMS-021` / `AUD-013`). |
 | **Audit Log Service** | `:3004` | Append-only, tamper-evident audit trail (`SCMS-014` / `AUD-019`). Rejects `UPDATE` and `DELETE` operations at the database level. Provides read-only viewer for the Academic Head (`SCMS-015` / `AUD-020`). |
@@ -195,9 +195,9 @@ SCMS guarantees zero downtime through its **4-Tier Offline Fallback Architecture
 ## 5. Identity and Other Links
 
 ### 20. Shared sign-in (Idea E23)
-**We recommend KEEPING SEPARATE ACCOUNTS (affirming Decision A9).**  
-* **Rationale:** CCMS users (Office Heads, Office Staff, Super Admins) manage Citizen's Charter transactions. SCMS users (Academic Head, Faculty Staff) manage syllabi and curricula.
-* Separate local authentication (Argon2id) avoids a single point of failure (SPOF) and eliminates complex OAuth2/OIDC cross-team dependencies before defense. If institutional SSO is adopted in the future, it should be managed centrally by PUP ICTO.
+**SMS integrates with the PUP QC AAIP Clerk Shared SSO for authentication. Local Argon2id remains as an emergency fallback.**  
+* **Architecture:** In alignment with the latest Tri-System Integration agreement, SMS participates in the PUP QC AAIP Clerk Shared SSO bridge. The React frontend and Identity microservice implement Clerk OIDC under a strict **Invite-Only policy** (unregistered Clerk users are rejected with HTTP 403 Forbidden; users must exist in PostgreSQL `users`), while retaining a local Argon2id fallback to guarantee zero downtime during provider outages or key migration.
+* **Role Boundary:** Local application authorizations remain strictly partitioned: SCMS maps authenticated users strictly to its **Two Roles Only** (`ACADEMIC_HEAD` and `FACULTY_STAFF`).
 
 ### 21. Other links, and ideas for new integrations
 * **Complaint Referrals (Decision A12):** CCMS referring staff-conduct complaints to FMS is correct. Audit does **NOT** handle staff disciplinary matters or citizen complaints.
@@ -316,3 +316,77 @@ CCMS's proposed scenarios (a through e) are **approved** and map directly to our
 
 ### 28. Description of Audit for CCMS
 *(Provided in full in the **Executive Overview: About Audit (ACAS / SCMS)** section at the top of this document).*
+
+---
+
+## 7. Official Reconciled Reply to CCCMS (Reconciled & Locked - November 5, 2026)
+
+**From:** SMS Integration Lead (`@ROD` / Rod Benedict Tablizo)  
+**To:** CCCMS Team  
+**Copy:** FMS Team  
+**Date:** November 5, 2026  
+**Subject:** SMS Official Reply to CCCMS Questionnaire (Calendar Link & Terms Agreement)
+
+SMS adopts everything in your Section 2 and issues official **GO** for the calendar integration (C1 to C5) with the locked technical parameters and clarifications below.
+
+### 1. Locked Items from Your Section 3
+* **1. GO:** Confirmed **GO** for the calendar link (C1 to C5) as defined in this specification.
+* **2. Staging Address & Target Readiness:**
+  * **Base Staging Ingress Gateway:** `http://localhost:3000` (Local/Docker Staging) / `https://staging-scms.pupqc.edu.ph` (Deployment target).
+  * **Ingress API Gateway Port:** `:3000`
+  * **Readiness Date:** Immediately testable on staging.
+* **2. Key Contact & Machine Key Exchange Channel:**
+  * **Key Agreement:** Exactly one pre-shared Bearer machine credential per direction and environment, issued by the receiving system:
+    * **Key Issued by SMS to CCMS:** Grants `write:calendar` (to push calendar snapshots to `POST /api/v1/calendar/sync`) and `read:terms` (to fetch term boundaries from `GET /api/v1/terms`).
+    * **Key Issued by CCMS to SMS:** Grants `read:calendar` (used by SMS during pull/reconcile cold-start via `GET /calendar/declarations?term=2026-1S`).
+  * **Lifecycle & Security:** 90-day expiry, up to 7-day rotation overlap window, instant revocation (revoked key receives immediate HTTP 401 Unauthorized with no body/data leakage). Configured strictly via `.env` variables (`CCMS_SERVICE_TOKEN`, `SMS_SERVICE_TOKEN`), never committed to VCS.
+  * **Designated Key Exchange Channel:** Tokens exchanged securely out-of-band directly with the engineering leads (`Cedrickaasusula@iskolarngbayan.pup.edu.ph` / Integration Lead `@ROD`).
+  * **Response Turnaround:** Machine key provisioning and confirmation within 1 business day.
+* **3. Permission Scopes:**
+  * **SMS Issues to CCMS:** `write:calendar` (to push calendar snapshots) and `read:terms` (to fetch term boundaries).
+  * **CCMS Issues to SMS:** `read:calendar` (used by SMS during pull/reconcile cold start via `GET /calendar/declarations?term=2026-1S`).
+* **4. Locked Push Route:**
+  * **`POST /api/v1/calendar/sync`** (Ingress on API Gateway `:3000`, forwarded downstream to `requirements-service:3002`).
+* **5. Midyear (Summer) Term Code:**
+  * **`2026-MIDYEAR`** (Canonical code in SMS database) with supported alias **`2026-MY`**.
+  * **Display Label:** `"A.Y. 2026-2027 Midyear Term"`.
+  * **Semester Label:** `"MIDYEAR"`, Semester Number: `3`.
+
+---
+
+### 2. Answers to Your Questions (Your Section 4)
+
+1. **Class Effect (`effect: SUSPENDED | ONLINE`):**
+   * **SMS ACCEPTS, STORES, AND USES THIS FIELD.**
+   * **`ONLINE`:** Classes continue in online/distance learning mode. The date remains an active instructional day; syllabus submission countdown timers and deadlines are **NOT** pushed out.
+   * **`SUSPENDED`:** Classes are suspended. The date is treated as non-instructional and deadlines roll over to 23:59:59 PHT of the next active class day.
+   * **Empty / Omitted:** If `effect` is blank on an entry where `appliesTo` includes `"CLASSES"`, SMS defaults to `SUSPENDED` (safe defense against false overdue penalties).
+2. **Part-Day Suspensions:**
+   * **Keep sending both `start` and `end`.**
+   * SMS deadline cutoff is strictly **23:59:59 PHT**. If a suspension begins at or before 23:59:59 (e.g. `start: "13:00"`), the day is affected. An entry with a `start` and no `end` is accepted. An entry with an `end` but no `start` is invalid and rejected.
+3. **Outgoing Addresses & Transport Security:**
+   * **Shared Secret + TLS 1.3 is completely sufficient.** Fixed egress IP whitelisting is not required.
+   * Requirements: Pre-shared Bearer machine credentials, TLS 1.2 or higher (TLS 1.3 preferred), 90-day key lifetime with 7-day rotation overlap, instant revocation returning HTTP 401 with an empty body.
+4. **Page Size:**
+   * **Confirmed:** One page (<15 KB) per academic term is completely sufficient for SMS.
+
+---
+
+### 3. Route Correction: Fetching Academic Terms (Important)
+
+* **Route Path Correction:**
+  * Your Section 2 mentions: `GET /api/v1/catalogue/terms`.
+  * **Correction:** In SMS's architecture, terms are owned by the Requirements & Deadlines subsystem (`requirements-service`), mounted at:
+    * **Canonical Endpoint:** **`GET /api/v1/terms`** (or `GET /api/v1/terms/active`).
+  * Please configure your term-fetch client to use **`GET /api/v1/terms`**. (Note: API Gateway `:3000` also routes `/api/v1/terms` directly to `requirements-service:3002`).
+
+---
+
+### 4. Shared Sign-In Alignment (Your Section 5)
+
+* **Updated Architecture Decision:**
+  * While initial planning explored isolated local sign-ins, SMS has successfully aligned with the Tri-System Integration Contract:
+  * **SMS integrates with the PUP QC AAIP Clerk Shared SSO for authentication via Clerk OIDC (`POST /api/v1/auth/clerk-login`).**
+  * **SMS enforces an Invite-Only policy. Unregistered Clerk users are rejected with HTTP 403 Forbidden.** A user must exist in the local PostgreSQL users table before Clerk can grant them access. This strictly enforces our Two Roles Only model (`ACADEMIC_HEAD` and `FACULTY_STAFF`) with zero auto-JIT provisioning.
+  * To guarantee zero downtime during defense demonstrations or key transitions, SMS maintains an emergency Local Argon2id fallback (`POST /api/v1/auth/login`).
+  * **Naming Convention:** Please use **CCMS** (or **CCCMS** interchangeably); both are recognized in our documentation.

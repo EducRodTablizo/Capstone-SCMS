@@ -45,7 +45,7 @@ This Master Product Backlog harmonizes the institutional syllabus compliance spe
 
 | Story ID | Sprint | User Story | Acceptance Criteria (AC) | Points | Status |
 | :---: | :---: | :--- | :--- | :---: | :---: |
-| **SMS-001** | **S1** | As a user (Academic Head or Faculty Staff), I want to sign in with an SMS account so that I can use the system without depending on a CCMS or FMS login. | 1. SMS authenticates users with its own accounts, and passwords are stored hashed (Argon2id).<br>2. No single sign-on or shared session with CCMS or FMS (Decision A9).<br>3. Invalid credentials return 401 Unauthorized. | 3 | Completed ✅ |
+| **SMS-001** | **S1** | As a user (Academic Head or Faculty Staff), I want to sign in with an SMS account so that I can use the system securely. | 1. SMS integrates with the PUP QC AAIP Clerk Shared SSO for authentication.<br>2. Local Argon2id remains as an emergency fallback.<br>3. Invalid credentials return 401 Unauthorized. | 3 | Completed ✅ |
 | **SMS-002** | **S1** | As a user, I want access to be determined by my role so that I only see what my role allows. | 1. Faculty Staff see only their own assigned submissions and courses.<br>2. Academic Head can access all requirements, submissions, compliance views, and the audit trail.<br>3. No roles other than Academic Head and Faculty Staff exist.<br>4. Unauthorized requests return 403 Forbidden. | 3 | Completed ✅ |
 | **SMS-003** | **S1** | As a Faculty Staff member, I want my personal data handled in line with the Data Privacy Act so that my information is protected. | 1. SMS reads only minimal faculty data needed from FMS: faculty ID, display name, institutional email, academic rank, consultation hours.<br>2. Salary, home address, personal phone numbers, and HR scores are never accessed or stored.<br>3. Faculty documents are visible only to that faculty member and Academic Head.<br>4. Nothing sent to CCMS contains personal data (RA 10173). | 2 | Completed ✅ |
 | **SMS-014** | **S1** | As the Academic Head, I want every submission action and review decision logged so that accountability and traceability are ensured. | 1. Creation, status changes, decisions, and resubmissions are recorded with who acted, what was done, and when.<br>2. Log records are append-only and tamper-evident; update and delete attempts are rejected at database level. | 5 | Completed ✅ |
@@ -89,7 +89,7 @@ This Master Product Backlog harmonizes the institutional syllabus compliance spe
 
 | Original AUD ID | Reconciled SMS ID | Feature Mapping & Scope Status |
 | :---: | :---: | :--- |
-| **AUD-001** | `SMS-001` | Local Argon2id Authentication (Decision A9) |
+| **AUD-001** | `SMS-001` | PUP QC AAIP Clerk Shared SSO with Local Argon2id Fallback |
 | **AUD-002** | `SMS-002` | Strict RBAC Scoping (Academic Head vs Faculty Staff) |
 | **AUD-003** | `SMS-003` | Data Privacy Controls (RA 10173 minimal faculty data) |
 | **AUD-004** | `SMS-004` | Term Requirement Types & Descriptions Setup |

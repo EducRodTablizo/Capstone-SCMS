@@ -54,7 +54,12 @@ INSERT INTO users (
     TRUE,
     '2026-01-20 00:00:00'
   )
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (email) DO UPDATE SET
+  password_hash = EXCLUDED.password_hash,
+  role = EXCLUDED.role,
+  first_name = EXCLUDED.first_name,
+  last_name = EXCLUDED.last_name,
+  is_active = TRUE;
 `;
 
 export class UserRepository {
@@ -99,15 +104,11 @@ export class UserRepository {
         );
       `);
 
-      const countRes = await client.query('SELECT COUNT(*) FROM users');
-      const count = parseInt(countRes.rows[0]?.count || '0', 10);
-
-      if (count === 0) {
-        await client.query(SEED_USERS_SQL);
-      }
+      // Ensure canonical seed users exist and have updated password hashes and active status
+      await client.query(SEED_USERS_SQL);
 
       this.isInitialized = true;
-      console.log('Connected to PostgreSQL sms_identity');
+      console.log('Connected to PostgreSQL sms_identity and synchronized seed accounts');
     } finally {
       client.release();
     }

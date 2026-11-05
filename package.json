@@ -10,7 +10,8 @@
     "start:services": "start-all-services.bat",
     "stop:services": "stop-all-services.bat",
     "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down"
+    "docker:down": "docker-compose down",
+    "test:e2e": "tsx test_e2e.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

@@ -4,7 +4,7 @@
   "description": "Server 1: SCMS Identity & Access Service (Sprint 1)",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "ts-node src/main.ts",
+    "dev": "npx tsx src/main.ts",
     "start": "node dist/main.js",
     "build": "tsc"
   },

@@ -4,7 +4,7 @@
   "description": "Server 5: Live Compliance Monitoring & CCMS Feed",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "ts-node src/main.ts",
+    "dev": "npx tsx src/main.ts",
     "build": "tsc",
     "start": "node dist/main.js"
   },

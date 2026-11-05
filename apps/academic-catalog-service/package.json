@@ -4,7 +4,7 @@
   "description": "Server 6: Academic Catalog & Curriculum Management SSOT (SMS-021, SMS-022, SMS-030, SMS-031)",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "ts-node src/main.ts",
+    "dev": "npx tsx src/main.ts",
     "start": "node dist/main.js",
     "build": "tsc"
   },

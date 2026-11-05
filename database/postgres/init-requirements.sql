@@ -49,7 +49,9 @@ CREATE INDEX IF NOT EXISTS idx_term_status ON academic_terms(status);
 
 -- Seed initial active term
 INSERT INTO academic_terms (term_code, academic_year, semester_number, semester_label, display_label, start_date, end_date, submission_window_start, submission_window_end, status)
-VALUES ('2026-1S', '2026-2027', 1, '1ST_SEMESTER', 'A.Y. 2026-2027 First Semester', '2026-09-01', '2027-01-31', '2026-09-01', '2026-12-15', 'ACTIVE')
+VALUES 
+  ('2026-1S', '2026-2027', 1, '1ST_SEMESTER', 'A.Y. 2026-2027 First Semester', '2026-09-01', '2027-01-31', '2026-09-01', '2026-12-15', 'ACTIVE'),
+  ('2026-MIDYEAR', '2026-2027', 3, 'MIDYEAR', 'A.Y. 2026-2027 Midyear Term', '2027-06-01', '2027-07-31', '2027-06-01', '2027-07-15', 'UPCOMING')
 ON CONFLICT (term_code) DO NOTHING;
 
 -- Seed initial requirement definition for BSIT Term 1

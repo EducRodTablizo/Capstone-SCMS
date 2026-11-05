@@ -401,8 +401,26 @@ class EmbeddedRequirementsPostgresEngine {
       return { rows: [], rowCount: 1 };
     }
 
+    if (/^DELETE\s+FROM\s+calendar_events\b/i.test(normalized)) {
+      if (/WHERE\s+term_code\s*=\s*\$1\s+AND\s+date\s*=\s*\$2\s+AND\s+name\s*=\s*\$3/i.test(normalized)) {
+        const key = `${params[0]}:${params[1]}:${params[2]}`;
+        const existed = this.events.delete(key);
+        return { rows: [], rowCount: existed ? 1 : 0 };
+      }
+      if (/WHERE\s+term_code\s*=\s*\$1/i.test(normalized)) {
+        let count = 0;
+        for (const [k, v] of this.events.entries()) {
+          if (v.term_code === String(params[0])) {
+            this.events.delete(k);
+            count++;
+          }
+        }
+        return { rows: [], rowCount: count };
+      }
+    }
+
     if (/^INSERT\s+INTO\s+calendar_events\b/i.test(normalized)) {
-      const [event_id, sync_id, term_code, date, name, entry_type, applies_to] = params;
+      const [event_id, sync_id, term_code, date, name, entry_type, applies_to, effect] = params;
       const key = `${term_code}:${date}:${name}`;
       const existing = this.events.get(key);
       const row = {
@@ -414,6 +432,7 @@ class EmbeddedRequirementsPostgresEngine {
         name,
         entry_type,
         applies_to,
+        effect: effect !== undefined ? effect : (entry_type === 'SUSPENDED' ? 'SUSPENDED' : null),
         created_at: existing?.created_at || new Date().toISOString(),
       };
       this.events.set(key, row);

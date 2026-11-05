@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { calendarRepository } from './calendar.repository';
 import { deadlineEngine } from './deadline.engine';
-import { authenticate, requireRole } from '../guards/role.guard';
+import { authenticate } from '../guards/role.guard';
 import { CalendarSnapshotPayload } from './calendar.entity';
 
 export const calendarRouter = Router();
@@ -15,41 +15,47 @@ export const calendarRouter = Router();
 calendarRouter.post('/sync', async (req: Request, res: Response) => {
   try {
     const payload = req.body as CalendarSnapshotPayload;
+    const syncId = payload.sync_id || payload.syncId;
+    const termCode = payload.academic_term?.term_code || payload.term_code || payload.termId;
 
-    if (!payload.sync_id || !payload.academic_term?.term_code) {
+    if (!syncId || !termCode) {
       res.status(422).json({
         statusCode: 422,
+        result: 'REJECTED',
         error: 'Unprocessable Entity',
-        message: 'Invalid CCMS calendar push payload: sync_id and academic_term.term_code are mandatory.',
+        reason: 'Invalid CCMS calendar push payload: sync ID and term code are mandatory.',
+        message: 'Invalid CCMS calendar push payload: sync ID and term code are mandatory.',
       });
       return;
     }
 
     const result = await calendarRepository.saveSnapshot(payload);
 
-    if (result.status === 'ALREADY_PROCESSED') {
-      res.status(200).json({
-        statusCode: 200,
-        sync_id: result.sync_id,
-        term_code: result.term_code,
-        status: 'ALREADY_PROCESSED',
-        message: 'CCMS calendar snapshot was already ingested and verified (Idempotent ACK).',
-      });
-      return;
-    }
-
     res.status(200).json({
       statusCode: 200,
+      syncId: result.sync_id,
       sync_id: result.sync_id,
+      result: 'ACCEPTED',
+      status: result.status,
+      termId: result.term_code,
       term_code: result.term_code,
-      status: 'PROCESSED',
+      counts: result.counts,
       events_ingested: result.events_count,
-      message: 'CCMS official academic calendar snapshot ingested successfully into SCMS.',
+      reason:
+        result.status === 'ALREADY_PROCESSED'
+          ? 'CCMS calendar snapshot was already ingested and verified (Idempotent ACK).'
+          : 'CCMS official academic calendar snapshot ingested successfully into SCMS.',
+      message:
+        result.status === 'ALREADY_PROCESSED'
+          ? 'CCMS calendar snapshot was already ingested and verified (Idempotent ACK).'
+          : 'CCMS official academic calendar snapshot ingested successfully into SCMS.',
     });
   } catch (err: any) {
     res.status(500).json({
       statusCode: 500,
+      result: 'REJECTED',
       error: 'Internal Server Error',
+      reason: 'Failed to ingest CCMS calendar snapshot: ' + err.message,
       message: 'Failed to ingest CCMS calendar snapshot: ' + err.message,
     });
   }

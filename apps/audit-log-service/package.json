@@ -4,7 +4,7 @@
   "description": "Server 4B: Review, Approval & Audit Trail Service",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "ts-node src/main.ts",
+    "dev": "npx tsx src/main.ts",
     "build": "tsc",
     "start": "node dist/main.js"
   },
