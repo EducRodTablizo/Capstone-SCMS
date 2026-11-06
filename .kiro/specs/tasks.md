@@ -18,8 +18,8 @@
     - *Acceptance Criteria (AC 1)*: Users sign in with their SCMS credentials; no password is stored in plain text.
   - [x] **TASK-101.2 (Task 2)**: Reject invalid credentials with a generic error message that does not reveal which field was wrong.
     - *Acceptance Criteria (AC 2)*: Invalid credentials are rejected and no session is created.
-  - [x] **TASK-101.3 (Task 3)**: Issue sessions only from SCMS, with no single sign-on or shared session with CCMS or FMS.
-    - *Acceptance Criteria (AC 3)*: Signing in to CCMS or FMS does not grant access to SCMS, and the reverse is also true.
+  - [x] **TASK-101.3 (Task 3)**: Authenticate users via PUP QC AAIP Clerk Shared SSO with an independent Local Argon2id fallback.
+    - *Acceptance Criteria (AC 3)*: Supports both PUP QC AAIP Clerk Shared SSO (Invite-Only policy: rejects unregistered users with 403 Forbidden; no auto-JIT provisioning) and emergency Local Argon2id authentication.
 
 - **SCMS-002 (AUD-002): Role-Based Access Scoping for Two Roles (5 pts)** — *Assignee: Developers*
   - [x] **TASK-102.1 (Task 1)**: Define the two roles (Academic Head and Faculty Staff) and attach the role to the session on every authenticated request.
