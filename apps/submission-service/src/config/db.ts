@@ -1,8 +1,11 @@
 import { randomUUID } from 'crypto';
+import path from 'path';
 
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   require('dotenv').config();
+  require('dotenv').config({ path: path.resolve(process.cwd(), '../../.env') });
+  require('dotenv').config({ path: path.resolve(process.cwd(), '.env') });
 } catch {
   // dotenv not installed; read from process.env directly
 }
@@ -17,9 +20,11 @@ export interface SubmissionsDbConfig {
   idleTimeoutMillis?: number;
 }
 
+const isLocalDev = process.env.LOCAL_DEV === 'true' || process.env.LOCAL_DEV === undefined;
+
 export const dbConfig: SubmissionsDbConfig = {
-  host: process.env.DB_HOST || process.env.POSTGRES_HOST || 'scms_postgres_submissions',
-  port: parseInt(process.env.DB_PORT || process.env.SUBMISSIONS_DB_PORT || '5432', 10),
+  host: process.env.DB_HOST || (isLocalDev ? '127.0.0.1' : 'scms_postgres_submissions'),
+  port: parseInt(process.env.DB_PORT || (isLocalDev ? '5437' : '5432'), 10),
   user: process.env.DB_USER || process.env.POSTGRES_USER || 'scms_admin',
   password: process.env.DB_PASSWORD || process.env.POSTGRES_PASSWORD || 'scms_secure_pass_2026',
   database: process.env.DB_NAME || process.env.SUBMISSIONS_DB_NAME || 'sms_submissions',
@@ -184,27 +189,51 @@ class EmbeddedSubmissionsPostgresEngine {
           updated_at,
         ] = params;
       } else {
-        [
-          id,
-          fms_message_id,
-          assignment_id,
-          assignment_version,
-          requirement_id,
-          academic_term_id,
-          course_id,
-          block_section_id,
-          faculty_id,
-          substitute_id,
-          course_code,
-          section_label,
-          status,
-          schedule,
-          file_id,
-          file_name,
-          submitted_at,
-          created_at,
-          updated_at,
-        ] = params;
+        if (params.length === 18) {
+          [
+            id,
+            fms_message_id,
+            assignment_id,
+            assignment_version,
+            requirement_id,
+            academic_term_id,
+            course_id,
+            block_section_id,
+            faculty_id,
+            course_code,
+            section_label,
+            status,
+            schedule,
+            file_id,
+            file_name,
+            submitted_at,
+            created_at,
+            updated_at,
+          ] = params;
+          substitute_id = null;
+        } else {
+          [
+            id,
+            fms_message_id,
+            assignment_id,
+            assignment_version,
+            requirement_id,
+            academic_term_id,
+            course_id,
+            block_section_id,
+            faculty_id,
+            substitute_id,
+            course_code,
+            section_label,
+            status,
+            schedule,
+            file_id,
+            file_name,
+            submitted_at,
+            created_at,
+            updated_at,
+          ] = params;
+        }
       }
 
       if (!VALID_STATUSES.has(status)) {

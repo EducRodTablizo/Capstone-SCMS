@@ -1,9 +1,14 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import http from 'http';
+import path from 'path';
 import dotenv from 'dotenv';
 
 dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), '../../.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const app = express();
 const PORT = process.env.GATEWAY_PORT || 3000;
@@ -37,7 +42,10 @@ const SERVICES: Record<string, { port: number; name: string }> = {
 
 // Generic reverse proxy handler using native Node.js HTTP
 function proxyToService(targetPort: number, serviceName: string) {
-  const targetHost = process.env.LOCAL_DEV === 'true' ? 'localhost' : serviceName;
+  // If running inside containerized Docker network, LOCAL_DEV is explicitly 'false'
+  // When running on local host, proxy to 127.0.0.1
+  const isDockerContainer = process.env.LOCAL_DEV === 'false';
+  const targetHost = isDockerContainer ? serviceName : '127.0.0.1';
   return (req: Request, res: Response) => {
     console.log(`[API Gateway] Proxy: ${req.method} ${req.originalUrl} -> http://${targetHost}:${targetPort}${req.originalUrl} | Auth: ${req.headers.authorization ? 'Bearer present' : 'None'}`);
     const options: http.RequestOptions = {
